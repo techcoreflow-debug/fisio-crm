@@ -41,6 +41,23 @@ fisioterapeutas → procedimentos → produção diária → evolução clínica
 relatórios, BI (com cruzamento interativo de dimensão x métrica), usuários/permissões,
 integrações e configurações.
 
+## Deploy (Cloudflare Pages)
+
+1. **Build command**: `npm run build` · **Output directory**: `dist`
+2. **Settings → Environment variables** (Production *e* Preview): adicione
+   `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`. São variáveis do Vite —
+   ficam embutidas no build; adicionar depois de já ter feito o deploy não
+   tem efeito até rodar um novo build.
+3. Depois de configurar as variáveis, **refaça o deploy** (um redeploy
+   simples, sem precisar de novo commit).
+4. `public/_redirects` já está no projeto (`/* /index.html 200`) — necessário
+   para o roteamento client-side (React Router) funcionar em qualquer rota,
+   não só na home.
+
+Se a tela aparecer em branco, é quase sempre variável de ambiente ausente no
+build: o app agora mostra uma tela de erro explicando isso em vez de travar
+sem avisar (`src/lib/supabase.ts` + o guard em `src/App.tsx`).
+
 ## Banco de dados
 
 1. Crie um projeto novo no Supabase (conta própria do Fisio).

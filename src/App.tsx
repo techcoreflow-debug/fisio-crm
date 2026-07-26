@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Suspense, lazy, type ComponentType } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { allModules } from "@/app/modules-registry";
 import { AuthProvider, useAuth } from "@/auth/auth-provider";
 import Login from "@/modules/auth/login";
 import { Button } from "@/components/ui/button";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 // Cada módulo vira um chunk próprio, carregado sob demanda ao navegar até
 // ele — evita que o usuário baixe os 25 módulos do Fisio de uma vez só.
@@ -107,7 +108,23 @@ function AuthGate() {
   );
 }
 
+function TelaConfiguracaoAusente() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-surface px-4 text-center">
+      <AlertTriangle className="h-8 w-8 text-critical-400" />
+      <p className="font-display font-semibold text-ink">Supabase não configurado neste build</p>
+      <p className="max-w-md text-sm text-ink-soft">
+        Faltam <code className="rounded bg-surface-sunken px-1 py-0.5">VITE_SUPABASE_URL</code> e/ou{" "}
+        <code className="rounded bg-surface-sunken px-1 py-0.5">VITE_SUPABASE_ANON_KEY</code>. Configure essas
+        variáveis no provedor de deploy e refaça o build — variáveis do Vite são embutidas em tempo de build.
+      </p>
+    </div>
+  );
+}
+
 export default function App() {
+  if (!isSupabaseConfigured) return <TelaConfiguracaoAusente />;
+
   return (
     <AuthProvider>
       <AuthGate />
