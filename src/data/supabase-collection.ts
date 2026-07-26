@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { notificarErro } from "@/store/toast-store";
 import type { Database } from "@/types/database";
 
 type TableName = keyof Database["public"]["Tables"];
+
+let proximoIdDeCanal = 0;
 
 /**
  * Hook genérico: busca uma tabela filtrada e mantém em sincronia via
@@ -15,11 +17,22 @@ type TableName = keyof Database["public"]["Tables"];
  * delete de qualquer linha) em vez de tentar mesclar o payload manualmente.
  * Simples e correto; o volume de dados de uma empresa não justifica a
  * complexidade de um merge incremental ainda.
+ *
+ * Importante: o nome do canal precisa ser único por INSTÂNCIA do hook, não
+ * só por tabela+filtro. Várias telas chamam `useCompanies()` ao mesmo tempo
+ * (Sidebar, Topbar, Empresas...) — se todas usassem o mesmo nome de canal,
+ * o cliente do Supabase reaproveita o canal já inscrito e a segunda
+ * chamada de `.on(...)` depois do `.subscribe()` derruba a aplicação
+ * inteira (erro não capturado, tela em branco).
  */
 export function useSupabaseCollection<T>(table: TableName, filtros: Record<string, string | null | undefined>): T[] {
   const [linhas, setLinhas] = useState<T[]>([]);
   const chaveFiltro = JSON.stringify(filtros);
   const filtroIncompleto = Object.values(filtros).some((v) => v === undefined || v === "");
+  const idDoCanalRef = useRef<number | null>(null);
+  if (idDoCanalRef.current === null) {
+    idDoCanalRef.current = proximoIdDeCanal++;
+  }
 
   useEffect(() => {
     if (filtroIncompleto) {
@@ -50,7 +63,7 @@ export function useSupabaseCollection<T>(table: TableName, filtros: Record<strin
     carregar();
 
     const canal = supabase
-      .channel(`${table}:${chaveFiltro}`)
+      .channel(`${table}:${chaveFiltro}:${idDoCanalRef.current}`)
       .on("postgres_changes", { event: "*", schema: "public", table }, () => carregar())
       .subscribe();
 
