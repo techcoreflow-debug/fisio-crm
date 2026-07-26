@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@theme {
+  /* ---- Fisio Design Tokens ---- */
+  /* Tinta: verde-carvão profundo, mais quente que preto puro */
+  --color-ink: #16241f;
+  --color-ink-soft: #3d4d46;
+
+  /* Superfícies: branco clínico com sub-tom sálvia, nunca creme */
+  --color-surface: #f5f7f4;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #eceef0;
+
+  /* Primária: teal clínico — confiança, precisão */
+  --color-clinical-50: #eaf3f2;
+  --color-clinical-100: #cfe4e1;
+  --color-clinical-300: #6fa39c;
+  --color-clinical-500: #0e6b64;
+  --color-clinical-600: #0a5450;
+  --color-clinical-700: #073e3b;
+
+  /* Secundária: verde de recuperação — evolução positiva */
+  --color-recovery-100: #e1ecdd;
+  --color-recovery-400: #7fae78;
+  --color-recovery-500: #5f8f59;
+  --color-recovery-600: #4a7245;
+
+  /* Atenção: âmbar — pendências, revisar */
+  --color-attention-100: #f7e6cd;
+  --color-attention-400: #d98d3d;
+  --color-attention-600: #a86825;
+
+  /* Crítico: vermelho reservado só para alertas reais */
+  --color-critical-100: #f5dbd8;
+  --color-critical-400: #bd4238;
+  --color-critical-600: #8f2e26;
+
+  /* Linhas e bordas */
+  --color-line: #dfe4de;
+  --color-line-strong: #c4cbc3;
+
+  --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-clinical-500);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background-color: var(--color-clinical-100);
+    color: var(--color-clinical-700);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Modo escuro: paleta invertida mantendo a identidade clínica */
+.dark {
+  --color-ink: #eef2ef;
+  --color-ink-soft: #b7c2bc;
+  --color-surface: #10201b;
+  --color-surface-raised: #16241f;
+  --color-surface-sunken: #0b1512;
+  --color-line: #24352d;
+  --color-line-strong: #34493e;
+  --color-clinical-50: #12302d;
+  --color-clinical-100: #143a36;
+}
