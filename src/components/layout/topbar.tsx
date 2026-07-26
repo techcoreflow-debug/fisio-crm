@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/store/app-store";
 import { useCompanies } from "@/data/repository";
 import { useAuth } from "@/auth/auth-provider";
+import { notificarErro } from "@/store/toast-store";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -85,7 +86,12 @@ export function Topbar() {
 
       <div className="relative ml-2 hidden max-w-sm flex-1 md:block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-        <Input placeholder="Buscar paciente, internação, contrato…" className="pl-9" />
+        <Input
+          placeholder="Busca global — em breve"
+          className="pl-9"
+          disabled
+          title="Busca global ainda não foi implementada"
+        />
       </div>
 
       <div className="ml-auto flex items-center gap-1.5">
@@ -96,7 +102,13 @@ export function Topbar() {
         >
           {theme === "light" ? <Moon className="h-4.5 w-4.5" /> : <Sun className="h-4.5 w-4.5" />}
         </button>
-        <button className="rounded-md p-2 text-ink-soft hover:bg-surface-sunken" aria-label="Notificações">
+        <button
+          className="rounded-md p-2 text-ink-soft hover:bg-surface-sunken"
+          aria-label="Notificações"
+          onClick={() =>
+            notificarErro("Central de notificações ainda não implementada", "Os alertas de cada módulo (ex.: Dashboard Executivo) já são reais — isso aqui é só o sino, sem lista própria ainda.")
+          }
+        >
           <Bell className="h-4.5 w-4.5" />
         </button>
         <DropdownMenu>

@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { useTasyImports, useCompanies, repository } from "@/data/repository";
+import { useTasyImports, repository } from "@/data/repository";
+import { useAppStore } from "@/store/app-store";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 
 const previaLinhas = [
@@ -23,7 +24,7 @@ const situacaoConfig = {
 
 export default function ImportacaoTasy() {
   const historico = useTasyImports();
-  const empresas = useCompanies();
+  const empresaId = useAppStore((s) => s.activeCompanyId);
   const [arquivoCarregado, setArquivoCarregado] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
 
@@ -34,7 +35,7 @@ export default function ImportacaoTasy() {
         file_name: "tasy_producao_2026-07-24.csv",
         total_rows: 493,
         inconsistencies: 1,
-        company_id: empresas[0]?.id ?? "c1",
+        company_id: empresaId,
       });
       notificarSucesso("Importação concluída: 493 registros gravados.");
       setArquivoCarregado(false);

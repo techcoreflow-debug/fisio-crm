@@ -14,7 +14,7 @@ function SidebarContent() {
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-clinical-500 text-white">
             <Activity className="h-4.5 w-4.5" />
           </div>
-          <span className="font-display text-lg font-semibold tracking-tight text-ink">Fisio</span>
+          <span className="font-display text-lg font-semibold tracking-tight text-ink">inovare.fisio</span>
         </div>
         <button
           className="rounded-md p-1.5 text-ink-soft hover:bg-surface-sunken lg:hidden"

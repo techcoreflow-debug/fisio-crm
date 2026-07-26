@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/auth/auth-provider";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
+import { APP_NAME, APP_VERSION } from "@/lib/version";
 
 export default function Login() {
   const { signInWithPassword, signUp } = useAuth();
@@ -48,7 +49,7 @@ export default function Login() {
           <div className="flex h-11 w-11 items-center justify-center rounded-md bg-clinical-500 text-white">
             <Activity className="h-6 w-6" />
           </div>
-          <span className="font-display text-xl font-semibold tracking-tight text-ink">Fisio</span>
+          <span className="font-display text-xl font-semibold tracking-tight text-ink">{APP_NAME}</span>
           <p className="text-sm text-ink-soft">Gestão de fisioterapia hospitalar</p>
         </div>
 
@@ -107,6 +108,10 @@ export default function Login() {
             )}
           </CardContent>
         </Card>
+
+        <p className="mt-6 text-center text-xs text-ink-soft">
+          Um produto <span className="font-medium text-ink-soft">InovareTech</span> · v{APP_VERSION}
+        </p>
       </div>
     </div>
   );

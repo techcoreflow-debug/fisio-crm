@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { notificarErro } from "@/store/toast-store";
 import type { Profile } from "@/types/domain";
 
 interface AuthState {
@@ -26,12 +27,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function loadProfile(userId: string) {
     setProfileLoading(true);
     const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
-    if (!error && data) {
+    if (error) {
+      // Nunca falha em silêncio: se travar aqui de novo, o toast vai dizer
+      // exatamente por quê (RLS, permissão, rede) em vez de só ficar preso
+      // na tela de "preparando acesso".
+      notificarErro("Não foi possível carregar seu perfil", error.message);
+      setProfile(null);
+    } else if (data) {
       setProfile(data as Profile);
     } else {
-      // Sessão existe mas o gatilho de criação de perfil ainda não rodou
-      // (raríssima corrida logo após o cadastro) — tentaremos de novo ao
-      // chamar refreshProfile.
+      // Sessão existe mas não há linha em profiles para este usuário —
+      // normalmente o gatilho de cadastro cuida disso; se aparecer, é
+      // sinal de que o perfil precisa ser criado manualmente.
       setProfile(null);
     }
     setProfileLoading(false);

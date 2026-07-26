@@ -1,10 +1,11 @@
 # Mapeamento de dados — do mock ao Supabase real
 
-Este documento existe para não perder o fio quando o Supabase do Fisio for criado.
-Enquanto isso não acontece, todo o front-end roda sobre dados em memória
-(`src/data/mock-store.ts`), acessados sempre através de `src/data/repository.ts`
-— nunca direto pelos componentes. Essa é a regra que garante a troca sem quebra:
-**nenhuma tela importa `mock-store.ts` diretamente.**
+Este documento existe para não perder o fio de como os dados fluem no Fisio.
+**Desde a migration 0010, o `repository.ts` já consulta o Supabase real** —
+não é mais mock em memória. `src/data/supabase-collection.ts` é a camada
+genérica (busca + Realtime + CRUD) que todo hook e toda função de
+`repository.*` usa por baixo. Nenhuma tela precisou mudar nessa troca:
+todas continuam chamando só `use*()` e `repository.*`.
 
 ## Tabela ↔ módulo/tela ↔ camada de acesso
 

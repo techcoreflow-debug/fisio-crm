@@ -12,15 +12,23 @@ export interface Profile {
   id: string;
   company_id: string | null;
   full_name: string;
+  email: string | null;
   role: UserRole;
   is_platform_admin: boolean;
   created_at: string;
+}
+
+export interface NotificationPreferences {
+  sem_evolucao_48h: boolean;
+  tasy_inconsistencias: boolean;
+  contratos_vencendo: boolean;
 }
 
 export interface Company {
   id: string;
   name: string;
   cnpj: string | null;
+  notification_preferences: NotificationPreferences;
   created_at: string;
 }
 

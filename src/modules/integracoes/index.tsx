@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { notificarErro } from "@/store/toast-store";
 
 interface Integracao {
   nome: string;
@@ -19,6 +20,10 @@ const integracoes: Integracao[] = [
 ];
 
 export default function Integracoes() {
+  function handleConectar(nome: string) {
+    notificarErro(`${nome} ainda não está disponível`, "Essa integração ainda não foi implementada — sem previsão de dados reais por trás dela ainda.");
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -42,7 +47,7 @@ export default function Integracoes() {
                 </div>
                 <p className="mt-1 text-sm text-ink-soft">{i.descricao}</p>
                 {i.status === "disponivel" && (
-                  <Button variant="secondary" size="sm" className="mt-3">
+                  <Button variant="secondary" size="sm" className="mt-3" onClick={() => handleConectar(i.nome)}>
                     Conectar
                   </Button>
                 )}

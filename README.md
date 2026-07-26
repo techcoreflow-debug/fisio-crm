@@ -1,6 +1,6 @@
-# Fisio
+# inovare.fisio
 
-SaaS multiempresa para gestão operacional, assistencial, administrativa e financeira de empresas de fisioterapia hospitalar.
+Produto InovareTech. SaaS multiempresa para gestão operacional, assistencial, administrativa e financeira de empresas de fisioterapia hospitalar.
 
 ## Stack
 

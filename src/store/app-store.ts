@@ -10,7 +10,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  activeCompanyId: "c1",
+  activeCompanyId: "",
   setActiveCompanyId: (id) => set({ activeCompanyId: id }),
   sidebarOpen: false,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
