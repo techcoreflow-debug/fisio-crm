@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Search, Plus, ClipboardList } from "lucide-react";
+import { Search, Plus, ClipboardList, TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,9 +22,12 @@ import {
   usePatients,
   usePhysiotherapists,
   useProcedures,
+  useCompanies,
   repository,
 } from "@/data/repository";
+import { useAppStore } from "@/store/app-store";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
+import type { DailyProduction } from "@/types/domain";
 
 export default function ProducaoDiaria() {
   const producao = useDailyProduction();
@@ -39,6 +42,41 @@ export default function ProducaoDiaria() {
   const [internacaoId, setInternacaoId] = useState(internacoes[0]?.id ?? "");
   const [fisioId, setFisioId] = useState(fisioterapeutas[0]?.id ?? "");
   const [procedimentoId, setProcedimentoId] = useState(procedimentos[0]?.id ?? "");
+
+  const companies = useCompanies();
+  const activeCompanyId = useAppStore((s) => s.activeCompanyId);
+  const empresa = companies.find((c) => c.id === activeCompanyId);
+  const glosaPorProcedimento = empresa?.glosa_por_procedimento ?? false;
+
+  const [itemGlosa, setItemGlosa] = useState<DailyProduction | null>(null);
+  const [salvandoGlosa, setSalvandoGlosa] = useState(false);
+
+  async function handleSubmitGlosa(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!itemGlosa) return;
+    const form = new FormData(e.currentTarget);
+    const valor = Number(form.get("valor_glosado") ?? 0);
+    const motivo = String(form.get("motivo_glosa") ?? "");
+    setSalvandoGlosa(true);
+    try {
+      await repository.dailyProduction.registrarGlosa(itemGlosa.id, valor, motivo);
+      notificarSucesso("Glosa registrada.");
+      setItemGlosa(null);
+    } catch (erro) {
+      notificarErro("Não foi possível registrar a glosa", erro);
+    } finally {
+      setSalvandoGlosa(false);
+    }
+  }
+
+  async function handleRemoverGlosa(id: string) {
+    try {
+      await repository.dailyProduction.removerGlosa(id);
+      notificarSucesso("Glosa removida.");
+    } catch (erro) {
+      notificarErro("Não foi possível remover a glosa", erro);
+    }
+  }
 
   function nomePaciente(admissionId: string | null) {
     const internacao = internacoes.find((i) => i.id === admissionId);
@@ -174,6 +212,7 @@ export default function ProducaoDiaria() {
                   <th className="px-4 py-3 font-medium">Procedimento</th>
                   <th className="px-4 py-3 font-medium">Fisioterapeuta</th>
                   <th className="px-4 py-3 font-medium">Origem</th>
+                  {glosaPorProcedimento && <th className="px-4 py-3 font-medium">Glosa</th>}
                 </tr>
               </thead>
               <tbody>
@@ -188,6 +227,24 @@ export default function ProducaoDiaria() {
                         {p.source === "tasy" ? "Tasy" : "Manual"}
                       </Badge>
                     </td>
+                    {glosaPorProcedimento && (
+                      <td className="px-4 py-3">
+                        {p.glosado ? (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="critical">
+                              <TriangleAlert className="h-3 w-3" /> R$ {(p.valor_glosado ?? 0).toLocaleString("pt-BR")}
+                            </Badge>
+                            <Button variant="ghost" size="sm" onClick={() => handleRemoverGlosa(p.id)}>
+                              Remover
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button variant="ghost" size="sm" onClick={() => setItemGlosa(p)}>
+                            Registrar glosa
+                          </Button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -195,6 +252,39 @@ export default function ProducaoDiaria() {
           </div>
         )}
       </Card>
+
+      <Sheet open={itemGlosa !== null} onOpenChange={(open) => !open && setItemGlosa(null)}>
+        <SheetContent>
+          <form className="flex h-full flex-col" onSubmit={handleSubmitGlosa}>
+            <SheetHeader>
+              <SheetTitle>Registrar glosa</SheetTitle>
+              <SheetDescription>
+                {itemGlosa && `${nomePaciente(itemGlosa.admission_id)} · ${procedimentos.find((pr) => pr.id === itemGlosa.procedure_id)?.name ?? "—"}`}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="flex flex-1 flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="valor_glosado">Valor glosado (R$)</Label>
+                <Input id="valor_glosado" name="valor_glosado" type="number" step="0.01" min="0.01" required placeholder="Ex.: 42.50" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="motivo_glosa">Motivo</Label>
+                <textarea
+                  id="motivo_glosa"
+                  name="motivo_glosa"
+                  rows={3}
+                  className="rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm text-ink shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/40"
+                  placeholder="Ex.: Divergência de código, falta de autorização…"
+                />
+              </div>
+            </div>
+            <SheetFooter>
+              <Button type="button" variant="secondary" onClick={() => setItemGlosa(null)}>Cancelar</Button>
+              <Button type="submit" disabled={salvandoGlosa}>{salvandoGlosa ? "Salvando…" : "Registrar"}</Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

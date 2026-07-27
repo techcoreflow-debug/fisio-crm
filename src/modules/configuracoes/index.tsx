@@ -56,6 +56,19 @@ export default function Configuracoes() {
     }
   }
 
+  async function handleToggleGlosaDetalhada(valor: boolean) {
+    if (!empresa) return;
+    setSalvandoPreferencia("glosa_por_procedimento");
+    try {
+      await repository.companies.update(empresa.id, { glosa_por_procedimento: valor });
+      notificarSucesso(valor ? "Glosa por procedimento ativada." : "Glosa por competência ativada.");
+    } catch (erro) {
+      notificarErro("Não foi possível salvar", erro);
+    } finally {
+      setSalvandoPreferencia(null);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Configurações" description="Configurações gerais da empresa ativa, marca e preferências." />
@@ -102,6 +115,31 @@ export default function Configuracoes() {
               {n.texto}
             </label>
           ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Glosa</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <label className="flex items-start gap-2.5 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={empresa?.glosa_por_procedimento ?? false}
+              disabled={!empresa || salvandoPreferencia === "glosa_por_procedimento"}
+              onChange={(e) => handleToggleGlosaDetalhada(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-line-strong accent-clinical-500 disabled:opacity-50"
+            />
+            <span>
+              Registrar glosa por procedimento
+              <span className="mt-0.5 block text-xs text-ink-soft">
+                Ligado: você marca a glosa em cada procedimento na Produção Diária, e a competência soma
+                automaticamente no Financeiro. Desligado: você digita o valor glosado direto na conta a
+                receber, sem detalhar procedimento a procedimento.
+              </span>
+            </span>
+          </label>
         </CardContent>
       </Card>
 

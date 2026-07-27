@@ -167,7 +167,7 @@ export const repository = {
       await registrarAuditoria({ company_id: row.id, action: "criado", entity_type: "Empresa", entity_label: row.name });
       return row;
     },
-    update: async (id: string, patch: Partial<Pick<Company, "name" | "cnpj" | "notification_preferences">>): Promise<void> => {
+    update: async (id: string, patch: Partial<Pick<Company, "name" | "cnpj" | "notification_preferences" | "glosa_por_procedimento">>): Promise<void> => {
       await atualizarLinha("companies", id, patch);
       await registrarAuditoria({ company_id: id, action: "editado", entity_type: "Empresa", entity_label: patch.name ?? id });
     },
@@ -422,6 +422,18 @@ export const repository = {
     create: async (
       data: Pick<DailyProduction, "admission_id" | "physiotherapist_id" | "procedure_id" | "production_date" | "source" | "company_id">
     ): Promise<DailyProduction> => inserirLinha<DailyProduction>("daily_production", data),
+    registrarGlosa: async (id: string, valor: number, motivo: string): Promise<void> => {
+      if (valor <= 0) throw new Error("O valor glosado precisa ser maior que zero.");
+      await atualizarLinha("daily_production", id, {
+        glosado: true,
+        valor_glosado: valor,
+        motivo_glosa: motivo || null,
+        data_glosa: new Date().toISOString().slice(0, 10),
+      });
+    },
+    removerGlosa: async (id: string): Promise<void> => {
+      await atualizarLinha("daily_production", id, { glosado: false, valor_glosado: null, motivo_glosa: null, data_glosa: null });
+    },
   },
 
   clinicalEvolutions: {
@@ -620,6 +632,10 @@ export const repository = {
       if (!recebivel) throw new Error("Lançamento não encontrado.");
       if (recebivel.status === "pago") throw new Error("Este lançamento já está marcado como pago.");
       await atualizarLinha("receivables", id, { status: "pago", paid_at: new Date().toISOString() });
+    },
+    registrarGlosaManual: async (id: string, valor: number, motivo: string): Promise<void> => {
+      if (valor < 0) throw new Error("O valor glosado não pode ser negativo.");
+      await atualizarLinha("receivables", id, { valor_glosado: valor, motivo_glosa: motivo || null });
     },
     remove: async (id: string): Promise<void> => excluirLinha("receivables", id),
   },

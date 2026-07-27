@@ -3,7 +3,16 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAx
 import { PageHeader } from "@/components/shared/page-header";
 import { GoniometerGauge } from "@/components/shared/goniometer-gauge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useContracts, useReceivables, useHospitals, useHealthInsurances } from "@/data/repository";
+import {
+  useContracts,
+  useReceivables,
+  useHospitals,
+  useHealthInsurances,
+  useAdmissions,
+  useDailyProduction,
+  useCompanies,
+} from "@/data/repository";
+import { useAppStore } from "@/store/app-store";
 
 const cores = ["#0e6b64", "#5f8f59", "#d98d3d", "#6fa39c", "#a8c4bd"];
 
@@ -18,9 +27,14 @@ export default function DashboardFinanceiro() {
   const recebiveis = useReceivables();
   const hospitais = useHospitals();
   const convenios = useHealthInsurances();
+  const internacoes = useAdmissions();
+  const producao = useDailyProduction();
+  const companies = useCompanies();
+  const activeCompanyId = useAppStore((s) => s.activeCompanyId);
+  const empresa = companies.find((c) => c.id === activeCompanyId);
+  const glosaPorProcedimento = empresa?.glosa_por_procedimento ?? false;
 
   const contratosAtivos = contratos.filter((c) => c.status === "ativo" && c.monthly_value);
-  const totalContratado = contratosAtivos.reduce((acc, c) => acc + (c.monthly_value ?? 0), 0);
 
   const participacaoPorContrato = useMemo(() => {
     return contratosAtivos.map((c) => {
@@ -61,6 +75,36 @@ export default function DashboardFinanceiro() {
     ? Math.round(((contratosAtivos.length - contratosComAtraso.size) / contratosAtivos.length) * 100)
     : 100;
 
+  const glosaAutomaticaPorConvenioEMes = useMemo(() => {
+    const mapa = new Map<string, number>();
+    if (!glosaPorProcedimento) return mapa;
+    for (const p of producao) {
+      if (!p.glosado || !p.valor_glosado) continue;
+      const internacao = internacoes.find((i) => i.id === p.admission_id);
+      if (!internacao?.health_insurance_id) continue;
+      const chave = `${internacao.health_insurance_id}:${p.production_date.slice(0, 7)}-01`;
+      mapa.set(chave, (mapa.get(chave) ?? 0) + p.valor_glosado);
+    }
+    return mapa;
+  }, [glosaPorProcedimento, producao, internacoes]);
+
+  const taxaGlosa = useMemo(() => {
+    let bruto = 0;
+    let glosado = 0;
+    for (const r of recebiveis) {
+      bruto += r.amount;
+      if (glosaPorProcedimento) {
+        const contrato = contratos.find((c) => c.id === r.contract_id);
+        if (contrato?.health_insurance_id) {
+          glosado += glosaAutomaticaPorConvenioEMes.get(`${contrato.health_insurance_id}:${r.competencia}`) ?? 0;
+        }
+      } else {
+        glosado += r.valor_glosado;
+      }
+    }
+    return bruto > 0 ? Math.round((glosado / bruto) * 1000) / 10 : 0;
+  }, [recebiveis, contratos, glosaPorProcedimento, glosaAutomaticaPorConvenioEMes]);
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -86,7 +130,7 @@ export default function DashboardFinanceiro() {
         </Card>
         <Card>
           <CardContent className="flex justify-center pt-6">
-            <GoniometerGauge value={100} label="Faturamento contratado" displayValue={`R$ ${(totalContratado / 1000).toFixed(0)}k`} tone="clinical" />
+            <GoniometerGauge value={Math.min(taxaGlosa, 100)} label="Taxa de glosa" sublabel="Quanto menor, melhor" tone="attention" />
           </CardContent>
         </Card>
       </div>

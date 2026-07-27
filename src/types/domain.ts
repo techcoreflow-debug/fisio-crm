@@ -29,6 +29,7 @@ export interface Company {
   name: string;
   cnpj: string | null;
   notification_preferences: NotificationPreferences;
+  glosa_por_procedimento: boolean;
   created_at: string;
 }
 
@@ -171,6 +172,10 @@ export interface DailyProduction {
   production_date: string;
   source: "manual" | "tasy";
   tasy_reference: string | null;
+  glosado: boolean;
+  valor_glosado: number | null;
+  motivo_glosa: string | null;
+  data_glosa: string | null;
   created_at: string;
 }
 
@@ -206,6 +211,8 @@ export interface Receivable {
   due_date: string;
   status: ReceivableStatus;
   paid_at: string | null;
+  valor_glosado: number;
+  motivo_glosa: string | null;
   created_at: string;
 }
 
