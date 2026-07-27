@@ -119,3 +119,52 @@ export async function registrarAuditoria(data: {
     console.error("[Fisio] Falha ao registrar auditoria:", error.message);
   }
 }
+
+export function emLotes<T>(itens: T[], tamanho: number): T[][] {
+  const lotes: T[][] = [];
+  for (let i = 0; i < itens.length; i += tamanho) lotes.push(itens.slice(i, i + tamanho));
+  return lotes;
+}
+
+/**
+ * "Busca ou cria" em lote — usado pela importação Tasy pra resolver
+ * hospitais/convênios/fisioterapeutas/pacientes/procedimentos a partir só
+ * do nome (ou código), sem duplicar e sem uma consulta por linha.
+ *
+ * 1. Busca quem já existe (por company_id + campoChave, em lotes de 200
+ *    valores por `.in()` pra não estourar o limite de tamanho da URL).
+ * 2. Cria em lote só quem falta.
+ * 3. Devolve um mapa valor → id.
+ */
+export async function buscarOuCriarEmLote(
+  table: TableName,
+  campoChave: string,
+  valores: string[],
+  dadosExtras: (valor: string) => Record<string, unknown>
+): Promise<Map<string, string>> {
+  const distintos = [...new Set(valores)].filter((v) => v && v.trim().length > 0);
+  const mapa = new Map<string, string>();
+  if (distintos.length === 0) return mapa;
+
+  for (const lote of emLotes(distintos, 200)) {
+    const { data, error } = await supabase.from(table).select(`id, ${campoChave}`).in(campoChave, lote);
+    if (error) throw new Error(`Falha ao buscar ${table}: ${error.message}`);
+    for (const linha of (data ?? []) as unknown as Record<string, unknown>[]) {
+      mapa.set(String(linha[campoChave]), String(linha.id));
+    }
+  }
+
+  const faltantes = distintos.filter((v) => !mapa.has(v));
+  if (faltantes.length > 0) {
+    for (const lote of emLotes(faltantes, 200)) {
+      const paraCriar = lote.map((valor) => ({ [campoChave]: valor, ...dadosExtras(valor) }));
+      const { data, error } = await supabase.from(table).insert(paraCriar).select(`id, ${campoChave}`);
+      if (error) throw new Error(`Falha ao criar registros em ${table}: ${error.message}`);
+      for (const linha of (data ?? []) as unknown as Record<string, unknown>[]) {
+        mapa.set(String(linha[campoChave]), String(linha.id));
+      }
+    }
+  }
+
+  return mapa;
+}

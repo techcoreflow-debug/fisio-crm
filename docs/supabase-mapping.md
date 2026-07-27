@@ -49,6 +49,23 @@ já seguem o padrão `use*()` / `repository.*`.
 5. Nenhuma tela (`src/modules/**`) precisa ser alterada nesse processo — elas
    só conhecem os hooks e o `repository`, nunca a fonte de dados.
 
+## Importação Tasy — parser real
+
+`src/lib/tasy-parser.ts` lê o relatório "Produtividade Médica" do Tasy — que
+tem extensão `.xls` mas na prática é texto separado por TAB, confirmado num
+arquivo real do cliente. Resolve hospital/convênio/fisioterapeuta/paciente/
+procedimento por nome/código (busca ou cria, migration `0013`), agrupa por
+`Nr. Atend.` (uma internação) e grava a produção com `tasy_reference` único
+por empresa — reimportar o mesmo período não duplica nada, o Postgres
+ignora quem já existe via `on conflict`.
+
+**Limitação conhecida e deliberada:** "Desfazer importação" hoje só marca o
+registro como desfeito — não reverte os `daily_production`/`admissions`
+criados. Reverter de verdade exigiria saber se cada registro criado foi
+tocado por outra coisa depois (ex.: uma evolução clínica lançada manualmente
+numa internação que a importação criou) antes de decidir apagar — essa
+lógica ainda não foi construída.
+
 ## Endereço automático por CEP
 
 `hospitals` e `clinics` têm endereço estruturado (`cep`, `street`, `neighborhood`,

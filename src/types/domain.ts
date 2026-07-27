@@ -149,6 +149,7 @@ export interface Admission {
   admission_date: string;
   discharge_date: string | null;
   status: string;
+  external_reference: string | null;
   created_at: string;
 }
 
@@ -169,6 +170,7 @@ export interface DailyProduction {
   procedure_id: string | null;
   production_date: string;
   source: "manual" | "tasy";
+  tasy_reference: string | null;
   created_at: string;
 }
 

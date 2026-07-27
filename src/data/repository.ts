@@ -6,7 +6,11 @@ import {
   excluirLinha,
   contarDependentes,
   registrarAuditoria,
+  buscarOuCriarEmLote,
+  emLotes,
 } from "@/data/supabase-collection";
+import { parseTasyReport, resumirImportacao, type TasyParsedRow } from "@/lib/tasy-parser";
+import { supabase } from "@/lib/supabase";
 import type {
   Company,
   Profile,
@@ -457,13 +461,141 @@ export const repository = {
       return row;
     },
     undo: async (id: string): Promise<void> => {
-      const { supabase } = await import("@/lib/supabase");
       const { data: importacao, error } = await supabase.from("tasy_imports").select("*").eq("id", id).maybeSingle();
       if (error) throw new Error(error.message);
       if (!importacao) throw new Error("Importação não encontrada.");
       if (importacao.status === "desfeita") throw new Error("Esta importação já foi desfeita.");
       await atualizarLinha("tasy_imports", id, { status: "desfeita", undone_at: new Date().toISOString() });
       await registrarAuditoria({ company_id: importacao.company_id, action: "desfeito", entity_type: "Importação Tasy", entity_label: importacao.file_name });
+    },
+    /**
+     * Processa o texto de um relatório "Produtividade Médica" do Tasy:
+     * resolve (busca ou cria, sem duplicar) hospital, convênio,
+     * fisioterapeuta, paciente e procedimento a partir só do nome/código, ‎
+     * agrupa por internação ("Nr. Atend.") e grava a produção diária.
+     * Reimportar o mesmo arquivo/período não duplica nada — cada linha tem
+     * uma referência estável (`tasy_reference`) com constraint única no
+     * banco, então o próprio Postgres ignora quem já existe.
+     */
+    processarArquivo: async (
+      companyId: string,
+      fileName: string,
+      texto: string
+    ): Promise<{
+      totalLinhas: number;
+      totalInseridos: number;
+      totalDuplicados: number;
+      avisos: string[];
+      resumo: ReturnType<typeof resumirImportacao>;
+      tasyImport: TasyImport;
+    }> => {
+      const resultado = parseTasyReport(texto);
+      if (resultado.linhas.length === 0) {
+        throw new Error(
+          "Nenhuma linha de produção foi reconhecida neste arquivo. Confira se é uma exportação " +
+            "\"Produtividade Médica\" do Tasy no formato esperado."
+        );
+      }
+
+      const hospitalPorNome = await buscarOuCriarEmLote(
+        "hospitals",
+        "name",
+        resultado.linhas.map((l) => l.hospitalNome),
+        () => ({ company_id: companyId })
+      );
+      const convenioPorNome = await buscarOuCriarEmLote(
+        "health_insurances",
+        "name",
+        resultado.linhas.map((l) => l.convenioNome),
+        () => ({ company_id: companyId })
+      );
+      const fisioPorNome = await buscarOuCriarEmLote(
+        "physiotherapists",
+        "full_name",
+        resultado.linhas.map((l) => l.fisioterapeutaNome),
+        () => ({ company_id: companyId })
+      );
+      const pacientePorNome = await buscarOuCriarEmLote(
+        "patients",
+        "full_name",
+        resultado.linhas.map((l) => l.pacienteNome),
+        () => ({ company_id: companyId })
+      );
+
+      const nomePorCodigo = new Map<string, string>();
+      for (const l of resultado.linhas) {
+        if (!nomePorCodigo.has(l.procedimentoCodigo)) nomePorCodigo.set(l.procedimentoCodigo, l.procedimentoNome);
+      }
+      const procedimentoPorCodigo = await buscarOuCriarEmLote(
+        "procedures",
+        "code",
+        resultado.linhas.map((l) => l.procedimentoCodigo),
+        (codigo) => ({ company_id: companyId, name: nomePorCodigo.get(codigo) ?? codigo })
+      );
+
+      const gruposPorAtendimento = new Map<string, TasyParsedRow[]>();
+      for (const l of resultado.linhas) {
+        const grupo = gruposPorAtendimento.get(l.referenciaExterna) ?? [];
+        grupo.push(l);
+        gruposPorAtendimento.set(l.referenciaExterna, grupo);
+      }
+      const admissaoPorReferencia = await buscarOuCriarEmLote(
+        "admissions",
+        "external_reference",
+        [...gruposPorAtendimento.keys()],
+        (referencia) => {
+          const grupo = gruposPorAtendimento.get(referencia)!;
+          const primeira = grupo[0];
+          const dataMinima = grupo.reduce((min, l) => (l.dataProducao < min ? l.dataProducao : min), primeira.dataProducao);
+          const patientId = pacientePorNome.get(primeira.pacienteNome);
+          const hospitalId = hospitalPorNome.get(primeira.hospitalNome);
+          const healthInsuranceId = convenioPorNome.get(primeira.convenioNome);
+          if (!patientId || !hospitalId) {
+            throw new Error(`Não foi possível resolver paciente/hospital para o atendimento ${referencia}.`);
+          }
+          return {
+            company_id: companyId,
+            patient_id: patientId,
+            hospital_id: hospitalId,
+            health_insurance_id: healthInsuranceId ?? null,
+            admission_date: dataMinima,
+            status: "internado",
+          };
+        }
+      );
+
+      const linhasParaInserir = resultado.linhas.map((l) => ({
+        company_id: companyId,
+        admission_id: admissaoPorReferencia.get(l.referenciaExterna) ?? null,
+        physiotherapist_id: fisioPorNome.get(l.fisioterapeutaNome) ?? null,
+        procedure_id: procedimentoPorCodigo.get(l.procedimentoCodigo) ?? null,
+        production_date: l.dataProducao,
+        source: "tasy" as const,
+        tasy_reference: `${l.referenciaExterna}-${l.procedimentoCodigo}-${l.dataHoraISO}`,
+      }));
+
+      let totalInseridos = 0;
+      for (const lote of emLotes(linhasParaInserir, 500)) {
+        const { data, error } = await supabase
+          .from("daily_production")
+          .upsert(lote, { onConflict: "company_id,tasy_reference", ignoreDuplicates: true })
+          .select("id");
+        if (error) throw new Error(`Falha ao gravar produção diária: ${error.message}`);
+        totalInseridos += (data ?? []).length;
+      }
+      const totalDuplicados = linhasParaInserir.length - totalInseridos;
+
+      const resumo = resumirImportacao(resultado.linhas);
+      const tasyImport = await inserirLinha<TasyImport>("tasy_imports", {
+        company_id: companyId,
+        file_name: fileName,
+        total_rows: resultado.linhas.length,
+        inconsistencies: resultado.avisos.length,
+        status: "concluida",
+      });
+      await registrarAuditoria({ company_id: companyId, action: "importado", entity_type: "Importação Tasy", entity_label: fileName });
+
+      return { totalLinhas: resultado.linhas.length, totalInseridos, totalDuplicados, avisos: resultado.avisos, resumo, tasyImport };
     },
   },
 
