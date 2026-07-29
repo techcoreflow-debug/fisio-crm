@@ -17,7 +17,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DeleteButton } from "@/components/shared/delete-button";
-import { useContracts, useHospitals, useHealthInsurances, useCostCenters, repository } from "@/data/repository";
+import { useContracts, useHospitals, useHealthInsurances, useCostCenters, useUnits, useContractUnits, repository } from "@/data/repository";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import type { Contract } from "@/types/domain";
 
@@ -31,12 +31,16 @@ export default function Contratos() {
   const hospitais = useHospitals();
   const convenios = useHealthInsurances();
   const centrosDeCusto = useCostCenters();
+  const unidades = useUnits();
+  const contratoUnidades = useContractUnits();
   const [busca, setBusca] = useState("");
   const [open, setOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [hospitalId, setHospitalId] = useState(hospitais[0]?.id ?? "");
   const [convenioId, setConvenioId] = useState(convenios[0]?.id ?? "");
   const [centroCustoId, setCentroCustoId] = useState("");
+  const [aplicaTodasUnidades, setAplicaTodasUnidades] = useState(true);
+  const [unidadesSelecionadas, setUnidadesSelecionadas] = useState<string[]>([]);
   const [editando, setEditando] = useState<Contract | null>(null);
 
   const filtrados = useMemo(() => {
@@ -54,6 +58,8 @@ export default function Contratos() {
     setHospitalId(hospitais[0]?.id ?? "");
     setConvenioId(convenios[0]?.id ?? "");
     setCentroCustoId("");
+    setAplicaTodasUnidades(true);
+    setUnidadesSelecionadas([]);
     setOpen(true);
   }
 
@@ -62,6 +68,8 @@ export default function Contratos() {
     setHospitalId(contrato.hospital_id ?? "");
     setConvenioId(contrato.health_insurance_id ?? "");
     setCentroCustoId(contrato.cost_center_id ?? "");
+    setAplicaTodasUnidades(contrato.aplica_todas_unidades);
+    setUnidadesSelecionadas(contratoUnidades.filter((cu) => cu.contract_id === contrato.id).map((cu) => cu.unit_id));
     setOpen(true);
   }
 
@@ -77,16 +85,22 @@ export default function Contratos() {
       start_date: String(form.get("start_date") ?? ""),
       end_date: String(form.get("end_date") ?? "") || null,
       monthly_value: Number(form.get("monthly_value") ?? 0) || null,
+      aplica_todas_unidades: aplicaTodasUnidades,
       company_id: hospital.company_id,
     };
     setSalvando(true);
     try {
+      let contractId = editando?.id;
       if (editando) {
         await repository.contracts.update(editando.id, dados);
         notificarSucesso("Contrato atualizado(a).");
       } else {
-        await repository.contracts.create(dados);
+        const criado = await repository.contracts.create(dados);
+        contractId = criado.id;
         notificarSucesso("Contrato criado(a).");
+      }
+      if (contractId) {
+        await repository.contractUnits.definirUnidades(contractId, hospital.company_id, aplicaTodasUnidades ? [] : unidadesSelecionadas);
       }
       setOpen(false);
       setEditando(null);
@@ -161,6 +175,47 @@ export default function Contratos() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="flex flex-col gap-2 rounded-md border border-line p-3">
+                    <label className="flex items-start gap-2.5 text-sm text-ink">
+                      <input
+                        type="checkbox"
+                        checked={aplicaTodasUnidades}
+                        onChange={(e) => setAplicaTodasUnidades(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded border-line-strong accent-clinical-500"
+                      />
+                      <span>
+                        Aplica-se a todas as unidades deste hospital
+                        <span className="mt-0.5 block text-xs text-ink-soft">
+                          Desmarque se o contrato cobrir só alas específicas (ex.: só a UTI, não a Enfermaria).
+                        </span>
+                      </span>
+                    </label>
+                    {!aplicaTodasUnidades && (
+                      <div className="mt-1 flex flex-col gap-1.5 border-t border-line pt-2">
+                        {unidades.filter((u) => u.hospital_id === hospitalId).length === 0 ? (
+                          <p className="text-xs text-ink-soft">Nenhuma unidade cadastrada para este hospital ainda.</p>
+                        ) : (
+                          unidades
+                            .filter((u) => u.hospital_id === hospitalId)
+                            .map((u) => (
+                              <label key={u.id} className="flex items-center gap-2 text-sm text-ink">
+                                <input
+                                  type="checkbox"
+                                  checked={unidadesSelecionadas.includes(u.id)}
+                                  onChange={(e) =>
+                                    setUnidadesSelecionadas((atual) =>
+                                      e.target.checked ? [...atual, u.id] : atual.filter((id) => id !== u.id)
+                                    )
+                                  }
+                                  className="h-4 w-4 rounded border-line-strong accent-clinical-500"
+                                />
+                                {u.name}
+                              </label>
+                            ))
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="start_date">Início da vigência</Label>
@@ -212,6 +267,7 @@ export default function Contratos() {
                 <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-soft">
                   <th className="px-4 py-3 font-medium">Hospital</th>
                   <th className="px-4 py-3 font-medium">Convênio</th>
+                  <th className="px-4 py-3 font-medium">Escopo</th>
                   <th className="px-4 py-3 font-medium">Vigência</th>
                   <th className="px-4 py-3 font-medium">Valor mensal</th>
                   <th className="px-4 py-3 font-medium">Status</th>
@@ -223,6 +279,15 @@ export default function Contratos() {
                   <tr key={c.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
                     <td className="px-4 py-3 font-medium text-ink">{hospitais.find((h) => h.id === c.hospital_id)?.name ?? "—"}</td>
                     <td className="px-4 py-3 text-ink-soft">{convenios.find((v) => v.id === c.health_insurance_id)?.name ?? "—"}</td>
+                    <td className="px-4 py-3 text-ink-soft">
+                      {c.aplica_todas_unidades ? (
+                        <Badge variant="clinical">Todas as unidades</Badge>
+                      ) : (
+                        <Badge variant="neutral">
+                          {contratoUnidades.filter((cu) => cu.contract_id === c.id).length} unidade(s)
+                        </Badge>
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-mono text-xs text-ink-soft">
                       {formatarData(c.start_date)}{c.end_date ? ` – ${formatarData(c.end_date)}` : ""}
                     </td>

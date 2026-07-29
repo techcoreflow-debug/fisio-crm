@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
+import { Paginacao, usarPaginacao } from "@/components/shared/paginacao";
 import {
   Sheet,
   SheetContent,
@@ -23,6 +24,8 @@ import {
   usePhysiotherapists,
   useProcedures,
   useCompanies,
+  useUnits,
+  useHospitals,
   repository,
 } from "@/data/repository";
 import { useAppStore } from "@/store/app-store";
@@ -35,11 +38,14 @@ export default function ProducaoDiaria() {
   const pacientes = usePatients();
   const fisioterapeutas = usePhysiotherapists();
   const procedimentos = useProcedures();
+  const unidades = useUnits();
+  const hospitais = useHospitals();
 
   const [busca, setBusca] = useState("");
+  const [pagina, setPagina] = useState(1);
   const [open, setOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
-  const [internacaoId, setInternacaoId] = useState(internacoes[0]?.id ?? "");
+  const [internacaoId, setInternacaoId] = useState(internacoes.find((i) => i.status === "internado")?.id ?? "");
   const [fisioId, setFisioId] = useState(fisioterapeutas[0]?.id ?? "");
   const [procedimentoId, setProcedimentoId] = useState(procedimentos[0]?.id ?? "");
 
@@ -83,6 +89,35 @@ export default function ProducaoDiaria() {
     return pacientes.find((p) => p.id === internacao?.patient_id)?.full_name ?? "—";
   }
 
+  // Só internações ATIVAS — não faz sentido lançar procedimento numa
+  // internação que já teve alta. Isso, junto da busca do Combobox, é o
+  // que resolve o problema real: lista enorme sem filtro, com risco de
+  // escolher por engano um paciente que já saiu.
+  const opcoesInternacao = useMemo(() => {
+    return internacoes
+      .filter((i) => i.status === "internado")
+      .map((i) => {
+        const unidade = unidades.find((u) => u.id === i.unit_id);
+        const hospital = hospitais.find((h) => h.id === i.hospital_id);
+        return {
+          value: i.id,
+          label: nomePaciente(i.id),
+          sublabel: `${hospital?.name ?? "—"} · ${unidade?.name ?? "—"}`,
+        };
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [internacoes, unidades, hospitais, pacientes]);
+
+  const opcoesFisioterapeuta = useMemo(
+    () => fisioterapeutas.map((f) => ({ value: f.id, label: f.full_name })),
+    [fisioterapeutas]
+  );
+
+  const opcoesProcedimento = useMemo(
+    () => procedimentos.map((p) => ({ value: p.id, label: p.name, sublabel: p.category ?? undefined })),
+    [procedimentos]
+  );
+
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     if (!termo) return producao;
@@ -92,6 +127,8 @@ export default function ProducaoDiaria() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busca, producao, fisioterapeutas]);
+
+  const { pagina: paginaAtual, totalPaginas, paginaValida } = usarPaginacao(filtrados, 25, pagina);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -139,36 +176,34 @@ export default function ProducaoDiaria() {
                 <div className="flex flex-1 flex-col gap-4">
                   <div className="flex flex-col gap-1.5">
                     <Label>Internação</Label>
-                    <Select value={internacaoId} onValueChange={setInternacaoId}>
-                      <SelectTrigger><SelectValue placeholder="Selecione a internação" /></SelectTrigger>
-                      <SelectContent>
-                        {internacoes.map((i) => (
-                          <SelectItem key={i.id} value={i.id}>{nomePaciente(i.id)}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      value={internacaoId}
+                      onValueChange={setInternacaoId}
+                      options={opcoesInternacao}
+                      placeholder="Buscar paciente internado…"
+                      searchPlaceholder="Nome do paciente ou unidade…"
+                      emptyText="Nenhuma internação ativa encontrada."
+                    />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label>Fisioterapeuta</Label>
-                    <Select value={fisioId} onValueChange={setFisioId}>
-                      <SelectTrigger><SelectValue placeholder="Selecione o fisioterapeuta" /></SelectTrigger>
-                      <SelectContent>
-                        {fisioterapeutas.map((f) => (
-                          <SelectItem key={f.id} value={f.id}>{f.full_name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      value={fisioId}
+                      onValueChange={setFisioId}
+                      options={opcoesFisioterapeuta}
+                      placeholder="Buscar fisioterapeuta…"
+                      searchPlaceholder="Nome do fisioterapeuta…"
+                    />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label>Procedimento</Label>
-                    <Select value={procedimentoId} onValueChange={setProcedimentoId}>
-                      <SelectTrigger><SelectValue placeholder="Selecione o procedimento" /></SelectTrigger>
-                      <SelectContent>
-                        {procedimentos.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      value={procedimentoId}
+                      onValueChange={setProcedimentoId}
+                      options={opcoesProcedimento}
+                      placeholder="Buscar procedimento…"
+                      searchPlaceholder="Nome ou categoria…"
+                    />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="production_date">Data</Label>
@@ -191,7 +226,7 @@ export default function ProducaoDiaria() {
         <div className="flex flex-col gap-4 border-b border-line p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative max-w-sm flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-            <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por paciente ou fisioterapeuta…" className="pl-9" />
+            <Input value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} placeholder="Buscar por paciente ou fisioterapeuta…" className="pl-9" />
           </div>
           <p className="text-sm text-ink-soft">{filtrados.length} de {producao.length} lançamentos</p>
         </div>
@@ -216,7 +251,7 @@ export default function ProducaoDiaria() {
                 </tr>
               </thead>
               <tbody>
-                {filtrados.map((p) => (
+                {paginaAtual.map((p) => (
                   <tr key={p.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
                     <td className="px-4 py-3 font-mono text-xs text-ink-soft">{p.production_date}</td>
                     <td className="px-4 py-3 font-medium text-ink">{nomePaciente(p.admission_id)}</td>
@@ -251,6 +286,13 @@ export default function ProducaoDiaria() {
             </table>
           </div>
         )}
+        <Paginacao
+          paginaAtual={paginaValida}
+          totalPaginas={totalPaginas}
+          onChange={setPagina}
+          totalItens={filtrados.length}
+          itensPorPagina={25}
+        />
       </Card>
 
       <Sheet open={itemGlosa !== null} onOpenChange={(open) => !open && setItemGlosa(null)}>

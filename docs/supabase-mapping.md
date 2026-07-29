@@ -49,6 +49,33 @@ já seguem o padrão `use*()` / `repository.*`.
 5. Nenhuma tela (`src/modules/**`) precisa ser alterada nesse processo — elas
    só conhecem os hooks e o `repository`, nunca a fonte de dados.
 
+## Ajustes de uso real (migration 0016)
+
+Depois do primeiro uso real, vários ajustes de comportamento:
+
+- **Perfil "fisioterapeuta" (lançador)**: sidebar e rotas restritas a só
+  Pacientes e Produção Diária (`src/app/modules-registry.ts`,
+  `SLUGS_LANCADOR`) — qualquer outra rota redireciona automaticamente.
+- **Paciente**: `sexo` e convênio com histórico real
+  (`patient_insurance_history` — toda troca de convênio grava uma linha,
+  nunca sobrescreve silenciosamente). Linha do tempo do paciente
+  (`src/components/shared/patient-timeline.tsx`) agrega internações, altas,
+  procedimentos e evoluções em ordem cronológica.
+- **Internação**: código legível (`admission_number`, exibido como
+  `IN-000123`) em vez do UUID truncado. Edição habilitada. Alta agora pede
+  data **e hora** exatas (`discharge_at`) e **bloqueia** se não houver
+  nenhum procedimento lançado na data da alta — obriga lançar o
+  atendimento ali mesmo ou confirmar explicitamente que não houve
+  (`confirmou_sem_atendimento_alta`).
+- **Contrato**: checkbox "aplica a todas as unidades do hospital"
+  (`aplica_todas_unidades`) ou escopo por alas específicas
+  (`contract_units`).
+- **Bug de ALT+TAB corrigido**: o refresh automático de token do Supabase
+  ao voltar o foco da aba disparava um recarregamento de perfil que
+  desmontava a tela inteira (formulários abertos, digitação em andamento).
+  `src/auth/auth-provider.tsx` agora só mostra a tela de carregamento na
+  primeira busca da sessão, nunca em refreshes de token em segundo plano.
+
 ## Importação Tasy — parser real
 
 `src/lib/tasy-parser.ts` lê o relatório "Produtividade Médica" do Tasy — que

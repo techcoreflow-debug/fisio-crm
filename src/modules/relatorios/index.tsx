@@ -1,9 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { BarChart3, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { exportarCsv, type LinhaRelatorio } from "@/lib/csv";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import {
@@ -52,6 +54,42 @@ export default function Relatorios() {
   function nomePaciente(admissionId: string | null) {
     const internacao = internacoes.find((i) => i.id === admissionId);
     return pacientes.find((p) => p.id === internacao?.patient_id)?.full_name ?? "—";
+  }
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  const primeiroDiaMes = `${hoje.slice(0, 7)}-01`;
+  const [periodoDe, setPeriodoDe] = useState(primeiroDiaMes);
+  const [periodoAte, setPeriodoAte] = useState(hoje);
+
+  const producaoNoPeriodo = useMemo(
+    () => producao.filter((p) => p.production_date >= periodoDe && p.production_date <= periodoAte),
+    [producao, periodoDe, periodoAte]
+  );
+
+  const contabilizadosPorCategoria = useMemo(() => {
+    const contagem = new Map<string, number>();
+    for (const p of producaoNoPeriodo) {
+      const categoria = procedimentos.find((pr) => pr.id === p.procedure_id)?.category ?? "Sem categoria";
+      contagem.set(categoria, (contagem.get(categoria) ?? 0) + 1);
+    }
+    return Array.from(contagem.entries()).sort((a, b) => b[1] - a[1]);
+  }, [producaoNoPeriodo, procedimentos]);
+
+  function exportarContabilizados() {
+    try {
+      const linhas: LinhaRelatorio[] = producaoNoPeriodo.map((p) => ({
+        Data: formatarData(p.production_date),
+        Paciente: nomePaciente(p.admission_id),
+        Categoria: procedimentos.find((pr) => pr.id === p.procedure_id)?.category ?? "Sem categoria",
+        Procedimento: procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—",
+        Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
+        Origem: p.source === "tasy" ? "Tasy" : "Manual",
+      }));
+      exportarCsv("producao-contabilizada", linhas);
+      notificarSucesso(`Relatório exportado (${linhas.length} linha(s)).`);
+    } catch (erro) {
+      notificarErro('Não foi possível exportar "Produção contabilizada"', erro);
+    }
   }
 
   const relatorios: { nome: string; categoria: Categoria; descricao: string; arquivo: string; gerar: () => LinhaRelatorio[] }[] = [
@@ -181,6 +219,45 @@ export default function Relatorios() {
         title="Relatórios"
         description="Relatórios gerados a partir dos dados reais desta empresa, exportáveis em CSV (abre direto no Excel e no Google Sheets)."
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Produção contabilizada por período</CardTitle>
+          <p className="text-sm text-ink-soft mt-0.5">Contagem de procedimentos Motora x Respiratória (e demais categorias) no período escolhido.</p>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="periodo_de">De</Label>
+              <Input id="periodo_de" type="date" value={periodoDe} onChange={(e) => setPeriodoDe(e.target.value)} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="periodo_ate">Até</Label>
+              <Input id="periodo_ate" type="date" value={periodoAte} onChange={(e) => setPeriodoAte(e.target.value)} />
+            </div>
+            <Button variant="secondary" size="sm" onClick={exportarContabilizados} disabled={producaoNoPeriodo.length === 0}>
+              <Download className="h-4 w-4" /> Exportar CSV
+            </Button>
+          </div>
+
+          {contabilizadosPorCategoria.length === 0 ? (
+            <p className="text-sm text-ink-soft">Nenhum procedimento lançado nesse período.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-md border border-line p-3">
+                <p className="text-xs uppercase tracking-wide text-ink-soft">Total no período</p>
+                <p className="font-display text-lg font-semibold text-ink">{producaoNoPeriodo.length}</p>
+              </div>
+              {contabilizadosPorCategoria.map(([categoria, total]) => (
+                <div key={categoria} className="rounded-md border border-line p-3">
+                  <p className="text-xs uppercase tracking-wide text-ink-soft">{categoria}</p>
+                  <p className="font-display text-lg font-semibold text-ink">{total}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {relatoriosComDados.map((r) => {

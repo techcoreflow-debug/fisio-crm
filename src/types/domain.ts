@@ -99,7 +99,15 @@ export interface Contract {
   end_date: string | null;
   monthly_value: number | null;
   status: string;
+  aplica_todas_unidades: boolean;
   created_at: string;
+}
+
+export interface ContractUnit {
+  id: string;
+  company_id: string;
+  contract_id: string;
+  unit_id: string;
 }
 
 export interface Physiotherapist {
@@ -118,7 +126,17 @@ export interface Patient {
   full_name: string;
   birth_date: string | null;
   document: string | null;
+  sexo: "M" | "F" | null;
+  health_insurance_id: string | null;
   created_at: string;
+}
+
+export interface PatientInsuranceHistory {
+  id: string;
+  company_id: string;
+  patient_id: string;
+  health_insurance_id: string | null;
+  changed_at: string;
 }
 
 export interface Room {
@@ -149,6 +167,9 @@ export interface Admission {
   health_insurance_id: string | null;
   admission_date: string;
   discharge_date: string | null;
+  discharge_at: string | null;
+  admission_number: number;
+  confirmou_sem_atendimento_alta: boolean;
   status: string;
   external_reference: string | null;
   created_at: string;

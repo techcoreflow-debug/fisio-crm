@@ -21,7 +21,9 @@ import type {
   Team,
   HealthInsurance,
   Contract,
+  ContractUnit,
   Patient,
+  PatientInsuranceHistory,
   Physiotherapist,
   Bed,
   Room,
@@ -93,6 +95,15 @@ export function useContracts(): Contract[] {
 }
 export function usePatients(): Patient[] {
   return useSupabaseCollection<Patient>("patients", { company_id: useActiveCompanyId() });
+}
+export function usePatientInsuranceHistory(patientId: string | undefined): PatientInsuranceHistory[] {
+  return useSupabaseCollection<PatientInsuranceHistory>("patient_insurance_history", {
+    company_id: useActiveCompanyId(),
+    patient_id: patientId,
+  });
+}
+export function useContractUnits(): ContractUnit[] {
+  return useSupabaseCollection<ContractUnit>("contract_units", { company_id: useActiveCompanyId() });
 }
 export function usePhysiotherapists(): Physiotherapist[] {
   return useSupabaseCollection<Physiotherapist>("physiotherapists", { company_id: useActiveCompanyId() });
@@ -296,7 +307,7 @@ export const repository = {
 
   contracts: {
     create: async (
-      data: Pick<Contract, "hospital_id" | "health_insurance_id" | "cost_center_id" | "start_date" | "end_date" | "monthly_value" | "company_id">
+      data: Pick<Contract, "hospital_id" | "health_insurance_id" | "cost_center_id" | "start_date" | "end_date" | "monthly_value" | "aplica_todas_unidades" | "company_id">
     ): Promise<Contract> => {
       const row = await inserirLinha<Contract>("contracts", { ...data, status: "ativo" });
       await registrarAuditoria({ company_id: row.company_id, action: "criado", entity_type: "Contrato", entity_label: `Contrato ${row.id.slice(0, 8)}` });
@@ -304,7 +315,7 @@ export const repository = {
     },
     update: async (
       id: string,
-      patch: Partial<Pick<Contract, "hospital_id" | "health_insurance_id" | "cost_center_id" | "start_date" | "end_date" | "monthly_value" | "status" | "company_id">>
+      patch: Partial<Pick<Contract, "hospital_id" | "health_insurance_id" | "cost_center_id" | "start_date" | "end_date" | "monthly_value" | "status" | "aplica_todas_unidades" | "company_id">>
     ): Promise<void> => atualizarLinha("contracts", id, patch),
     remove: async (id: string): Promise<void> => {
       await bloquearSeTiverDependentes(id, [{ table: "receivables", coluna: "contract_id", rotulo: "lançamento(s) financeiro(s)" }], "este contrato");
@@ -312,14 +323,53 @@ export const repository = {
     },
   },
 
+  contractUnits: {
+    /** Substitui por completo as unidades associadas a um contrato específico. */
+    definirUnidades: async (contractId: string, companyId: string, unitIds: string[]): Promise<void> => {
+      const { error: errorDelete } = await supabase.from("contract_units").delete().eq("contract_id", contractId);
+      if (errorDelete) throw new Error(errorDelete.message);
+      if (unitIds.length === 0) return;
+      const { error: errorInsert } = await supabase
+        .from("contract_units")
+        .insert(unitIds.map((unitId) => ({ company_id: companyId, contract_id: contractId, unit_id: unitId })));
+      if (errorInsert) throw new Error(errorInsert.message);
+    },
+  },
+
   patients: {
-    create: async (data: Pick<Patient, "full_name" | "birth_date" | "document" | "company_id">): Promise<Patient> => {
+    create: async (
+      data: Pick<Patient, "full_name" | "birth_date" | "document" | "sexo" | "health_insurance_id" | "company_id">
+    ): Promise<Patient> => {
       const row = await inserirLinha<Patient>("patients", data);
+      if (row.health_insurance_id) {
+        await inserirLinha("patient_insurance_history", {
+          company_id: row.company_id,
+          patient_id: row.id,
+          health_insurance_id: row.health_insurance_id,
+        });
+      }
       await registrarAuditoria({ company_id: row.company_id, action: "criado", entity_type: "Paciente", entity_label: row.full_name });
       return row;
     },
-    update: async (id: string, patch: Partial<Pick<Patient, "full_name" | "birth_date" | "document" | "company_id">>): Promise<void> =>
-      atualizarLinha("patients", id, patch),
+    update: async (
+      id: string,
+      patch: Partial<Pick<Patient, "full_name" | "birth_date" | "document" | "sexo" | "health_insurance_id" | "company_id">>
+    ): Promise<void> => {
+      // Muda de convênio? Grava no histórico antes de sobrescrever — nunca
+      // perde o registro de qual convênio o paciente tinha antes.
+      if ("health_insurance_id" in patch) {
+        const { supabase } = await import("@/lib/supabase");
+        const { data: atual } = await supabase.from("patients").select("company_id, health_insurance_id").eq("id", id).maybeSingle();
+        if (atual && atual.health_insurance_id !== patch.health_insurance_id) {
+          await inserirLinha("patient_insurance_history", {
+            company_id: atual.company_id,
+            patient_id: id,
+            health_insurance_id: patch.health_insurance_id ?? null,
+          });
+        }
+      }
+      await atualizarLinha("patients", id, patch);
+    },
     remove: async (id: string): Promise<void> => {
       await bloquearSeTiverDependentes(id, [{ table: "admissions", coluna: "patient_id", rotulo: "internação(ões)" }], "este paciente");
       await excluirLinha("patients", id);
@@ -390,13 +440,45 @@ export const repository = {
       if (row.bed_id) await atualizarLinha("beds", row.bed_id, { status: "ocupado" });
       return row;
     },
-    discharge: async (id: string, dischargeDate: string): Promise<void> => {
-      const { supabase } = await import("@/lib/supabase");
+    update: async (
+      id: string,
+      patch: Partial<Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "company_id">>
+    ): Promise<void> => {
+      await atualizarLinha("admissions", id, patch);
+      if (patch.bed_id) await atualizarLinha("beds", patch.bed_id, { status: "ocupado" });
+    },
+    /**
+     * Dar alta é bloqueado por padrão se não houver nenhum procedimento
+     * lançado na data da alta — precisa lançar o atendimento antes, ou
+     * confirmar explicitamente que não houve atendimento (`semAtendimento`).
+     * Lança um erro com esse sentinela específico pra a tela reconhecer e
+     * mostrar a pergunta certa, em vez de um erro genérico.
+     */
+    discharge: async (id: string, dischargeAtISO: string, semAtendimento = false): Promise<void> => {
       const { data: admissao, error } = await supabase.from("admissions").select("*").eq("id", id).maybeSingle();
       if (error) throw new Error(error.message);
       if (!admissao) throw new Error("Internação não encontrada.");
       if (admissao.status === "alta") throw new Error("Esta internação já teve alta registrada.");
-      await atualizarLinha("admissions", id, { status: "alta", discharge_date: dischargeDate });
+
+      const dataAlta = dischargeAtISO.slice(0, 10);
+      if (!semAtendimento) {
+        const { count, error: errorCount } = await supabase
+          .from("daily_production")
+          .select("id", { count: "exact", head: true })
+          .eq("admission_id", id)
+          .eq("production_date", dataAlta);
+        if (errorCount) throw new Error(errorCount.message);
+        if ((count ?? 0) === 0) {
+          throw new Error("SEM_ATENDIMENTO_NA_ALTA");
+        }
+      }
+
+      await atualizarLinha("admissions", id, {
+        status: "alta",
+        discharge_date: dataAlta,
+        discharge_at: dischargeAtISO,
+        confirmou_sem_atendimento_alta: semAtendimento,
+      });
       if (admissao.bed_id) await atualizarLinha("beds", admissao.bed_id, { status: "higienizacao" });
       await registrarAuditoria({
         company_id: admissao.company_id,

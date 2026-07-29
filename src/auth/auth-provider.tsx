@@ -24,40 +24,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
 
-  async function loadProfile(userId: string) {
-    setProfileLoading(true);
+  async function loadProfile(userId: string, primeiraVez: boolean) {
+    // Só mostra a tela cheia de carregamento na PRIMEIRA vez que buscamos o
+    // perfil desta sessão. Depois disso, qualquer recarregamento (ex.:
+    // refresh automático de token do Supabase ao voltar de ALT+TAB) busca
+    // em segundo plano, sem desmontar a tela — é exatamente isso que fazia
+    // formulários abertos e digitação perdida some sozinhos ao trocar de
+    // janela e voltar.
+    if (primeiraVez) setProfileLoading(true);
     const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
     if (error) {
       // Nunca falha em silêncio: se travar aqui de novo, o toast vai dizer
       // exatamente por quê (RLS, permissão, rede) em vez de só ficar preso
       // na tela de "preparando acesso".
       notificarErro("Não foi possível carregar seu perfil", error.message);
-      setProfile(null);
+      if (primeiraVez) setProfile(null);
     } else if (data) {
       setProfile(data as Profile);
-    } else {
+    } else if (primeiraVez) {
       // Sessão existe mas não há linha em profiles para este usuário —
       // normalmente o gatilho de cadastro cuida disso; se aparecer, é
       // sinal de que o perfil precisa ser criado manualmente.
       setProfile(null);
     }
-    setProfileLoading(false);
+    if (primeiraVez) setProfileLoading(false);
   }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      if (data.session) loadProfile(data.session.user.id);
+      if (data.session) loadProfile(data.session.user.id, true);
       setLoading(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
-      if (newSession) {
-        loadProfile(newSession.user.id);
-      } else {
+      if (!newSession) {
         setProfile(null);
+        return;
       }
+      // TOKEN_REFRESHED dispara sozinho ao voltar o foco da aba — o perfil
+      // não muda nesse evento, então não precisa (e não deve) recarregar
+      // como se fosse um novo login.
+      if (event === "TOKEN_REFRESHED") return;
+      loadProfile(newSession.user.id, event === "SIGNED_IN" || event === "INITIAL_SESSION");
     });
 
     return () => listener.subscription.unsubscribe();
@@ -82,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function refreshProfile() {
-    if (session) await loadProfile(session.user.id);
+    if (session) await loadProfile(session.user.id, true);
   }
 
   return (

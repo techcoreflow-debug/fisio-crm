@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { Toaster } from "@/components/shared/toaster";
+import { OfflineBanner } from "@/components/shared/offline-banner";
 import { useAuth } from "@/auth/auth-provider";
 import { useAppStore } from "@/store/app-store";
 import { useCompanies } from "@/data/repository";
@@ -36,6 +37,7 @@ export function AppShell() {
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar />
+        <OfflineBanner />
         <main className="flex-1 overflow-y-auto px-4 py-6 lg:px-8 lg:py-8">
           <div className="mx-auto max-w-7xl">
             <Outlet />

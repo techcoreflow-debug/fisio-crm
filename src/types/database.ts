@@ -8,8 +8,10 @@ import type {
   Team,
   HealthInsurance,
   Contract,
+  ContractUnit,
   Physiotherapist,
   Patient,
+  PatientInsuranceHistory,
   Bed,
   Room,
   Admission,
@@ -56,8 +58,10 @@ export interface Database {
       teams: TableDef<Team>;
       health_insurances: TableDef<HealthInsurance>;
       contracts: TableDef<Contract>;
+      contract_units: TableDef<ContractUnit>;
       physiotherapists: TableDef<Physiotherapist>;
       patients: TableDef<Patient>;
+      patient_insurance_history: TableDef<PatientInsuranceHistory>;
       beds: TableDef<Bed>;
       rooms: TableDef<Room>;
       admissions: TableDef<Admission>;

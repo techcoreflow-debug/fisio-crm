@@ -1,11 +1,35 @@
-import { NavLink } from "react-router-dom";
-import { Activity, X } from "lucide-react";
-import { moduleGroups } from "@/app/modules-registry";
+import { useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
+import { Activity, X, ChevronDown } from "lucide-react";
+import { moduleGroups, SLUGS_LANCADOR } from "@/app/modules-registry";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/app-store";
+import { useAuth } from "@/auth/auth-provider";
 
 function SidebarContent() {
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
+  const { profile } = useAuth();
+  const location = useLocation();
+  const ehLancador = profile?.role === "fisioterapeuta" && !profile.is_platform_admin;
+
+  const grupos = ehLancador
+    ? moduleGroups
+        .map((g) => ({ ...g, modules: g.modules.filter((m) => SLUGS_LANCADOR.includes(m.slug)) }))
+        .filter((g) => g.modules.length > 0)
+    : moduleGroups;
+
+  const [recolhidos, setRecolhidos] = useState<Set<string>>(
+    () => new Set(grupos.filter((g) => g.recolhidoPorPadrao).map((g) => g.id))
+  );
+
+  function toggleGrupo(id: string) {
+    setRecolhidos((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(id)) novo.delete(id);
+      else novo.add(id);
+      return novo;
+    });
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -26,34 +50,47 @@ function SidebarContent() {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
-        {moduleGroups.map((group) => (
-          <div key={group.id} className="mb-4">
-            <p className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-soft/70">
-              {group.label}
-            </p>
-            <div className="flex flex-col gap-0.5">
-              {group.modules.map((mod) => (
-                <NavLink
-                  key={mod.slug}
-                  to={mod.path}
-                  end={mod.path === "/"}
-                  onClick={() => setSidebarOpen(false)}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-clinical-50 text-clinical-700"
-                        : "text-ink-soft hover:bg-surface-sunken hover:text-ink"
-                    )
-                  }
-                >
-                  <mod.icon className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{mod.label}</span>
-                </NavLink>
-              ))}
+        {grupos.map((group) => {
+          // Nunca esconde a rota que a pessoa está vendo agora, mesmo que
+          // o grupo esteja marcado como recolhido por padrão.
+          const temRotaAtiva = group.modules.some((m) => m.path === location.pathname);
+          const expandido = temRotaAtiva || !recolhidos.has(group.id);
+
+          return (
+            <div key={group.id} className="mb-4">
+              <button
+                onClick={() => toggleGrupo(group.id)}
+                className="flex w-full items-center justify-between px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-soft/70 hover:text-ink-soft"
+              >
+                {group.label}
+                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !expandido && "-rotate-90")} />
+              </button>
+              {expandido && (
+                <div className="flex flex-col gap-0.5">
+                  {group.modules.map((mod) => (
+                    <NavLink
+                      key={mod.slug}
+                      to={mod.path}
+                      end={mod.path === "/"}
+                      onClick={() => setSidebarOpen(false)}
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
+                          isActive
+                            ? "bg-clinical-50 text-clinical-700"
+                            : "text-ink-soft hover:bg-surface-sunken hover:text-ink"
+                        )
+                      }
+                    >
+                      <mod.icon className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{mod.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
     </div>
   );

@@ -1,8 +1,8 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy, type ComponentType } from "react";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
-import { allModules } from "@/app/modules-registry";
+import { allModules, SLUGS_LANCADOR, ROTA_PADRAO_LANCADOR } from "@/app/modules-registry";
 import { AuthProvider, useAuth } from "@/auth/auth-provider";
 import Login from "@/modules/auth/login";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ const pageComponents: Record<string, ComponentType> = {
   fisioterapeutas: lazy(() => import("@/modules/fisioterapeutas")),
   procedimentos: lazy(() => import("@/modules/procedimentos")),
   "producao-diaria": lazy(() => import("@/modules/producao-diaria")),
+  "painel-procedimentos": lazy(() => import("@/modules/painel-producao")),
   "evolucao-clinica": lazy(() => import("@/modules/evolucao-clinica")),
   financeiro: lazy(() => import("@/modules/financeiro")),
   auditoria: lazy(() => import("@/modules/auditoria")),
@@ -90,14 +91,20 @@ function AuthGate() {
         <Route element={<AppShell />}>
           {allModules.map((mod) => {
             const Component = pageComponents[mod.slug];
+            const ehLancador = profile.role === "fisioterapeuta" && !profile.is_platform_admin;
+            const bloqueado = ehLancador && !SLUGS_LANCADOR.includes(mod.slug);
             return (
               <Route
                 key={mod.slug}
                 path={mod.path}
                 element={
-                  <Suspense fallback={<PageFallback />}>
-                    <Component />
-                  </Suspense>
+                  bloqueado ? (
+                    <Navigate to={ROTA_PADRAO_LANCADOR} replace />
+                  ) : (
+                    <Suspense fallback={<PageFallback />}>
+                      <Component />
+                    </Suspense>
+                  )
                 }
               />
             );

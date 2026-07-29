@@ -25,6 +25,7 @@ import {
   KeyRound,
   Plug,
   UploadCloud,
+  SlidersHorizontal,
 } from "lucide-react";
 
 export interface ModuleDef {
@@ -41,6 +42,10 @@ export interface ModuleGroup {
   id: string;
   label: string;
   modules: ModuleDef[];
+  /** Recolhido por padrão — grupos de configuração/cadastro esporádico,
+   *  não o que se usa todo dia. Sempre expande sozinho se a rota ativa
+   *  estiver dentro dele. */
+  recolhidoPorPadrao?: boolean;
 }
 
 export const moduleGroups: ModuleGroup[] = [
@@ -77,6 +82,7 @@ export const moduleGroups: ModuleGroup[] = [
   {
     id: "cadastros",
     label: "Cadastros",
+    recolhidoPorPadrao: true,
     modules: [
       { slug: "empresas", path: "/empresas", label: "Empresas", icon: Building2, description: "Empresas do grupo, cada uma com seus dados isolados por RLS multiempresa.", status: "pronto" },
       { slug: "hospitais", path: "/hospitais", label: "Hospitais", icon: Hospital, description: "Hospitais atendidos, contatos operacionais e unidades vinculadas.", status: "pronto" },
@@ -115,6 +121,7 @@ export const moduleGroups: ModuleGroup[] = [
     id: "inteligencia",
     label: "Inteligência",
     modules: [
+      { slug: "painel-procedimentos", path: "/painel-procedimentos", label: "Painel de Procedimentos", icon: SlidersHorizontal, description: "Procedimentos lançados com filtros por período, unidade, convênio e categoria — cruza direto com glosa.", status: "pronto" },
       { slug: "relatorios", path: "/relatorios", label: "Relatórios", icon: BarChart3, description: "Relatórios operacionais, assistenciais e financeiros prontos para exportação.", status: "pronto" },
       { slug: "bi", path: "/bi", label: "Business Intelligence", icon: PieChart, description: "Análises avançadas e cruzamentos customizados entre todas as bases do Fisio.", status: "pronto" },
     ],
@@ -122,6 +129,7 @@ export const moduleGroups: ModuleGroup[] = [
   {
     id: "sistema",
     label: "Sistema",
+    recolhidoPorPadrao: true,
     modules: [
       { slug: "importacao-tasy", path: "/importacao-tasy", label: "Importação Tasy", icon: UploadCloud, description: "Upload de arquivos do Tasy, prévia, validação e histórico de importações.", status: "pronto" },
       { slug: "usuarios-permissoes", path: "/usuarios-permissoes", label: "Usuários e Permissões", icon: KeyRound, description: "Usuários do sistema, papéis e permissões por empresa, hospital e módulo.", status: "pronto" },
@@ -132,3 +140,13 @@ export const moduleGroups: ModuleGroup[] = [
 ];
 
 export const allModules: ModuleDef[] = moduleGroups.flatMap((g) => g.modules);
+
+/**
+ * Perfil "fisioterapeuta" (lançador): só lança produção e cadastra
+ * paciente — sem acesso ao resto do sistema (nem financeiro, nem
+ * internações, nem cadastros administrativos). Admin InovareTech e outros
+ * papéis (admin de empresa, gestor, financeiro, auditor) continuam vendo
+ * tudo normalmente.
+ */
+export const SLUGS_LANCADOR = ["pacientes", "producao-diaria"];
+export const ROTA_PADRAO_LANCADOR = "/producao-diaria";

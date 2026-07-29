@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Search, Plus, BedDouble, LogOut } from "lucide-react";
+import { Search, Plus, Pencil, BedDouble, LogOut, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,9 +23,14 @@ import {
   useUnits,
   useBeds,
   useHealthInsurances,
+  usePhysiotherapists,
+  useProcedures,
+  useDailyProduction,
   repository,
 } from "@/data/repository";
+import { Paginacao, usarPaginacao } from "@/components/shared/paginacao";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
+import type { Admission } from "@/types/domain";
 
 type StatusInternacao = "internado" | "alta";
 
@@ -39,6 +44,12 @@ function formatarData(iso: string) {
   return `${dia}/${mes}/${ano}`;
 }
 
+function agoraParaInputDatetime() {
+  const agora = new Date();
+  agora.setMinutes(agora.getMinutes() - agora.getTimezoneOffset());
+  return agora.toISOString().slice(0, 16);
+}
+
 export default function Internacoes() {
   const internacoes = useAdmissions();
   const pacientes = usePatients();
@@ -46,25 +57,71 @@ export default function Internacoes() {
   const unidades = useUnits();
   const leitos = useBeds();
   const convenios = useHealthInsurances();
+  const fisioterapeutas = usePhysiotherapists();
+  const procedimentos = useProcedures();
+  const producao = useDailyProduction();
+
+  const hojeIso = new Date().toISOString().slice(0, 10);
+  const internacoesComAtendimentoHoje = useMemo(
+    () => new Set(producao.filter((p) => p.production_date === hojeIso).map((p) => p.admission_id)),
+    [producao, hojeIso]
+  );
 
   const [busca, setBusca] = useState("");
+  const [filtroUnidade, setFiltroUnidade] = useState<string>("todas");
+  const [apenasPendentes, setApenasPendentes] = useState(false);
+  const [pagina, setPagina] = useState(1);
   const [open, setOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [editando, setEditando] = useState<Admission | null>(null);
   const [pacienteId, setPacienteId] = useState(pacientes[0]?.id ?? "");
   const [unidadeId, setUnidadeId] = useState(unidades[0]?.id ?? "");
   const [leitoId, setLeitoId] = useState("");
   const [convenioId, setConvenioId] = useState(convenios[0]?.id ?? "");
 
-  const leitosLivresDaUnidade = leitos.filter((l) => l.unit_id === unidadeId && l.status === "livre");
+  const leitosDaUnidade = leitos.filter(
+    (l) => l.unit_id === unidadeId && (l.status === "livre" || l.id === editando?.bed_id)
+  );
+
+  // Fluxo de alta — precisa de mais de uma etapa quando não há atendimento
+  // lançado no dia, por isso vive num Sheet separado com seu próprio estado.
+  const [internacaoParaAlta, setInternacaoParaAlta] = useState<Admission | null>(null);
+  const [etapaAlta, setEtapaAlta] = useState<"data" | "sem-atendimento" | "lancar">("data");
+  const [dataHoraAlta, setDataHoraAlta] = useState(agoraParaInputDatetime());
+  const [salvandoAlta, setSalvandoAlta] = useState(false);
+  const [fisioAltaId, setFisioAltaId] = useState(fisioterapeutas[0]?.id ?? "");
+  const [procedimentoAltaId, setProcedimentoAltaId] = useState(procedimentos[0]?.id ?? "");
 
   const filtradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    if (!termo) return internacoes;
     return internacoes.filter((i) => {
+      if (filtroUnidade !== "todas" && i.unit_id !== filtroUnidade) return false;
+      if (apenasPendentes && (i.status !== "internado" || internacoesComAtendimentoHoje.has(i.id))) return false;
+      if (!termo) return true;
       const paciente = pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "";
-      return paciente.toLowerCase().includes(termo) || i.id.toLowerCase().includes(termo);
+      return paciente.toLowerCase().includes(termo) || String(i.admission_number).includes(termo);
     });
-  }, [busca, internacoes, pacientes]);
+  }, [busca, filtroUnidade, apenasPendentes, internacoes, pacientes, internacoesComAtendimentoHoje]);
+
+  const { pagina: paginaAtual, totalPaginas, paginaValida } = usarPaginacao(filtradas, 25, pagina);
+
+  function abrirNova() {
+    setEditando(null);
+    setPacienteId(pacientes[0]?.id ?? "");
+    setUnidadeId(unidades[0]?.id ?? "");
+    setLeitoId("");
+    setConvenioId(convenios[0]?.id ?? "");
+    setOpen(true);
+  }
+
+  function abrirEdicao(internacao: Admission) {
+    setEditando(internacao);
+    setPacienteId(internacao.patient_id);
+    setUnidadeId(internacao.unit_id ?? "");
+    setLeitoId(internacao.bed_id ?? "");
+    setConvenioId(internacao.health_insurance_id ?? "");
+    setOpen(true);
+  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -74,7 +131,7 @@ export default function Internacoes() {
     if (!paciente || !unidade) return;
     setSalvando(true);
     try {
-      await repository.admissions.create({
+      const dados = {
         patient_id: pacienteId,
         hospital_id: unidade.hospital_id,
         unit_id: unidadeId,
@@ -82,29 +139,75 @@ export default function Internacoes() {
         health_insurance_id: convenioId || null,
         admission_date: String(form.get("admission_date") ?? ""),
         company_id: paciente.company_id,
-      });
-      notificarSucesso("Internação registrada.");
+      };
+      if (editando) {
+        await repository.admissions.update(editando.id, dados);
+        notificarSucesso("Internação atualizada.");
+      } else {
+        await repository.admissions.create(dados);
+        notificarSucesso("Internação registrada.");
+      }
       setOpen(false);
-      setLeitoId("");
-      e.currentTarget.reset();
+      setEditando(null);
     } catch (erro) {
-      notificarErro("Não foi possível registrar a internação", erro);
+      notificarErro(editando ? "Não foi possível salvar as alterações" : "Não foi possível registrar a internação", erro);
     } finally {
       setSalvando(false);
     }
   }
 
-  async function handleAltaComFeedback(id: string) {
+  function abrirFluxoAlta(internacao: Admission) {
+    setInternacaoParaAlta(internacao);
+    setEtapaAlta("data");
+    setDataHoraAlta(agoraParaInputDatetime());
+  }
+
+  async function handleConfirmarData(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!internacaoParaAlta) return;
+    setSalvandoAlta(true);
     try {
-      await handleAlta(id);
+      await tentarAlta(false);
+    } finally {
+      setSalvandoAlta(false);
+    }
+  }
+
+  async function tentarAlta(semAtendimento: boolean) {
+    if (!internacaoParaAlta) return;
+    try {
+      const iso = new Date(dataHoraAlta).toISOString();
+      await repository.admissions.discharge(internacaoParaAlta.id, iso, semAtendimento);
       notificarSucesso("Alta registrada. O leito foi liberado para higienização.");
+      setInternacaoParaAlta(null);
     } catch (erro) {
+      if (erro instanceof Error && erro.message === "SEM_ATENDIMENTO_NA_ALTA") {
+        setEtapaAlta("sem-atendimento");
+        return;
+      }
       notificarErro("Não foi possível registrar a alta", erro);
     }
   }
 
-  async function handleAlta(id: string) {
-    await repository.admissions.discharge(id, new Date().toISOString().slice(0, 10));
+  async function handleLancarELiberar(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!internacaoParaAlta) return;
+    setSalvandoAlta(true);
+    try {
+      await repository.dailyProduction.create({
+        admission_id: internacaoParaAlta.id,
+        physiotherapist_id: fisioAltaId,
+        procedure_id: procedimentoAltaId,
+        production_date: dataHoraAlta.slice(0, 10),
+        source: "manual",
+        company_id: internacaoParaAlta.company_id,
+      });
+      await tentarAlta(false);
+    } catch (erro) {
+      notificarErro("Não foi possível lançar o atendimento", erro);
+    } finally {
+      setSalvandoAlta(false);
+    }
   }
 
   return (
@@ -115,14 +218,14 @@ export default function Internacoes() {
         actions={
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" onClick={abrirNova}>
                 <Plus className="h-4 w-4" /> Nova internação
               </Button>
             </SheetTrigger>
             <SheetContent>
-              <form className="flex h-full flex-col" onSubmit={handleSubmit}>
+              <form key={editando?.id ?? "nova"} className="flex h-full flex-col" onSubmit={handleSubmit}>
                 <SheetHeader>
-                  <SheetTitle>Nova internação</SheetTitle>
+                  <SheetTitle>{editando ? "Editar internação" : "Nova internação"}</SheetTitle>
                   <SheetDescription>Ao escolher um leito livre, ele passa automaticamente para ocupado.</SheetDescription>
                 </SheetHeader>
                 <div className="flex flex-1 flex-col gap-4">
@@ -153,10 +256,10 @@ export default function Internacoes() {
                     <Select value={leitoId} onValueChange={setLeitoId}>
                       <SelectTrigger><SelectValue placeholder="Selecione um leito livre" /></SelectTrigger>
                       <SelectContent>
-                        {leitosLivresDaUnidade.length === 0 ? (
+                        {leitosDaUnidade.length === 0 ? (
                           <SelectItem value="none" disabled>Nenhum leito livre nesta unidade</SelectItem>
                         ) : (
-                          leitosLivresDaUnidade.map((l) => (
+                          leitosDaUnidade.map((l) => (
                             <SelectItem key={l.id} value={l.id}>{l.code}</SelectItem>
                           ))
                         )}
@@ -176,13 +279,13 @@ export default function Internacoes() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="admission_date">Data de entrada</Label>
-                    <Input id="admission_date" name="admission_date" type="date" required />
+                    <Input id="admission_date" name="admission_date" type="date" required defaultValue={editando?.admission_date ?? ""} />
                   </div>
                 </div>
                 <SheetFooter>
                   <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
                   <Button type="submit" disabled={salvando || !pacienteId || !unidadeId}>
-                    {salvando ? "Salvando…" : "Registrar internação"}
+                    {salvando ? "Salvando…" : editando ? "Salvar alterações" : "Registrar internação"}
                   </Button>
                 </SheetFooter>
               </form>
@@ -193,39 +296,59 @@ export default function Internacoes() {
 
       <Card>
         <div className="flex flex-col gap-4 border-b border-line p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative max-w-sm flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-            <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por paciente ou ID…" className="pl-9" />
+          <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+            <div className="relative max-w-sm flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
+              <Input value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} placeholder="Buscar por paciente ou código…" className="pl-9" />
+            </div>
+            <Select value={filtroUnidade} onValueChange={(v) => { setFiltroUnidade(v); setPagina(1); }}>
+              <SelectTrigger className="sm:w-56"><SelectValue placeholder="Todas as unidades" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas as unidades</SelectItem>
+                {unidades.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant={apenasPendentes ? "primary" : "secondary"}
+              size="sm"
+              onClick={() => { setApenasPendentes((v) => !v); setPagina(1); }}
+            >
+              <AlertTriangle className="h-3.5 w-3.5" /> Só pendentes de hoje
+            </Button>
           </div>
-          <p className="text-sm text-ink-soft">{filtradas.length} de {internacoes.length} internações</p>
+          <p className="whitespace-nowrap text-sm text-ink-soft">{filtradas.length} de {internacoes.length} internações</p>
         </div>
 
         {filtradas.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <BedDouble className="h-8 w-8 text-ink-soft" />
             <p className="font-medium text-ink">Nenhuma internação encontrada</p>
-            <p className="text-sm text-ink-soft">Ajuste os termos da busca ou registre uma nova internação.</p>
+            <p className="text-sm text-ink-soft">Ajuste os filtros ou registre uma nova internação.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-soft">
+                  <th className="px-4 py-3 font-medium">Código</th>
                   <th className="px-4 py-3 font-medium">Paciente</th>
                   <th className="px-4 py-3 font-medium">Hospital / Unidade</th>
                   <th className="px-4 py-3 font-medium">Leito</th>
                   <th className="px-4 py-3 font-medium">Convênio</th>
                   <th className="px-4 py-3 font-medium">Entrada</th>
                   <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Hoje</th>
                   <th className="px-4 py-3 font-medium" />
                 </tr>
               </thead>
               <tbody>
-                {filtradas.map((i) => (
+                {paginaAtual.map((i) => (
                   <tr key={i.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
+                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">IN-{String(i.admission_number).padStart(6, "0")}</td>
                     <td className="px-4 py-3">
                       <p className="font-medium text-ink">{pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "—"}</p>
-                      <p className="font-mono text-xs text-ink-soft">{i.id.slice(0, 8)}</p>
                     </td>
                     <td className="px-4 py-3 text-ink-soft">
                       {hospitais.find((h) => h.id === i.hospital_id)?.name ?? "—"}
@@ -239,12 +362,30 @@ export default function Internacoes() {
                         {statusConfig[i.status as StatusInternacao]?.label ?? i.status}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      {i.status === "internado" && (
-                        <Button variant="ghost" size="sm" onClick={() => handleAltaComFeedback(i.id)}>
-                          <LogOut className="h-3.5 w-3.5" /> Dar alta
-                        </Button>
+                    <td className="px-4 py-3">
+                      {i.status === "internado" ? (
+                        internacoesComAtendimentoHoje.has(i.id) ? (
+                          <Badge variant="recovery">Lançado</Badge>
+                        ) : (
+                          <Badge variant="attention">
+                            <AlertTriangle className="h-3 w-3" /> Pendente
+                          </Badge>
+                        )
+                      ) : (
+                        <span className="text-ink-soft">—</span>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" aria-label="Editar internação" onClick={() => abrirEdicao(i)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        {i.status === "internado" && (
+                          <Button variant="ghost" size="sm" onClick={() => abrirFluxoAlta(i)}>
+                            <LogOut className="h-3.5 w-3.5" /> Dar alta
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -252,7 +393,110 @@ export default function Internacoes() {
             </table>
           </div>
         )}
+        <Paginacao
+          paginaAtual={paginaValida}
+          totalPaginas={totalPaginas}
+          onChange={setPagina}
+          totalItens={filtradas.length}
+          itensPorPagina={25}
+        />
       </Card>
+
+      <Sheet open={internacaoParaAlta !== null} onOpenChange={(open) => !open && setInternacaoParaAlta(null)}>
+        <SheetContent>
+          {etapaAlta === "data" && (
+            <form className="flex h-full flex-col" onSubmit={handleConfirmarData}>
+              <SheetHeader>
+                <SheetTitle>Dar alta</SheetTitle>
+                <SheetDescription>
+                  {internacaoParaAlta && (pacientes.find((p) => p.id === internacaoParaAlta.patient_id)?.full_name ?? "—")}
+                </SheetDescription>
+              </SheetHeader>
+              <div className="flex flex-1 flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="discharge_at">Data e hora da alta</Label>
+                  <Input
+                    id="discharge_at"
+                    type="datetime-local"
+                    required
+                    value={dataHoraAlta}
+                    onChange={(e) => setDataHoraAlta(e.target.value)}
+                  />
+                </div>
+              </div>
+              <SheetFooter>
+                <Button type="button" variant="secondary" onClick={() => setInternacaoParaAlta(null)}>Cancelar</Button>
+                <Button type="submit" disabled={salvandoAlta}>{salvandoAlta ? "Verificando…" : "Confirmar alta"}</Button>
+              </SheetFooter>
+            </form>
+          )}
+
+          {etapaAlta === "sem-atendimento" && (
+            <div className="flex h-full flex-col">
+              <SheetHeader>
+                <SheetTitle>Nenhum atendimento lançado hoje</SheetTitle>
+                <SheetDescription>
+                  Não há procedimento lançado para este paciente na data da alta ({dataHoraAlta.slice(0, 10).split("-").reverse().join("/")}).
+                </SheetDescription>
+              </SheetHeader>
+              <div className="flex flex-1 flex-col gap-4">
+                <div className="flex items-start gap-2.5 rounded-md bg-attention-100 p-3 text-sm text-attention-600">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  Recebeu atendimento antes da alta? Lance agora, ou confirme que não houve atendimento.
+                </div>
+              </div>
+              <SheetFooter className="flex-col gap-2 sm:flex-col">
+                <Button type="button" onClick={() => setEtapaAlta("lancar")} disabled={salvandoAlta}>
+                  Lançar atendimento agora
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => tentarAlta(true)} disabled={salvandoAlta}>
+                  {salvandoAlta ? "Salvando…" : "Confirmar que não houve atendimento"}
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setEtapaAlta("data")}>Voltar</Button>
+              </SheetFooter>
+            </div>
+          )}
+
+          {etapaAlta === "lancar" && (
+            <form className="flex h-full flex-col" onSubmit={handleLancarELiberar}>
+              <SheetHeader>
+                <SheetTitle>Lançar atendimento antes da alta</SheetTitle>
+                <SheetDescription>Registra o procedimento e, em seguida, confirma a alta automaticamente.</SheetDescription>
+              </SheetHeader>
+              <div className="flex flex-1 flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label>Fisioterapeuta</Label>
+                  <Select value={fisioAltaId} onValueChange={setFisioAltaId}>
+                    <SelectTrigger><SelectValue placeholder="Selecione o fisioterapeuta" /></SelectTrigger>
+                    <SelectContent>
+                      {fisioterapeutas.map((f) => (
+                        <SelectItem key={f.id} value={f.id}>{f.full_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Procedimento</Label>
+                  <Select value={procedimentoAltaId} onValueChange={setProcedimentoAltaId}>
+                    <SelectTrigger><SelectValue placeholder="Selecione o procedimento" /></SelectTrigger>
+                    <SelectContent>
+                      {procedimentos.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <SheetFooter>
+                <Button type="button" variant="secondary" onClick={() => setEtapaAlta("sem-atendimento")}>Voltar</Button>
+                <Button type="submit" disabled={salvandoAlta || !fisioAltaId || !procedimentoAltaId}>
+                  {salvandoAlta ? "Salvando…" : "Lançar e confirmar alta"}
+                </Button>
+              </SheetFooter>
+            </form>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

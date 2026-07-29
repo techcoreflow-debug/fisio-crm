@@ -177,7 +177,9 @@ export default function Quartos() {
                         {loc.unidade}
                         <Badge variant="neutral" className="ml-2">{loc.hospital}</Badge>
                       </td>
-                      <td className="px-4 py-3 text-ink-soft">{qtdLeitos}</td>
+                      <td className="px-4 py-3 text-ink-soft">
+                        {qtdLeitos === 0 ? "Nenhum leito" : `${qtdLeitos} leito${qtdLeitos === 1 ? "" : "s"}`}
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" aria-label={`Editar ${q.code}`} onClick={() => abrirEdicao(q)}>

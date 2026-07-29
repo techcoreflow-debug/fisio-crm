@@ -1,10 +1,12 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Search, Plus, Pencil, UserRound } from "lucide-react";
+import { Search, Plus, Pencil, UserRound, History } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -15,7 +17,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DeleteButton } from "@/components/shared/delete-button";
-import { usePatients, repository } from "@/data/repository";
+import { PatientTimeline } from "@/components/shared/patient-timeline";
+import { Paginacao, usarPaginacao } from "@/components/shared/paginacao";
+import { usePatients, useHealthInsurances, repository } from "@/data/repository";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useAppStore } from "@/store/app-store";
 import type { Patient } from "@/types/domain";
@@ -32,11 +36,16 @@ function idade(nascimento: string | null) {
 
 export default function Pacientes() {
   const pacientes = usePatients();
+  const convenios = useHealthInsurances();
   const empresaId = useAppStore((s) => s.activeCompanyId);
   const [busca, setBusca] = useState("");
+  const [pagina, setPagina] = useState(1);
   const [open, setOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [editando, setEditando] = useState<Patient | null>(null);
+  const [sexo, setSexo] = useState<string>("");
+  const [convenioId, setConvenioId] = useState<string>("");
+  const [pacienteTimeline, setPacienteTimeline] = useState<Patient | null>(null);
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -44,13 +53,19 @@ export default function Pacientes() {
     return pacientes.filter((p) => p.full_name.toLowerCase().includes(termo));
   }, [busca, pacientes]);
 
+  const { pagina: paginaAtual, totalPaginas, paginaValida } = usarPaginacao(filtrados, 25, pagina);
+
   function abrirNovo() {
     setEditando(null);
+    setSexo("");
+    setConvenioId("");
     setOpen(true);
   }
 
   function abrirEdicao(paciente: Patient) {
     setEditando(paciente);
+    setSexo(paciente.sexo ?? "");
+    setConvenioId(paciente.health_insurance_id ?? "");
     setOpen(true);
   }
 
@@ -61,6 +76,8 @@ export default function Pacientes() {
       full_name: String(form.get("full_name") ?? ""),
       birth_date: String(form.get("birth_date") ?? "") || null,
       document: String(form.get("document") ?? "") || null,
+      sexo: (sexo || null) as "M" | "F" | null,
+      health_insurance_id: convenioId || null,
       company_id: empresaId,
     };
     setSalvando(true);
@@ -104,12 +121,40 @@ export default function Pacientes() {
                     <Label htmlFor="full_name">Nome completo</Label>
                     <Input id="full_name" name="full_name" required placeholder="Ex.: Marina Salgado Costa" defaultValue={editando?.full_name} />
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="birth_date">Data de nascimento</Label>
-                    <Input id="birth_date" name="birth_date" type="date" defaultValue={editando?.birth_date ?? ""} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="birth_date">Data de nascimento</Label>
+                      <Input id="birth_date" name="birth_date" type="date" defaultValue={editando?.birth_date ?? ""} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Sexo</Label>
+                      <Select value={sexo} onValueChange={setSexo}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="M">Masculino</SelectItem>
+                          <SelectItem value="F">Feminino</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="document">CPF</Label>
+                    <Label>Convênio</Label>
+                    <Select value={convenioId} onValueChange={setConvenioId}>
+                      <SelectTrigger><SelectValue placeholder="Selecione o convênio" /></SelectTrigger>
+                      <SelectContent>
+                        {convenios.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {editando && editando.health_insurance_id !== (convenioId || null) && (
+                      <p className="text-xs text-attention-600">
+                        Trocar o convênio fica registrado no histórico do paciente, com a data de hoje.
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="document">CPF (opcional)</Label>
                     <Input id="document" name="document" placeholder="000.000.000-00" defaultValue={editando?.document ?? ""} />
                   </div>
                 </div>
@@ -133,7 +178,7 @@ export default function Pacientes() {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
             <Input
               value={busca}
-              onChange={(e) => setBusca(e.target.value)}
+              onChange={(e) => { setBusca(e.target.value); setPagina(1); }}
               placeholder="Buscar por nome…"
               className="pl-9"
             />
@@ -154,21 +199,33 @@ export default function Pacientes() {
                 <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-soft">
                   <th className="px-4 py-3 font-medium">Paciente</th>
                   <th className="px-4 py-3 font-medium">Idade</th>
+                  <th className="px-4 py-3 font-medium">Sexo</th>
+                  <th className="px-4 py-3 font-medium">Convênio</th>
                   <th className="px-4 py-3 font-medium">Documento</th>
                   <th className="px-4 py-3 font-medium" />
                 </tr>
               </thead>
               <tbody>
-                {filtrados.map((paciente) => (
+                {paginaAtual.map((paciente) => (
                   <tr key={paciente.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
                     <td className="px-4 py-3">
                       <p className="font-medium text-ink">{paciente.full_name}</p>
-                      <p className="font-mono text-xs text-ink-soft">{paciente.id.slice(0, 8)}</p>
                     </td>
                     <td className="px-4 py-3 text-ink-soft">{idade(paciente.birth_date) ?? "—"}</td>
+                    <td className="px-4 py-3 text-ink-soft">{paciente.sexo === "M" ? "Masculino" : paciente.sexo === "F" ? "Feminino" : "—"}</td>
+                    <td className="px-4 py-3">
+                      {paciente.health_insurance_id ? (
+                        <Badge variant="clinical">{convenios.find((c) => c.id === paciente.health_insurance_id)?.name ?? "—"}</Badge>
+                      ) : (
+                        <span className="text-ink-soft">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-mono text-xs text-ink-soft">{paciente.document ?? "—"}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" aria-label={`Linha do tempo de ${paciente.full_name}`} onClick={() => setPacienteTimeline(paciente)}>
+                          <History className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" aria-label={`Editar ${paciente.full_name}`} onClick={() => abrirEdicao(paciente)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -181,7 +238,16 @@ export default function Pacientes() {
             </table>
           </div>
         )}
+        <Paginacao
+          paginaAtual={paginaValida}
+          totalPaginas={totalPaginas}
+          onChange={setPagina}
+          totalItens={filtrados.length}
+          itensPorPagina={25}
+        />
       </Card>
+
+      <PatientTimeline paciente={pacienteTimeline} onClose={() => setPacienteTimeline(null)} />
     </div>
   );
 }
