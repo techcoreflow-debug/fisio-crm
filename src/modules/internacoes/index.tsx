@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Search, Plus, Pencil, BedDouble, LogOut, AlertTriangle } from "lucide-react";
+import { Search, Plus, Pencil, BedDouble, LogOut, AlertTriangle, ClipboardPlus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,8 +28,11 @@ import {
   useDailyProduction,
   repository,
 } from "@/data/repository";
+import { Combobox } from "@/components/ui/combobox";
 import { Paginacao, usarPaginacao } from "@/components/shared/paginacao";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
+import { useDraftState } from "@/lib/use-draft-state";
+import { useAuth } from "@/auth/auth-provider";
 import type { Admission } from "@/types/domain";
 
 type StatusInternacao = "internado" | "alta";
@@ -60,6 +63,10 @@ export default function Internacoes() {
   const fisioterapeutas = usePhysiotherapists();
   const procedimentos = useProcedures();
   const producao = useDailyProduction();
+  const { profile } = useAuth();
+  // Fisioterapeuta lançador: só lança procedimento e cadastra paciente —
+  // não administra internação (criar/editar/dar alta continua restrito).
+  const podeAdministrarInternacao = !(profile?.role === "fisioterapeuta" && !profile.is_platform_admin);
 
   const hojeIso = new Date().toISOString().slice(0, 10);
   const internacoesComAtendimentoHoje = useMemo(
@@ -71,13 +78,29 @@ export default function Internacoes() {
   const [filtroUnidade, setFiltroUnidade] = useState<string>("todas");
   const [apenasPendentes, setApenasPendentes] = useState(false);
   const [pagina, setPagina] = useState(1);
-  const [open, setOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
-  const [editando, setEditando] = useState<Admission | null>(null);
-  const [pacienteId, setPacienteId] = useState(pacientes[0]?.id ?? "");
-  const [unidadeId, setUnidadeId] = useState(unidades[0]?.id ?? "");
-  const [leitoId, setLeitoId] = useState("");
-  const [convenioId, setConvenioId] = useState(convenios[0]?.id ?? "");
+
+  // Rascunho do formulário "Nova/Editar internação" — sobrevive a um
+  // reload de aba (tablet descartando aba em 2º plano). Ver use-draft-state.ts.
+  const [rascunho, setRascunho, limparRascunho] = useDraftState("internacao-form", {
+    open: false,
+    editandoId: null as string | null,
+    pacienteId: "",
+    unidadeId: "",
+    leitoId: "",
+    convenioId: "",
+  });
+  const open = rascunho.open;
+  const editando = rascunho.editandoId ? internacoes.find((i) => i.id === rascunho.editandoId) ?? null : null;
+  const pacienteId = rascunho.pacienteId;
+  const unidadeId = rascunho.unidadeId;
+  const leitoId = rascunho.leitoId;
+  const convenioId = rascunho.convenioId;
+  const setOpen = (v: boolean) => setRascunho({ ...rascunho, open: v });
+  const setPacienteId = (v: string) => setRascunho({ ...rascunho, pacienteId: v });
+  const setUnidadeId = (v: string) => setRascunho({ ...rascunho, unidadeId: v });
+  const setLeitoId = (v: string) => setRascunho({ ...rascunho, leitoId: v });
+  const setConvenioId = (v: string) => setRascunho({ ...rascunho, convenioId: v });
 
   const leitosDaUnidade = leitos.filter(
     (l) => l.unit_id === unidadeId && (l.status === "livre" || l.id === editando?.bed_id)
@@ -91,6 +114,43 @@ export default function Internacoes() {
   const [salvandoAlta, setSalvandoAlta] = useState(false);
   const [fisioAltaId, setFisioAltaId] = useState(fisioterapeutas[0]?.id ?? "");
   const [procedimentoAltaId, setProcedimentoAltaId] = useState(procedimentos[0]?.id ?? "");
+
+  // Lançar procedimento direto da lista — não precisa sair daqui e ir
+  // procurar o paciente de novo em Produção Diária.
+  const [internacaoParaLancar, setInternacaoParaLancar] = useState<Admission | null>(null);
+  const [fisioLancarId, setFisioLancarId] = useState(fisioterapeutas[0]?.id ?? "");
+  const [procedimentoLancarId, setProcedimentoLancarId] = useState(procedimentos[0]?.id ?? "");
+  const [dataLancar, setDataLancar] = useState(hojeIso);
+  const [salvandoLancamento, setSalvandoLancamento] = useState(false);
+
+  function abrirLancarProcedimento(internacao: Admission) {
+    setInternacaoParaLancar(internacao);
+    setFisioLancarId(fisioterapeutas[0]?.id ?? "");
+    setProcedimentoLancarId(procedimentos[0]?.id ?? "");
+    setDataLancar(hojeIso);
+  }
+
+  async function handleLancarProcedimento(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!internacaoParaLancar) return;
+    setSalvandoLancamento(true);
+    try {
+      await repository.dailyProduction.create({
+        admission_id: internacaoParaLancar.id,
+        physiotherapist_id: fisioLancarId,
+        procedure_id: procedimentoLancarId,
+        production_date: dataLancar,
+        source: "manual",
+        company_id: internacaoParaLancar.company_id,
+      });
+      notificarSucesso("Procedimento lançado.");
+      setInternacaoParaLancar(null);
+    } catch (erro) {
+      notificarErro("Não foi possível lançar o procedimento", erro);
+    } finally {
+      setSalvandoLancamento(false);
+    }
+  }
 
   const filtradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -106,21 +166,25 @@ export default function Internacoes() {
   const { pagina: paginaAtual, totalPaginas, paginaValida } = usarPaginacao(filtradas, 25, pagina);
 
   function abrirNova() {
-    setEditando(null);
-    setPacienteId(pacientes[0]?.id ?? "");
-    setUnidadeId(unidades[0]?.id ?? "");
-    setLeitoId("");
-    setConvenioId(convenios[0]?.id ?? "");
-    setOpen(true);
+    setRascunho({
+      open: true,
+      editandoId: null,
+      pacienteId: pacientes[0]?.id ?? "",
+      unidadeId: unidades[0]?.id ?? "",
+      leitoId: "",
+      convenioId: convenios[0]?.id ?? "",
+    });
   }
 
   function abrirEdicao(internacao: Admission) {
-    setEditando(internacao);
-    setPacienteId(internacao.patient_id);
-    setUnidadeId(internacao.unit_id ?? "");
-    setLeitoId(internacao.bed_id ?? "");
-    setConvenioId(internacao.health_insurance_id ?? "");
-    setOpen(true);
+    setRascunho({
+      open: true,
+      editandoId: internacao.id,
+      pacienteId: internacao.patient_id,
+      unidadeId: internacao.unit_id ?? "",
+      leitoId: internacao.bed_id ?? "",
+      convenioId: internacao.health_insurance_id ?? "",
+    });
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -147,8 +211,7 @@ export default function Internacoes() {
         await repository.admissions.create(dados);
         notificarSucesso("Internação registrada.");
       }
-      setOpen(false);
-      setEditando(null);
+      limparRascunho();
     } catch (erro) {
       notificarErro(editando ? "Não foi possível salvar as alterações" : "Não foi possível registrar a internação", erro);
     } finally {
@@ -213,10 +276,11 @@ export default function Internacoes() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Internações"
-        description="Internações ativas e encerradas, com leito, hospital, convênio e equipe responsável."
+        title="Pacientes Internados"
+        description="Pacientes internados acompanhados pela equipe, com leito, hospital, convênio e status de atendimento do dia."
         actions={
-          <Sheet open={open} onOpenChange={setOpen}>
+          podeAdministrarInternacao ? (
+            <Sheet open={open} onOpenChange={(v) => (v ? setOpen(true) : limparRascunho())}>
             <SheetTrigger asChild>
               <Button size="sm" onClick={abrirNova}>
                 <Plus className="h-4 w-4" /> Nova internação
@@ -283,7 +347,7 @@ export default function Internacoes() {
                   </div>
                 </div>
                 <SheetFooter>
-                  <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
+                  <Button type="button" variant="secondary" onClick={() => limparRascunho()}>Cancelar</Button>
                   <Button type="submit" disabled={salvando || !pacienteId || !unidadeId}>
                     {salvando ? "Salvando…" : editando ? "Salvar alterações" : "Registrar internação"}
                   </Button>
@@ -291,6 +355,7 @@ export default function Internacoes() {
               </form>
             </SheetContent>
           </Sheet>
+          ) : null
         }
       />
 
@@ -324,7 +389,7 @@ export default function Internacoes() {
         {filtradas.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <BedDouble className="h-8 w-8 text-ink-soft" />
-            <p className="font-medium text-ink">Nenhuma internação encontrada</p>
+            <p className="font-medium text-ink">Nenhum paciente internado encontrado</p>
             <p className="text-sm text-ink-soft">Ajuste os filtros ou registre uma nova internação.</p>
           </div>
         ) : (
@@ -377,13 +442,22 @@ export default function Internacoes() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" aria-label="Editar internação" onClick={() => abrirEdicao(i)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        {i.status === "internado" && (
-                          <Button variant="ghost" size="sm" onClick={() => abrirFluxoAlta(i)}>
-                            <LogOut className="h-3.5 w-3.5" /> Dar alta
+                        {podeAdministrarInternacao && (
+                          <Button variant="ghost" size="icon" aria-label="Editar internação" onClick={() => abrirEdicao(i)}>
+                            <Pencil className="h-4 w-4" />
                           </Button>
+                        )}
+                        {i.status === "internado" && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => abrirLancarProcedimento(i)}>
+                              <ClipboardPlus className="h-3.5 w-3.5" /> Lançar procedimento
+                            </Button>
+                            {podeAdministrarInternacao && (
+                              <Button variant="ghost" size="sm" onClick={() => abrirFluxoAlta(i)}>
+                                <LogOut className="h-3.5 w-3.5" /> Dar alta
+                              </Button>
+                            )}
+                          </>
                         )}
                       </div>
                     </td>
@@ -495,6 +569,51 @@ export default function Internacoes() {
               </SheetFooter>
             </form>
           )}
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={internacaoParaLancar !== null} onOpenChange={(open) => !open && setInternacaoParaLancar(null)}>
+        <SheetContent>
+          <form className="flex h-full flex-col" onSubmit={handleLancarProcedimento}>
+            <SheetHeader>
+              <SheetTitle>Lançar procedimento</SheetTitle>
+              <SheetDescription>
+                {internacaoParaLancar && (pacientes.find((p) => p.id === internacaoParaLancar.patient_id)?.full_name ?? "—")}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="flex flex-1 flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label>Fisioterapeuta</Label>
+                <Combobox
+                  value={fisioLancarId}
+                  onValueChange={setFisioLancarId}
+                  options={fisioterapeutas.map((f) => ({ value: f.id, label: f.full_name }))}
+                  placeholder="Buscar fisioterapeuta…"
+                  searchPlaceholder="Nome do fisioterapeuta…"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Procedimento</Label>
+                <Combobox
+                  value={procedimentoLancarId}
+                  onValueChange={setProcedimentoLancarId}
+                  options={procedimentos.map((p) => ({ value: p.id, label: p.name, sublabel: p.category ?? undefined }))}
+                  placeholder="Buscar procedimento…"
+                  searchPlaceholder="Nome ou categoria…"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="data_lancar">Data</Label>
+                <Input id="data_lancar" type="date" required value={dataLancar} onChange={(e) => setDataLancar(e.target.value)} />
+              </div>
+            </div>
+            <SheetFooter>
+              <Button type="button" variant="secondary" onClick={() => setInternacaoParaLancar(null)}>Cancelar</Button>
+              <Button type="submit" disabled={salvandoLancamento || !fisioLancarId || !procedimentoLancarId}>
+                {salvandoLancamento ? "Salvando…" : "Lançar procedimento"}
+              </Button>
+            </SheetFooter>
+          </form>
         </SheetContent>
       </Sheet>
     </div>

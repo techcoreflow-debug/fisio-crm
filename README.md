@@ -2,6 +2,14 @@
 
 Produto InovareTech. SaaS multiempresa para gestão operacional, assistencial, administrativa e financeira de empresas de fisioterapia hospitalar.
 
+## Controle de versão
+
+Versão atual em `src/lib/version.ts` (`APP_VERSION`) — aparece no login e
+em Configurações. **Todo bump precisa de uma entrada em
+[`CHANGELOG.md`](./CHANGELOG.md) na mesma entrega** — é isso que dá
+controle real do que está em cada build. Ver o topo do changelog para o
+processo e a regra de incremento.
+
 ## Stack
 
 - React + TypeScript + Vite + TailwindCSS v4 + Radix UI

@@ -100,7 +100,7 @@ export const moduleGroups: ModuleGroup[] = [
     label: "Assistencial",
     modules: [
       { slug: "pacientes", path: "/pacientes", label: "Pacientes", icon: Users, description: "Cadastro de pacientes atendidos, histórico clínico e internações relacionadas.", status: "pronto" },
-      { slug: "internacoes", path: "/internacoes", label: "Internações", icon: BedDouble, description: "Internações ativas e encerradas, leito, quadro clínico e equipe responsável.", status: "pronto" },
+      { slug: "internacoes", path: "/internacoes", label: "Pacientes Internados", icon: BedDouble, description: "Pacientes internados acompanhados pela equipe, com leito, hospital e status de atendimento do dia.", status: "pronto" },
       { slug: "leitos", path: "/leitos", label: "Leitos", icon: BedDouble, description: "Mapa de leitos por ala e quarto, ocupação em tempo real e histórico de giro.", status: "pronto" },
       { slug: "escalas", path: "/escalas", label: "Escalas", icon: CalendarClock, description: "Escalas de trabalho dos fisioterapeutas por unidade e turno.", status: "pronto" },
       { slug: "fisioterapeutas", path: "/fisioterapeutas", label: "Fisioterapeutas", icon: UserRound, description: "Equipe assistencial, especialidades, produtividade e vínculos com unidades.", status: "pronto" },
@@ -148,5 +148,5 @@ export const allModules: ModuleDef[] = moduleGroups.flatMap((g) => g.modules);
  * papéis (admin de empresa, gestor, financeiro, auditor) continuam vendo
  * tudo normalmente.
  */
-export const SLUGS_LANCADOR = ["pacientes", "producao-diaria"];
-export const ROTA_PADRAO_LANCADOR = "/producao-diaria";
+export const SLUGS_LANCADOR = ["pacientes", "internacoes", "producao-diaria"];
+export const ROTA_PADRAO_LANCADOR = "/internacoes";
