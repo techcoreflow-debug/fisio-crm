@@ -114,7 +114,7 @@ export default function ProducaoDiaria() {
   );
 
   const opcoesProcedimento = useMemo(
-    () => procedimentos.map((p) => ({ value: p.id, label: p.name, sublabel: p.category ?? undefined })),
+    () => procedimentos.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}`, sublabel: p.category ?? undefined })),
     [procedimentos]
   );
 

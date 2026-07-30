@@ -20,6 +20,38 @@ Antes de subir um deploy:
 
 ---
 
+## v0.8.0 — 30/07/2026
+
+**Zona de risco em Configurações** (só para o admin InovareTech): limpeza
+de base por categoria, restrita à **empresa ativa** (nunca todas de uma
+vez). Checkboxes por categoria (auditoria, Tasy, financeiro, atendimento,
+internações, escalas, contratos, pacientes, equipe, procedimentos,
+convênios, estrutura física), diálogo de confirmação simples, exclusão
+numa ordem que respeita as dependências entre tabelas. Sem migration —
+usa as tabelas que já existem.
+
+---
+
+## v0.7.1 — 30/07/2026
+
+- **Hora de entrada na internação** (migration `0019`) — simétrico ao
+  horário de alta que já existia. Aplicado em Internações e no fluxo
+  Novo Atendimento.
+- **Código do procedimento buscável** — todos os Comboboxes de
+  procedimento agora mostram e permitem buscar pelo código, não só nome.
+- **Correção real na conciliação Tasy**: o índice de casamento tratava só
+  UM lançamento por (paciente + procedimento + dia) — se o paciente
+  tivesse o mesmo procedimento 2x no mesmo dia (ex.: Motora de manhã e à
+  tarde), o segundo lançamento nunca conseguia ser confirmado. Agora é
+  uma fila por chave — a conciliação valida **quantidade por dia**, não
+  horário exato, exatamente como esperado.
+- **"Adicionar mais procedimentos para o mesmo paciente"** — no fluxo
+  Novo Atendimento, depois de lançar um procedimento e ver "Feito!", um
+  botão leva direto de volta pra lançar outro procedimento pro mesmo
+  paciente/internação, sem reiniciar o fluxo inteiro.
+
+---
+
 ## v0.7.0 — 30/07/2026
 
 **Correção de bug crítico:** edição de paciente (e qualquer tela com Select

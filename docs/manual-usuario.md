@@ -136,3 +136,11 @@ escondido que não faz nada.
 
 Trilha real de quem criou, editou, excluiu, deu alta ou importou o quê e
 quando — gerada automaticamente pelo sistema, nunca editável.
+
+## Zona de risco (só admin InovareTech)
+
+Em Configurações, um card vermelho só visível pro admin InovareTech:
+limpeza de base por categoria (pacientes, internações, contratos,
+estrutura física etc.), sempre restrita à **empresa ativa** no momento —
+nunca todas de uma vez. Pede confirmação antes de apagar. Sem volta
+depois de confirmado.

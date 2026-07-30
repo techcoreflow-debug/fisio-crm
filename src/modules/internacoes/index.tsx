@@ -211,6 +211,7 @@ export default function Internacoes() {
         bed_id: leitoId || null,
         health_insurance_id: convenioId || null,
         admission_date: String(form.get("admission_date") ?? ""),
+        admission_time: String(form.get("admission_time") ?? "") || "08:00",
         company_id: paciente.company_id,
       };
       if (editando) {
@@ -351,9 +352,15 @@ export default function Internacoes() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="admission_date">Data de entrada</Label>
-                    <Input id="admission_date" name="admission_date" type="date" required defaultValue={editando?.admission_date ?? ""} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="admission_date">Data de entrada</Label>
+                      <Input id="admission_date" name="admission_date" type="date" required defaultValue={editando?.admission_date ?? new Date().toISOString().slice(0, 10)} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="admission_time">Horário</Label>
+                      <Input id="admission_time" name="admission_time" type="time" required defaultValue={editando?.admission_time?.slice(0, 5) ?? new Date().toTimeString().slice(0, 5)} />
+                    </div>
                   </div>
                 </div>
                 <SheetFooter>
@@ -462,7 +469,7 @@ export default function Internacoes() {
                     </td>
                     <td className="px-4 py-3 font-mono text-ink-soft">{leitos.find((l) => l.id === i.bed_id)?.code ?? "—"}</td>
                     <td className="px-4 py-3 text-ink-soft">{convenios.find((c) => c.id === i.health_insurance_id)?.name ?? "—"}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">{formatarData(i.admission_date)}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">{formatarData(i.admission_date)} {i.admission_time?.slice(0, 5)}</td>
                     <td className="px-4 py-3">
                       <Badge variant={statusConfig[i.status as StatusInternacao]?.variant ?? "neutral"}>
                         {statusConfig[i.status as StatusInternacao]?.label ?? i.status}
@@ -638,7 +645,7 @@ export default function Internacoes() {
                 <Combobox
                   value={procedimentoLancarId}
                   onValueChange={setProcedimentoLancarId}
-                  options={procedimentos.map((p) => ({ value: p.id, label: p.name, sublabel: p.category ?? undefined }))}
+                  options={procedimentos.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}`, sublabel: p.category ?? undefined }))}
                   placeholder="Buscar procedimento…"
                   searchPlaceholder="Nome ou categoria…"
                 />

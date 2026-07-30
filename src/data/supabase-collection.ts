@@ -95,6 +95,24 @@ export async function excluirLinha(table: TableName, id: string): Promise<void> 
 }
 
 /**
+ * Apaga TODAS as linhas de `table` pertencentes a `companyId` — usado só
+ * pela limpeza de base (zona de risco). Devolve quantas linhas existiam
+ * antes de apagar, pra dar feedback real de quantidade.
+ */
+export async function excluirLinhaPorEmpresa(table: TableName, companyId: string): Promise<number> {
+  const { count, error: errorContar } = await supabase
+    .from(table)
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId);
+  if (errorContar) throw new Error(`Falha ao contar ${table}: ${errorContar.message}`);
+  const total = count ?? 0;
+  if (total === 0) return 0;
+  const { error } = await supabase.from(table).delete().eq("company_id", companyId);
+  if (error) throw new Error(`Falha ao apagar ${table}: ${error.message}`);
+  return total;
+}
+
+/**
  * Conta quantas linhas de `table` referenciam `id` em `coluna` — usado
  * pelos guards de exclusão (bloquear "excluir hospital com alas
  * vinculadas" etc.) antes de mandar o delete pro Postgres.

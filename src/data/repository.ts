@@ -4,6 +4,7 @@ import {
   inserirLinha,
   atualizarLinha,
   excluirLinha,
+  excluirLinhaPorEmpresa,
   contarDependentes,
   registrarAuditoria,
   emLotes,
@@ -437,7 +438,7 @@ export const repository = {
 
   admissions: {
     create: async (
-      data: Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "company_id">
+      data: Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "company_id">
     ): Promise<Admission> => {
       const row = await inserirLinha<Admission>("admissions", { ...data, status: "internado" });
       if (row.bed_id) await atualizarLinha("beds", row.bed_id, { status: "ocupado" });
@@ -445,7 +446,7 @@ export const repository = {
     },
     update: async (
       id: string,
-      patch: Partial<Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "company_id">>
+      patch: Partial<Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "company_id">>
     ): Promise<void> => {
       await atualizarLinha("admissions", id, patch);
       if (patch.bed_id) await atualizarLinha("beds", patch.bed_id, { status: "ocupado" });
@@ -657,13 +658,19 @@ export const repository = {
         patientIdPorAdmissionId = new Map((admissoesRel ?? []).map((a) => [a.id as string, a.patient_id as string]));
       }
 
-      const indice = new Map<string, string>(); // chave -> daily_production.id
+      // Map de fila: pode haver 2+ lançamentos do MESMO paciente+procedimento
+      // no MESMO dia (ex.: Motora de manhã e à tarde) — cada linha do Tasy
+      // consome UM candidato da fila, não um único "o" candidato fixo. A
+      // conciliação valida quantidade por dia, não horário exato.
+      const indice = new Map<string, string[]>(); // chave -> fila de daily_production.id
       for (const c of candidatos ?? []) {
         if (!c.admission_id || !c.procedure_id) continue;
         const patientId = patientIdPorAdmissionId.get(c.admission_id);
         if (!patientId) continue;
         const chave = `${patientId}|${c.procedure_id}|${c.production_date}`;
-        if (!indice.has(chave)) indice.set(chave, c.id);
+        const fila = indice.get(chave) ?? [];
+        fila.push(c.id);
+        indice.set(chave, fila);
       }
 
       let confirmados = 0;
@@ -675,10 +682,9 @@ export const repository = {
         let matchId: string | null = null;
         if (patientId && procedureId) {
           const chave = `${patientId}|${procedureId}|${l.dataProducao}`;
-          const candidatoId = indice.get(chave);
-          if (candidatoId) {
-            matchId = candidatoId;
-            indice.delete(chave); // consome — não deixa duas linhas do Tasy confirmarem o mesmo lançamento
+          const fila = indice.get(chave);
+          if (fila && fila.length > 0) {
+            matchId = fila.shift()!; // consome um da fila — a próxima linha do Tasy com a mesma chave pega o próximo
           }
         }
         if (matchId) {
@@ -737,6 +743,70 @@ export const repository = {
   tasyImportRows: {
     ignorar: async (id: string): Promise<void> => {
       await atualizarLinha("tasy_import_rows", id, { status: "ignorado" });
+    },
+  },
+
+  /**
+   * Zona de risco — só o admin InovareTech usa isso, e só na tela de
+   * Configurações com confirmação explícita. Apaga dados de UMA empresa
+   * (nunca de todas), por categoria escolhida, numa ordem que respeita as
+   * dependências entre tabelas (filhos antes dos pais) para não esbarrar
+   * em restrição de chave estrangeira.
+   */
+  perigo: {
+    async limparEmpresa(companyId: string, grupos: string[]): Promise<Record<string, number>> {
+      const contagem: Record<string, number> = {};
+
+      async function apagar(table: Parameters<typeof excluirLinhaPorEmpresa>[0]) {
+        const total = await excluirLinhaPorEmpresa(table, companyId);
+        contagem[table] = total;
+      }
+
+      // Ordem fixa, sempre do mais dependente pro menos dependente —
+      // independe de quais grupos foram marcados, só executa quem foi.
+      if (grupos.includes("auditoria")) await apagar("activity_log");
+      if (grupos.includes("tasy")) {
+        await apagar("tasy_import_rows");
+        await apagar("tasy_imports");
+      }
+      if (grupos.includes("financeiro")) await apagar("receivables");
+      if (grupos.includes("atendimento")) {
+        await apagar("clinical_evolutions");
+        await apagar("daily_production");
+      }
+      if (grupos.includes("internacoes")) await apagar("admissions");
+      if (grupos.includes("escalas")) await apagar("shifts");
+      if (grupos.includes("contratos")) {
+        await apagar("contract_units");
+        await apagar("contracts");
+      }
+      if (grupos.includes("pacientes")) {
+        await apagar("patient_insurance_history");
+        await apagar("patients");
+      }
+      if (grupos.includes("equipe")) {
+        await apagar("physiotherapists");
+        await apagar("teams");
+      }
+      if (grupos.includes("procedimentos")) await apagar("procedures");
+      if (grupos.includes("convenios")) await apagar("health_insurances");
+      if (grupos.includes("estrutura")) {
+        await apagar("beds");
+        await apagar("rooms");
+        await apagar("units");
+        await apagar("cost_centers");
+        await apagar("hospitals");
+        await apagar("clinics");
+      }
+
+      await registrarAuditoria({
+        company_id: companyId,
+        action: "excluido",
+        entity_type: "Limpeza de base",
+        entity_label: grupos.join(", "),
+      });
+
+      return contagem;
     },
   },
 

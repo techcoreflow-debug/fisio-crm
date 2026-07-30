@@ -70,7 +70,7 @@ export default function NovoAtendimento() {
   const leitosDaUnidade = leitos.filter((l) => l.unit_id === unidadeId && l.status === "livre");
   const opcoesFisioterapeuta = useMemo(() => fisioterapeutas.map((f) => ({ value: f.id, label: f.full_name })), [fisioterapeutas]);
   const opcoesProcedimento = useMemo(
-    () => procedimentos.map((p) => ({ value: p.id, label: p.name, sublabel: p.category ?? undefined })),
+    () => procedimentos.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}`, sublabel: p.category ?? undefined })),
     [procedimentos]
   );
 
@@ -131,6 +131,7 @@ export default function NovoAtendimento() {
         bed_id: leitoId || null,
         health_insurance_id: convenioInternacaoId || null,
         admission_date: String(form.get("admission_date") ?? ""),
+        admission_time: String(form.get("admission_time") ?? ""),
         company_id: pacienteAtual.company_id,
       });
       setInternacaoCriada(criada);
@@ -309,9 +310,15 @@ export default function NovoAtendimento() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-col gap-1.5 sm:w-96">
-                <Label htmlFor="admission_date">Data de entrada</Label>
-                <Input id="admission_date" name="admission_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
+              <div className="grid gap-3 sm:w-96 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="admission_date">Data de entrada</Label>
+                  <Input id="admission_date" name="admission_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="admission_time">Horário</Label>
+                  <Input id="admission_time" name="admission_time" type="time" required defaultValue={new Date().toTimeString().slice(0, 5)} />
+                </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="secondary" onClick={() => setEtapa("concluido")}>
@@ -385,9 +392,21 @@ export default function NovoAtendimento() {
               {pacienteAtual?.full_name}
               {internacaoCriada ? " · internação registrada" : ""}
             </p>
-            <Button variant="secondary" onClick={reiniciar}>
-              <RotateCcw className="h-4 w-4" /> Novo atendimento
-            </Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              {internacaoCriada && (
+                <Button
+                  onClick={() => {
+                    setProcedimentoId("");
+                    setEtapa("procedimento");
+                  }}
+                >
+                  <ClipboardList className="h-4 w-4" /> Adicionar mais procedimentos para o mesmo paciente
+                </Button>
+              )}
+              <Button variant="secondary" onClick={reiniciar}>
+                <RotateCcw className="h-4 w-4" /> Novo atendimento
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

@@ -166,6 +166,7 @@ export interface Admission {
   bed_id: string | null;
   health_insurance_id: string | null;
   admission_date: string;
+  admission_time: string;
   discharge_date: string | null;
   discharge_at: string | null;
   admission_number: number;
