@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Search, Plus, ClipboardList, TriangleAlert } from "lucide-react";
+import { Search, Plus, ClipboardList, TriangleAlert, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -56,6 +56,47 @@ export default function ProducaoDiaria() {
 
   const [itemGlosa, setItemGlosa] = useState<DailyProduction | null>(null);
   const [salvandoGlosa, setSalvandoGlosa] = useState(false);
+
+  const [itemEditando, setItemEditando] = useState<DailyProduction | null>(null);
+  const [fisioEditId, setFisioEditId] = useState("");
+  const [procedimentoEditId, setProcedimentoEditId] = useState("");
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+
+  function abrirEdicao(p: DailyProduction) {
+    setItemEditando(p);
+    setFisioEditId(p.physiotherapist_id ?? "");
+    setProcedimentoEditId(p.procedure_id ?? "");
+  }
+
+  async function handleSubmitEdicao(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!itemEditando) return;
+    const form = new FormData(e.currentTarget);
+    setSalvandoEdicao(true);
+    try {
+      await repository.dailyProduction.update(itemEditando.id, {
+        physiotherapist_id: fisioEditId,
+        procedure_id: procedimentoEditId,
+        production_date: String(form.get("production_date") ?? ""),
+        production_time: String(form.get("production_time") ?? ""),
+      });
+      notificarSucesso("Lançamento atualizado.");
+      setItemEditando(null);
+    } catch (erro) {
+      notificarErro("Não foi possível salvar as alterações", erro);
+    } finally {
+      setSalvandoEdicao(false);
+    }
+  }
+
+  async function handleExcluir(id: string) {
+    try {
+      await repository.dailyProduction.remove(id);
+      notificarSucesso("Lançamento excluído.");
+    } catch (erro) {
+      notificarErro("Não foi possível excluir", erro);
+    }
+  }
 
   async function handleSubmitGlosa(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -255,6 +296,7 @@ export default function ProducaoDiaria() {
                   <th className="px-4 py-3 font-medium">Fisioterapeuta</th>
                   <th className="px-4 py-3 font-medium">Conciliação</th>
                   {glosaPorProcedimento && <th className="px-4 py-3 font-medium">Glosa</th>}
+                  <th className="px-4 py-3 font-medium" />
                 </tr>
               </thead>
               <tbody>
@@ -292,6 +334,18 @@ export default function ProducaoDiaria() {
                         )}
                       </td>
                     )}
+                    <td className="px-4 py-3 text-right">
+                      {!p.confirmado_tasy && (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" aria-label="Editar lançamento" onClick={() => abrirEdicao(p)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" aria-label="Excluir lançamento" onClick={() => handleExcluir(p.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -335,6 +389,55 @@ export default function ProducaoDiaria() {
             <SheetFooter>
               <Button type="button" variant="secondary" onClick={() => setItemGlosa(null)}>Cancelar</Button>
               <Button type="submit" disabled={salvandoGlosa}>{salvandoGlosa ? "Salvando…" : "Registrar"}</Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={itemEditando !== null} onOpenChange={(open) => !open && setItemEditando(null)}>
+        <SheetContent>
+          <form key={itemEditando?.id} className="flex h-full flex-col" onSubmit={handleSubmitEdicao}>
+            <SheetHeader>
+              <SheetTitle>Editar lançamento</SheetTitle>
+              <SheetDescription>{itemEditando && nomePaciente(itemEditando.admission_id)}</SheetDescription>
+            </SheetHeader>
+            <div className="flex flex-1 flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label>Fisioterapeuta</Label>
+                <Combobox
+                  value={fisioEditId}
+                  onValueChange={setFisioEditId}
+                  options={opcoesFisioterapeuta}
+                  placeholder="Buscar fisioterapeuta…"
+                  searchPlaceholder="Nome do fisioterapeuta…"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Procedimento</Label>
+                <Combobox
+                  value={procedimentoEditId}
+                  onValueChange={setProcedimentoEditId}
+                  options={opcoesProcedimento}
+                  placeholder="Buscar procedimento…"
+                  searchPlaceholder="Nome, código ou categoria…"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="production_date_edit">Data</Label>
+                  <Input id="production_date_edit" name="production_date" type="date" required defaultValue={itemEditando?.production_date} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="production_time_edit">Horário</Label>
+                  <Input id="production_time_edit" name="production_time" type="time" required defaultValue={itemEditando?.production_time?.slice(0, 5)} />
+                </div>
+              </div>
+            </div>
+            <SheetFooter>
+              <Button type="button" variant="secondary" onClick={() => setItemEditando(null)}>Cancelar</Button>
+              <Button type="submit" disabled={salvandoEdicao || !fisioEditId || !procedimentoEditId}>
+                {salvandoEdicao ? "Salvando…" : "Salvar alterações"}
+              </Button>
             </SheetFooter>
           </form>
         </SheetContent>

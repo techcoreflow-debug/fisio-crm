@@ -41,6 +41,7 @@ export function useSupabaseCollection<T>(table: TableName, filtros: Record<strin
     }
 
     let ativo = true;
+    let timeoutDebounce: ReturnType<typeof setTimeout> | null = null;
 
     async function carregar() {
       let query = supabase.from(table).select("*");
@@ -60,15 +61,26 @@ export function useSupabaseCollection<T>(table: TableName, filtros: Record<strin
       setLinhas((data ?? []) as T[]);
     }
 
+    // Operações em massa (ex.: conciliação Tasy) disparam um evento de
+    // Realtime POR LINHA — sem isso, uma importação de milhares de linhas
+    // dispararia milhares de buscas simultâneas e sobrecarregaria o
+    // navegador ("Failed to fetch"). Junta tudo que chegar num intervalo
+    // curto numa única busca, feita só quando as mudanças pararem.
+    function agendarRecarga() {
+      if (timeoutDebounce) clearTimeout(timeoutDebounce);
+      timeoutDebounce = setTimeout(carregar, 400);
+    }
+
     carregar();
 
     const canal = supabase
       .channel(`${table}:${chaveFiltro}:${idDoCanalRef.current}`)
-      .on("postgres_changes", { event: "*", schema: "public", table }, () => carregar())
+      .on("postgres_changes", { event: "*", schema: "public", table }, agendarRecarga)
       .subscribe();
 
     return () => {
       ativo = false;
+      if (timeoutDebounce) clearTimeout(timeoutDebounce);
       supabase.removeChannel(canal);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

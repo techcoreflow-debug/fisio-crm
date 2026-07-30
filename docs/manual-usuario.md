@@ -111,6 +111,14 @@ uma etapa futura, isolada de propósito.
 - **Modo manual** (desligado): digita o valor direto na conta a receber,
   sem detalhar procedimento a procedimento.
 
+## Fechamento
+
+Visão de lançado × confirmado (pelo Tasy) × não confirmado — o "ritual de
+fechamento" diário/semanal. Presets de período (Hoje, Ontem, Esta semana,
+Este mês, ou personalizado), filtro por hospital e convênio. Mostra a
+taxa de confirmação, gráficos por dia e por hospital, e a lista de quem
+ainda não foi confirmado — pronta para exportar ou agir.
+
 ## Painel de Procedimentos
 
 Visão cruzada de produção × glosa: filtra por período, hospital, unidade,

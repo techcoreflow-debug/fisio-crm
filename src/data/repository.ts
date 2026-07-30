@@ -508,6 +508,25 @@ export const repository = {
     create: async (
       data: Pick<DailyProduction, "admission_id" | "physiotherapist_id" | "procedure_id" | "production_date" | "production_time" | "source" | "company_id">
     ): Promise<DailyProduction> => inserirLinha<DailyProduction>("daily_production", data),
+    update: async (
+      id: string,
+      patch: Partial<Pick<DailyProduction, "physiotherapist_id" | "procedure_id" | "production_date" | "production_time">>
+    ): Promise<void> => {
+      const { data: atual, error } = await supabase.from("daily_production").select("confirmado_tasy").eq("id", id).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (atual?.confirmado_tasy) {
+        throw new Error("Este lançamento já foi confirmado pelo Tasy e não pode mais ser editado.");
+      }
+      await atualizarLinha("daily_production", id, patch);
+    },
+    remove: async (id: string): Promise<void> => {
+      const { data: atual, error } = await supabase.from("daily_production").select("confirmado_tasy").eq("id", id).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (atual?.confirmado_tasy) {
+        throw new Error("Este lançamento já foi confirmado pelo Tasy e não pode mais ser excluído.");
+      }
+      await excluirLinha("daily_production", id);
+    },
     registrarGlosa: async (id: string, valor: number, motivo: string): Promise<void> => {
       if (valor <= 0) throw new Error("O valor glosado precisa ser maior que zero.");
       await atualizarLinha("daily_production", id, {

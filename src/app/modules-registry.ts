@@ -27,6 +27,7 @@ import {
   UploadCloud,
   SlidersHorizontal,
   Workflow,
+  ClipboardCheck,
 } from "lucide-react";
 
 export interface ModuleDef {
@@ -123,6 +124,7 @@ export const moduleGroups: ModuleGroup[] = [
     id: "inteligencia",
     label: "Inteligência",
     modules: [
+      { slug: "fechamento", path: "/fechamento", label: "Fechamento", icon: ClipboardCheck, description: "Lançado × confirmado pelo Tasy, por período e hospital — o fechamento pronto pra conferência.", status: "pronto" },
       { slug: "painel-procedimentos", path: "/painel-procedimentos", label: "Painel de Procedimentos", icon: SlidersHorizontal, description: "Procedimentos lançados com filtros por período, unidade, convênio e categoria — cruza direto com glosa.", status: "pronto" },
       { slug: "relatorios", path: "/relatorios", label: "Relatórios", icon: BarChart3, description: "Relatórios operacionais, assistenciais e financeiros prontos para exportação.", status: "pronto" },
       { slug: "bi", path: "/bi", label: "Business Intelligence", icon: PieChart, description: "Análises avançadas e cruzamentos customizados entre todas as bases do Fisio.", status: "pronto" },

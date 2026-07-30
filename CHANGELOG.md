@@ -20,6 +20,32 @@ Antes de subir um deploy:
 
 ---
 
+## v0.9.0 — 30/07/2026
+
+**Correção crítica**: importações/conciliações grandes causavam
+"Failed to fetch" no fim do processo — cada linha alterada disparava uma
+busca completa via Realtime, e com milhares de linhas de uma vez isso
+sobrecarregava o navegador. `useSupabaseCollection` agora agrupa
+("debounce") mudanças próximas numa única busca.
+
+**Evolução Clínica redesenhada de novo** — desta vez como prontuário:
+agrupada por paciente/internação, cada grupo mostra suas notas em ordem
+cronológica, com contador e data da última evolução. Muito mais fácil de
+entender que uma lista solta de notas.
+
+**Edição de lançamento não confirmado** — Produção Diária ganhou editar e
+excluir, mas só para lançamentos que **ainda não foram confirmados pelo
+Tasy** (depois de confirmado, fica travado — é o registro oficial).
+
+**Novo módulo "Fechamento"** — visão de lançado × confirmado × não
+confirmado, com presets de período (Hoje/Ontem/Semana/Mês/Personalizado),
+filtro por hospital e convênio, goniômetro de taxa de confirmação, barra
+de composição visual, gráficos por dia e por hospital, e a lista dos não
+confirmados prontos pra ação. Pensado como o "ritual de fechamento"
+diário/semanal da operação.
+
+---
+
 ## v0.8.0 — 30/07/2026
 
 **Zona de risco em Configurações** (só para o admin InovareTech): limpeza
