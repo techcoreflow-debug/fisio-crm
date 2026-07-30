@@ -19,6 +19,7 @@ import type {
   DailyProduction,
   ClinicalEvolution,
   TasyImport,
+  TasyImportRow,
   Shift,
   ActivityLog,
   Receivable,
@@ -69,6 +70,7 @@ export interface Database {
       daily_production: TableDef<DailyProduction>;
       clinical_evolutions: TableDef<ClinicalEvolution>;
       tasy_imports: TableDef<TasyImport>;
+      tasy_import_rows: TableDef<TasyImportRow>;
       shifts: TableDef<Shift>;
       activity_log: TableDef<ActivityLog>;
       receivables: TableDef<Receivable>;

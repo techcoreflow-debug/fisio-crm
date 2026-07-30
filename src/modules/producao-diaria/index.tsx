@@ -142,6 +142,7 @@ export default function ProducaoDiaria() {
         physiotherapist_id: fisioId,
         procedure_id: procedimentoId,
         production_date: String(form.get("production_date") ?? ""),
+        production_time: String(form.get("production_time") ?? "") || "08:00",
         source: "manual",
         company_id: internacao.company_id,
       });
@@ -205,9 +206,15 @@ export default function ProducaoDiaria() {
                       searchPlaceholder="Nome ou categoria…"
                     />
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="production_date">Data</Label>
-                    <Input id="production_date" name="production_date" type="date" required />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="production_date">Data</Label>
+                      <Input id="production_date" name="production_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="production_time">Horário</Label>
+                      <Input id="production_time" name="production_time" type="time" required defaultValue={new Date().toTimeString().slice(0, 5)} />
+                    </div>
                   </div>
                 </div>
                 <SheetFooter>
@@ -246,20 +253,25 @@ export default function ProducaoDiaria() {
                   <th className="px-4 py-3 font-medium">Paciente</th>
                   <th className="px-4 py-3 font-medium">Procedimento</th>
                   <th className="px-4 py-3 font-medium">Fisioterapeuta</th>
-                  <th className="px-4 py-3 font-medium">Origem</th>
+                  <th className="px-4 py-3 font-medium">Conciliação</th>
                   {glosaPorProcedimento && <th className="px-4 py-3 font-medium">Glosa</th>}
                 </tr>
               </thead>
               <tbody>
                 {paginaAtual.map((p) => (
                   <tr key={p.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
-                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">{p.production_date}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">{p.production_date.split("-").reverse().join("/")} {p.production_time?.slice(0, 5)}</td>
                     <td className="px-4 py-3 font-medium text-ink">{nomePaciente(p.admission_id)}</td>
-                    <td className="px-4 py-3 text-ink-soft">{procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—"}</td>
+                    <td className="px-4 py-3 text-ink-soft">
+                      {(() => {
+                        const proc = procedimentos.find((pr) => pr.id === p.procedure_id);
+                        return proc ? <><span className="font-mono text-xs">{proc.code}</span> {proc.name}</> : "—";
+                      })()}
+                    </td>
                     <td className="px-4 py-3 text-ink-soft">{fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—"}</td>
                     <td className="px-4 py-3">
-                      <Badge variant={p.source === "tasy" ? "clinical" : "neutral"}>
-                        {p.source === "tasy" ? "Tasy" : "Manual"}
+                      <Badge variant={p.confirmado_tasy ? "recovery" : "neutral"}>
+                        {p.confirmado_tasy ? "Confirmado" : "Não confirmado"}
                       </Badge>
                     </td>
                     {glosaPorProcedimento && (

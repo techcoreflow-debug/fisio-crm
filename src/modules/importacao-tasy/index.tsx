@@ -1,11 +1,11 @@
 import { useState, type ChangeEvent } from "react";
-import { UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, Undo2, Loader2 } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, Undo2, Loader2, HelpCircle, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { useTasyImports, repository } from "@/data/repository";
+import { useTasyImports, useTasyImportRowsPendentes, repository } from "@/data/repository";
 import { useAppStore } from "@/store/app-store";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { parseTasyReport, resumirImportacao, type TasyParseResult } from "@/lib/tasy-parser";
@@ -17,6 +17,7 @@ async function lerArquivoComoTextoLatin1(arquivo: File): Promise<string> {
 
 export default function ImportacaoTasy() {
   const historico = useTasyImports();
+  const pendencias = useTasyImportRowsPendentes();
   const empresaId = useAppStore((s) => s.activeCompanyId);
 
   const [arquivo, setArquivo] = useState<File | null>(null);
@@ -61,12 +62,12 @@ export default function ImportacaoTasy() {
     try {
       const texto = await lerArquivoComoTextoLatin1(arquivo);
       const saida = await repository.tasyImports.processarArquivo(empresaId, arquivo.name, texto);
-      const partes = [`${saida.totalInseridos} novo(s) lançamento(s) de produção`];
-      if (saida.totalDuplicados > 0) partes.push(`${saida.totalDuplicados} já existente(s), ignorado(s)`);
-      notificarSucesso("Importação concluída", partes.join(" · "));
+      const partes = [`${saida.confirmados} confirmado(s)`];
+      if (saida.pendentes > 0) partes.push(`${saida.pendentes} sem lançamento correspondente (pendência)`);
+      notificarSucesso("Conciliação concluída", partes.join(" · "));
       handleTrocarArquivo();
     } catch (erro) {
-      notificarErro("Não foi possível concluir a importação", erro);
+      notificarErro("Não foi possível concluir a conciliação", erro);
     } finally {
       setConfirmando(false);
     }
@@ -75,9 +76,18 @@ export default function ImportacaoTasy() {
   async function handleDesfazer(id: string) {
     try {
       await repository.tasyImports.undo(id);
-      notificarSucesso("Importação desfeita.");
+      notificarSucesso("Conciliação desfeita — os lançamentos voltaram a não confirmados.");
     } catch (erro) {
-      notificarErro("Não foi possível desfazer a importação", erro);
+      notificarErro("Não foi possível desfazer", erro);
+    }
+  }
+
+  async function handleIgnorarPendencia(id: string) {
+    try {
+      await repository.tasyImportRows.ignorar(id);
+      notificarSucesso("Pendência marcada como ignorada.");
+    } catch (erro) {
+      notificarErro("Não foi possível ignorar a pendência", erro);
     }
   }
 
@@ -86,9 +96,14 @@ export default function ImportacaoTasy() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Importação Tasy"
-        description="Envie o arquivo exportado do Tasy (Produtividade Médica). O Fisio reconhece o formato, resolve hospital/convênio/fisioterapeuta/paciente/procedimento automaticamente e nunca duplica um lançamento já importado."
+        title="Conciliação Tasy"
+        description="Confere o que a equipe já lançou manualmente contra o relatório do Tasy — não cria paciente, procedimento ou internação nenhum. O que bate com um lançamento existente (mesmo paciente, código e data) fica confirmado; o que não bate vira uma pendência para revisão."
       />
+
+      <div className="flex items-start gap-2.5 rounded-md bg-clinical-50 px-4 py-3 text-sm text-clinical-700">
+        <HelpCircle className="mt-0.5 h-4 w-4 shrink-0" />
+        Lance o procedimento primeiro (em Pacientes Internados ou Produção Diária) — depois use esta tela para conferir contra o Tasy.
+      </div>
 
       <Card>
         <CardContent className="pt-6">
@@ -112,7 +127,7 @@ export default function ImportacaoTasy() {
                 <div className="flex-1">
                   <p className="text-sm font-medium text-ink">{arquivo.name}</p>
                   <p className="text-xs text-ink-soft">
-                    {resumo ? `${resumo.totalLinhas} linhas de produção reconhecidas` : "Processando…"}
+                    {resumo ? `${resumo.totalLinhas} linhas reconhecidas` : "Processando…"}
                     {resultado?.periodoTexto ? ` · período: ${resultado.periodoTexto}` : ""}
                   </p>
                 </div>
@@ -159,7 +174,9 @@ export default function ImportacaoTasy() {
                               </td>
                               <td className="px-3 py-2 text-ink">{linha.pacienteNome}</td>
                               <td className="px-3 py-2 text-ink-soft">{linha.convenioNome}</td>
-                              <td className="px-3 py-2 text-ink-soft">{linha.procedimentoNome}</td>
+                              <td className="px-3 py-2 text-ink-soft">
+                                <span className="font-mono text-xs">{linha.procedimentoCodigo}</span> {linha.procedimentoNome}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -175,7 +192,7 @@ export default function ImportacaoTasy() {
                       <ul className="mt-1.5 list-disc pl-5">
                         {[...resumo.codigosComDescricaoDivergente.entries()].map(([codigo, nomes]) => (
                           <li key={codigo}>
-                            <span className="font-mono text-xs">{codigo}</span>: {nomes.join(" / ")} — será usado o primeiro nome encontrado.
+                            <span className="font-mono text-xs">{codigo}</span>: {nomes.join(" / ")}
                           </li>
                         ))}
                       </ul>
@@ -195,7 +212,7 @@ export default function ImportacaoTasy() {
                     </Button>
                     <Button onClick={handleConfirmar} disabled={confirmando}>
                       {confirmando ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                      {confirmando ? "Importando…" : `Confirmar importação (${resumo.totalLinhas} linhas)`}
+                      {confirmando ? "Conciliando…" : `Conciliar (${resumo.totalLinhas} linhas)`}
                     </Button>
                   </div>
                 </>
@@ -207,12 +224,56 @@ export default function ImportacaoTasy() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Histórico de importações</CardTitle>
+          <CardTitle>Pendências de conciliação ({pendencias.length})</CardTitle>
+          <p className="text-sm text-ink-soft mt-0.5">
+            Vieram no Tasy mas não bateram com nenhum lançamento existente (paciente/procedimento/data). Não viraram
+            glosa sozinhas — revise e decida.
+          </p>
+        </CardHeader>
+        {pendencias.length === 0 ? (
+          <CardContent className="py-8 text-center text-sm text-ink-soft">Nenhuma pendência no momento.</CardContent>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-soft">
+                  <th className="px-4 py-3 font-medium">Data</th>
+                  <th className="px-4 py-3 font-medium">Paciente</th>
+                  <th className="px-4 py-3 font-medium">Convênio</th>
+                  <th className="px-4 py-3 font-medium">Procedimento</th>
+                  <th className="px-4 py-3 font-medium" />
+                </tr>
+              </thead>
+              <tbody>
+                {pendencias.map((p) => (
+                  <tr key={p.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
+                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">{p.raw_data.data.split("-").reverse().join("/")}</td>
+                    <td className="px-4 py-3 font-medium text-ink">{p.raw_data.paciente}</td>
+                    <td className="px-4 py-3 text-ink-soft">{p.raw_data.convenio}</td>
+                    <td className="px-4 py-3 text-ink-soft">
+                      <span className="font-mono text-xs">{p.raw_data.procedimentoCodigo}</span> {p.raw_data.procedimentoNome}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button variant="ghost" size="sm" onClick={() => handleIgnorarPendencia(p.id)}>
+                        <X className="h-3.5 w-3.5" /> Ignorar
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Histórico de conciliações</CardTitle>
         </CardHeader>
         <Separator />
         <CardContent className="pt-4">
           {historico.length === 0 ? (
-            <p className="py-6 text-center text-sm text-ink-soft">Nenhuma importação ainda.</p>
+            <p className="py-6 text-center text-sm text-ink-soft">Nenhuma conciliação ainda.</p>
           ) : (
             <div className="flex flex-col divide-y divide-line">
               {historico.map((item) => (
@@ -220,7 +281,7 @@ export default function ImportacaoTasy() {
                   <div>
                     <p className="text-sm font-medium text-ink">{item.file_name}</p>
                     <p className="font-mono text-xs text-ink-soft">
-                      {item.id.slice(0, 8)} · {item.total_rows} registros · {item.inconsistencies} inconsistência(s) ·{" "}
+                      {item.total_rows} linhas · {item.inconsistencies} pendência(s) ·{" "}
                       {new Date(item.created_at).toLocaleString("pt-BR")}
                     </p>
                   </div>
@@ -228,7 +289,7 @@ export default function ImportacaoTasy() {
                     <Badge variant="neutral">Desfeita</Badge>
                   ) : (
                     <Button variant="ghost" size="sm" onClick={() => handleDesfazer(item.id)}>
-                      <Undo2 className="h-4 w-4" /> Desfazer importação
+                      <Undo2 className="h-4 w-4" /> Desfazer
                     </Button>
                   )}
                 </div>

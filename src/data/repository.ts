@@ -6,10 +6,9 @@ import {
   excluirLinha,
   contarDependentes,
   registrarAuditoria,
-  buscarOuCriarEmLote,
   emLotes,
 } from "@/data/supabase-collection";
-import { parseTasyReport, resumirImportacao, type TasyParsedRow } from "@/lib/tasy-parser";
+import { parseTasyReport, resumirImportacao } from "@/lib/tasy-parser";
 import { supabase } from "@/lib/supabase";
 import type {
   Company,
@@ -33,6 +32,7 @@ import type {
   ClinicalEvolution,
   Shift,
   TasyImport,
+  TasyImportRow,
   ActivityLog,
   Receivable,
 } from "@/types/domain";
@@ -131,6 +131,9 @@ export function useShifts(): Shift[] {
 }
 export function useTasyImports(): TasyImport[] {
   return useSupabaseCollection<TasyImport>("tasy_imports", { company_id: useActiveCompanyId() });
+}
+export function useTasyImportRowsPendentes(): TasyImportRow[] {
+  return useSupabaseCollection<TasyImportRow>("tasy_import_rows", { company_id: useActiveCompanyId(), status: "pendente" });
 }
 export function useActivityLog(): ActivityLog[] {
   return useSupabaseCollection<ActivityLog>("activity_log", { company_id: useActiveCompanyId() });
@@ -502,7 +505,7 @@ export const repository = {
 
   dailyProduction: {
     create: async (
-      data: Pick<DailyProduction, "admission_id" | "physiotherapist_id" | "procedure_id" | "production_date" | "source" | "company_id">
+      data: Pick<DailyProduction, "admission_id" | "physiotherapist_id" | "procedure_id" | "production_date" | "production_time" | "source" | "company_id">
     ): Promise<DailyProduction> => inserirLinha<DailyProduction>("daily_production", data),
     registrarGlosa: async (id: string, valor: number, motivo: string): Promise<void> => {
       if (valor <= 0) throw new Error("O valor glosado precisa ser maior que zero.");
@@ -551,7 +554,7 @@ export const repository = {
       data: Pick<TasyImport, "file_name" | "total_rows" | "inconsistencies" | "company_id">
     ): Promise<TasyImport> => {
       const row = await inserirLinha<TasyImport>("tasy_imports", { ...data, status: "concluida" });
-      await registrarAuditoria({ company_id: row.company_id, action: "importado", entity_type: "Importação Tasy", entity_label: row.file_name });
+      await registrarAuditoria({ company_id: row.company_id, action: "criado", entity_type: "Importação Tasy", entity_label: row.file_name });
       return row;
     },
     undo: async (id: string): Promise<void> => {
@@ -559,17 +562,39 @@ export const repository = {
       if (error) throw new Error(error.message);
       if (!importacao) throw new Error("Importação não encontrada.");
       if (importacao.status === "desfeita") throw new Error("Esta importação já foi desfeita.");
+
+      // Desfazer de verdade agora: reverte confirmado_tasy de tudo que essa
+      // importação confirmou — não é só marcar um status, é voltar o
+      // estado real dos lançamentos.
+      const { data: linhasConfirmadas, error: errorLinhas } = await supabase
+        .from("tasy_import_rows")
+        .select("matched_daily_production_id")
+        .eq("import_id", id)
+        .eq("status", "confirmado");
+      if (errorLinhas) throw new Error(errorLinhas.message);
+      const idsParaReverter = (linhasConfirmadas ?? [])
+        .map((l) => l.matched_daily_production_id)
+        .filter((v): v is string => Boolean(v));
+      for (const lote of emLotes(idsParaReverter, 200)) {
+        const { error: errorReverter } = await supabase
+          .from("daily_production")
+          .update({ confirmado_tasy: false, confirmado_em: null })
+          .in("id", lote);
+        if (errorReverter) throw new Error(errorReverter.message);
+      }
+
       await atualizarLinha("tasy_imports", id, { status: "desfeita", undone_at: new Date().toISOString() });
       await registrarAuditoria({ company_id: importacao.company_id, action: "desfeito", entity_type: "Importação Tasy", entity_label: importacao.file_name });
     },
     /**
-     * Processa o texto de um relatório "Produtividade Médica" do Tasy:
-     * resolve (busca ou cria, sem duplicar) hospital, convênio,
-     * fisioterapeuta, paciente e procedimento a partir só do nome/código, ‎
-     * agrupa por internação ("Nr. Atend.") e grava a produção diária.
-     * Reimportar o mesmo arquivo/período não duplica nada — cada linha tem
-     * uma referência estável (`tasy_reference`) com constraint única no
-     * banco, então o próprio Postgres ignora quem já existe.
+     * O Tasy NÃO é mais uma carga — é uma conferência contra o que a
+     * equipe já lançou manualmente. Nenhum paciente/procedimento/hospital/
+     * convênio/internação é criado aqui. Cada linha do relatório tenta
+     * casar (paciente + código do procedimento + data) com um lançamento
+     * de `daily_production` ainda não confirmado:
+     *   - bateu → marca `confirmado_tasy = true` (baixado/finalizado)
+     *   - não bateu → vira uma linha "pendente" em `tasy_import_rows`,
+     *     pra alguém decidir depois (não vira glosa sozinho)
      */
     processarArquivo: async (
       companyId: string,
@@ -577,8 +602,8 @@ export const repository = {
       texto: string
     ): Promise<{
       totalLinhas: number;
-      totalInseridos: number;
-      totalDuplicados: number;
+      confirmados: number;
+      pendentes: number;
       avisos: string[];
       resumo: ReturnType<typeof resumirImportacao>;
       tasyImport: TasyImport;
@@ -591,105 +616,127 @@ export const repository = {
         );
       }
 
-      const hospitalPorNome = await buscarOuCriarEmLote(
-        "hospitals",
-        "name",
-        resultado.linhas.map((l) => l.hospitalNome),
-        () => ({ company_id: companyId })
-      );
-      const convenioPorNome = await buscarOuCriarEmLote(
-        "health_insurances",
-        "name",
-        resultado.linhas.map((l) => l.convenioNome),
-        () => ({ company_id: companyId })
-      );
-      const fisioPorNome = await buscarOuCriarEmLote(
-        "physiotherapists",
-        "full_name",
-        resultado.linhas.map((l) => l.fisioterapeutaNome),
-        () => ({ company_id: companyId })
-      );
-      const pacientePorNome = await buscarOuCriarEmLote(
-        "patients",
-        "full_name",
-        resultado.linhas.map((l) => l.pacienteNome),
-        () => ({ company_id: companyId })
-      );
+      // Pacientes e procedimentos precisam já existir — a importação não cria.
+      const nomesPacientes = [...new Set(resultado.linhas.map((l) => l.pacienteNome))];
+      const { data: pacientesExistentes, error: errPac } = await supabase
+        .from("patients")
+        .select("id, full_name")
+        .eq("company_id", companyId)
+        .in("full_name", nomesPacientes);
+      if (errPac) throw new Error(`Falha ao buscar pacientes: ${errPac.message}`);
+      const pacienteIdPorNome = new Map((pacientesExistentes ?? []).map((p) => [p.full_name, p.id as string]));
 
-      const nomePorCodigo = new Map<string, string>();
-      for (const l of resultado.linhas) {
-        if (!nomePorCodigo.has(l.procedimentoCodigo)) nomePorCodigo.set(l.procedimentoCodigo, l.procedimentoNome);
-      }
-      const procedimentoPorCodigo = await buscarOuCriarEmLote(
-        "procedures",
-        "code",
-        resultado.linhas.map((l) => l.procedimentoCodigo),
-        (codigo) => ({ company_id: companyId, name: nomePorCodigo.get(codigo) ?? codigo })
-      );
+      const codigos = [...new Set(resultado.linhas.map((l) => l.procedimentoCodigo))];
+      const { data: procedimentosExistentes, error: errProc } = await supabase
+        .from("procedures")
+        .select("id, code")
+        .eq("company_id", companyId)
+        .in("code", codigos);
+      if (errProc) throw new Error(`Falha ao buscar procedimentos: ${errProc.message}`);
+      const procedimentoIdPorCodigo = new Map((procedimentosExistentes ?? []).map((p) => [p.code as string, p.id as string]));
 
-      const gruposPorAtendimento = new Map<string, TasyParsedRow[]>();
-      for (const l of resultado.linhas) {
-        const grupo = gruposPorAtendimento.get(l.referenciaExterna) ?? [];
-        grupo.push(l);
-        gruposPorAtendimento.set(l.referenciaExterna, grupo);
+      // Candidatos a conciliar: lançamentos manuais/tasy ainda não
+      // confirmados, dentro do período coberto pelo arquivo.
+      const datas = resultado.linhas.map((l) => l.dataProducao);
+      const dataMin = datas.reduce((a, b) => (a < b ? a : b));
+      const dataMax = datas.reduce((a, b) => (a > b ? a : b));
+      const { data: candidatos, error: errCand } = await supabase
+        .from("daily_production")
+        .select("id, admission_id, procedure_id, production_date")
+        .eq("company_id", companyId)
+        .eq("confirmado_tasy", false)
+        .gte("production_date", dataMin)
+        .lte("production_date", dataMax);
+      if (errCand) throw new Error(`Falha ao buscar lançamentos existentes: ${errCand.message}`);
+
+      const admissionIds = [...new Set((candidatos ?? []).map((c) => c.admission_id).filter((v): v is string => Boolean(v)))];
+      let patientIdPorAdmissionId = new Map<string, string>();
+      if (admissionIds.length > 0) {
+        const { data: admissoesRel, error: errAdm } = await supabase.from("admissions").select("id, patient_id").in("id", admissionIds);
+        if (errAdm) throw new Error(`Falha ao buscar internações: ${errAdm.message}`);
+        patientIdPorAdmissionId = new Map((admissoesRel ?? []).map((a) => [a.id as string, a.patient_id as string]));
       }
-      const admissaoPorReferencia = await buscarOuCriarEmLote(
-        "admissions",
-        "external_reference",
-        [...gruposPorAtendimento.keys()],
-        (referencia) => {
-          const grupo = gruposPorAtendimento.get(referencia)!;
-          const primeira = grupo[0];
-          const dataMinima = grupo.reduce((min, l) => (l.dataProducao < min ? l.dataProducao : min), primeira.dataProducao);
-          const patientId = pacientePorNome.get(primeira.pacienteNome);
-          const hospitalId = hospitalPorNome.get(primeira.hospitalNome);
-          const healthInsuranceId = convenioPorNome.get(primeira.convenioNome);
-          if (!patientId || !hospitalId) {
-            throw new Error(`Não foi possível resolver paciente/hospital para o atendimento ${referencia}.`);
+
+      const indice = new Map<string, string>(); // chave -> daily_production.id
+      for (const c of candidatos ?? []) {
+        if (!c.admission_id || !c.procedure_id) continue;
+        const patientId = patientIdPorAdmissionId.get(c.admission_id);
+        if (!patientId) continue;
+        const chave = `${patientId}|${c.procedure_id}|${c.production_date}`;
+        if (!indice.has(chave)) indice.set(chave, c.id);
+      }
+
+      let confirmados = 0;
+      let pendentes = 0;
+      const idsParaConfirmar: string[] = [];
+      const linhasParaImportRows = resultado.linhas.map((l) => {
+        const patientId = pacienteIdPorNome.get(l.pacienteNome);
+        const procedureId = procedimentoIdPorCodigo.get(l.procedimentoCodigo);
+        let matchId: string | null = null;
+        if (patientId && procedureId) {
+          const chave = `${patientId}|${procedureId}|${l.dataProducao}`;
+          const candidatoId = indice.get(chave);
+          if (candidatoId) {
+            matchId = candidatoId;
+            indice.delete(chave); // consome — não deixa duas linhas do Tasy confirmarem o mesmo lançamento
           }
-          return {
-            company_id: companyId,
-            patient_id: patientId,
-            hospital_id: hospitalId,
-            health_insurance_id: healthInsuranceId ?? null,
-            admission_date: dataMinima,
-            status: "internado",
-          };
         }
-      );
+        if (matchId) {
+          confirmados++;
+          idsParaConfirmar.push(matchId);
+        } else {
+          pendentes++;
+        }
+        return {
+          company_id: companyId,
+          raw_data: {
+            hospital: l.hospitalNome,
+            convenio: l.convenioNome,
+            fisioterapeuta: l.fisioterapeutaNome,
+            paciente: l.pacienteNome,
+            procedimentoCodigo: l.procedimentoCodigo,
+            procedimentoNome: l.procedimentoNome,
+            data: l.dataProducao,
+            referenciaExterna: l.referenciaExterna,
+          },
+          matched_daily_production_id: matchId,
+          status: (matchId ? "confirmado" : "pendente") as "confirmado" | "pendente",
+        };
+      });
 
-      const linhasParaInserir = resultado.linhas.map((l) => ({
-        company_id: companyId,
-        admission_id: admissaoPorReferencia.get(l.referenciaExterna) ?? null,
-        physiotherapist_id: fisioPorNome.get(l.fisioterapeutaNome) ?? null,
-        procedure_id: procedimentoPorCodigo.get(l.procedimentoCodigo) ?? null,
-        production_date: l.dataProducao,
-        source: "tasy" as const,
-        tasy_reference: `${l.referenciaExterna}-${l.procedimentoCodigo}-${l.dataHoraISO}`,
-      }));
-
-      let totalInseridos = 0;
-      for (const lote of emLotes(linhasParaInserir, 500)) {
-        const { data, error } = await supabase
+      for (const lote of emLotes(idsParaConfirmar, 200)) {
+        const { error: errConfirmar } = await supabase
           .from("daily_production")
-          .upsert(lote, { onConflict: "company_id,tasy_reference", ignoreDuplicates: true })
-          .select("id");
-        if (error) throw new Error(`Falha ao gravar produção diária: ${error.message}`);
-        totalInseridos += (data ?? []).length;
+          .update({ confirmado_tasy: true, confirmado_em: new Date().toISOString() })
+          .in("id", lote);
+        if (errConfirmar) throw new Error(`Falha ao confirmar lançamentos: ${errConfirmar.message}`);
       }
-      const totalDuplicados = linhasParaInserir.length - totalInseridos;
 
-      const resumo = resumirImportacao(resultado.linhas);
       const tasyImport = await inserirLinha<TasyImport>("tasy_imports", {
         company_id: companyId,
         file_name: fileName,
         total_rows: resultado.linhas.length,
-        inconsistencies: resultado.avisos.length,
+        inconsistencies: pendentes,
         status: "concluida",
       });
+
+      for (const lote of emLotes(linhasParaImportRows, 500)) {
+        const { error: errRows } = await supabase
+          .from("tasy_import_rows")
+          .insert(lote.map((r) => ({ ...r, import_id: tasyImport.id })));
+        if (errRows) throw new Error(`Falha ao gravar linhas da importação: ${errRows.message}`);
+      }
+
+      const resumo = resumirImportacao(resultado.linhas);
       await registrarAuditoria({ company_id: companyId, action: "importado", entity_type: "Importação Tasy", entity_label: fileName });
 
-      return { totalLinhas: resultado.linhas.length, totalInseridos, totalDuplicados, avisos: resultado.avisos, resumo, tasyImport };
+      return { totalLinhas: resultado.linhas.length, confirmados, pendentes, avisos: resultado.avisos, resumo, tasyImport };
+    },
+  },
+
+  tasyImportRows: {
+    ignorar: async (id: string): Promise<void> => {
+      await atualizarLinha("tasy_import_rows", id, { status: "ignorado" });
     },
   },
 

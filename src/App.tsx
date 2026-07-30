@@ -31,6 +31,7 @@ const pageComponents: Record<string, ComponentType> = {
   procedimentos: lazy(() => import("@/modules/procedimentos")),
   "producao-diaria": lazy(() => import("@/modules/producao-diaria")),
   "painel-procedimentos": lazy(() => import("@/modules/painel-producao")),
+  "novo-atendimento": lazy(() => import("@/modules/novo-atendimento")),
   "evolucao-clinica": lazy(() => import("@/modules/evolucao-clinica")),
   financeiro: lazy(() => import("@/modules/financeiro")),
   auditoria: lazy(() => import("@/modules/auditoria")),

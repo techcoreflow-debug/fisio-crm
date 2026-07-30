@@ -142,11 +142,13 @@ export default function PainelProducao() {
         const ctx = contexto(p);
         return {
           Data: p.production_date.split("-").reverse().join("/"),
+          Hora: p.production_time?.slice(0, 5) ?? "—",
           Hospital: hospitais.find((h) => h.id === ctx.hospitalId)?.name ?? "—",
           Unidade: unidades.find((u) => u.id === ctx.unidadeId)?.name ?? "—",
           Paciente: ctx.paciente?.full_name ?? "—",
           Convênio: convenios.find((c) => c.id === ctx.convenioId)?.name ?? "—",
           Categoria: ctx.procedimento?.category ?? "—",
+          "Código do procedimento": ctx.procedimento?.code ?? "—",
           Procedimento: ctx.procedimento?.name ?? "—",
           Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
           Glosado: p.glosado ? "Sim" : "Não",
@@ -361,10 +363,14 @@ export default function PainelProducao() {
                   const ctx = contexto(p);
                   return (
                     <tr key={p.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
-                      <td className="px-4 py-3 font-mono text-xs text-ink-soft">{p.production_date.split("-").reverse().join("/")}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-ink-soft">
+                        {p.production_date.split("-").reverse().join("/")} {p.production_time?.slice(0, 5)}
+                      </td>
                       <td className="px-4 py-3 font-medium text-ink">{ctx.paciente?.full_name ?? "—"}</td>
                       <td className="px-4 py-3 text-ink-soft">{convenios.find((c) => c.id === ctx.convenioId)?.name ?? "—"}</td>
-                      <td className="px-4 py-3 text-ink-soft">{ctx.procedimento?.name ?? "—"}</td>
+                      <td className="px-4 py-3 text-ink-soft">
+                        {ctx.procedimento ? <><span className="font-mono text-xs">{ctx.procedimento.code}</span> {ctx.procedimento.name}</> : "—"}
+                      </td>
                       <td className="px-4 py-3 text-ink-soft">{fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—"}</td>
                       <td className="px-4 py-3">
                         {p.glosado ? (

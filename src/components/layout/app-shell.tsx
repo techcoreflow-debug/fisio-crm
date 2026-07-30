@@ -7,8 +7,10 @@ import { OfflineBanner } from "@/components/shared/offline-banner";
 import { useAuth } from "@/auth/auth-provider";
 import { useAppStore } from "@/store/app-store";
 import { useCompanies } from "@/data/repository";
+import { usePointerEventsGuard } from "@/lib/use-pointer-events-guard";
 
 export function AppShell() {
+  usePointerEventsGuard();
   const { profile } = useAuth();
   const activeCompanyId = useAppStore((s) => s.activeCompanyId);
   const setActiveCompanyId = useAppStore((s) => s.setActiveCompanyId);

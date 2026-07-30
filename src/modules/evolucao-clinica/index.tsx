@@ -1,11 +1,12 @@
-import { useState, type FormEvent } from "react";
-import { NotebookPen, Plus } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
+import { NotebookPen, Plus, Search } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Sheet,
   SheetContent,
@@ -20,6 +21,8 @@ import {
   useAdmissions,
   usePatients,
   usePhysiotherapists,
+  useHospitals,
+  useUnits,
   repository,
 } from "@/data/repository";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
@@ -29,9 +32,12 @@ export default function EvolucaoClinica() {
   const internacoes = useAdmissions();
   const pacientes = usePatients();
   const fisioterapeutas = usePhysiotherapists();
+  const hospitais = useHospitals();
+  const unidades = useUnits();
 
   const [open, setOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [busca, setBusca] = useState("");
   const internacoesAtivas = internacoes.filter((i) => i.status === "internado");
   const [internacaoId, setInternacaoId] = useState(internacoesAtivas[0]?.id ?? "");
   const [fisioId, setFisioId] = useState(fisioterapeutas[0]?.id ?? "");
@@ -41,9 +47,46 @@ export default function EvolucaoClinica() {
     return pacientes.find((p) => p.id === internacao?.patient_id)?.full_name ?? "—";
   }
 
+  function localAtendimento(admissionId: string) {
+    const internacao = internacoes.find((i) => i.id === admissionId);
+    const hospital = hospitais.find((h) => h.id === internacao?.hospital_id)?.name ?? "—";
+    const unidade = unidades.find((u) => u.id === internacao?.unit_id)?.name ?? "—";
+    return `${hospital} · ${unidade}`;
+  }
+
+  const opcoesInternacao = useMemo(
+    () =>
+      internacoesAtivas.map((i) => {
+        const unidade = unidades.find((u) => u.id === i.unit_id);
+        const hospital = hospitais.find((h) => h.id === i.hospital_id);
+        return { value: i.id, label: nomePaciente(i.id), sublabel: `${hospital?.name ?? "—"} · ${unidade?.name ?? "—"}` };
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [internacoesAtivas, unidades, hospitais, pacientes]
+  );
+
+  const opcoesFisioterapeuta = useMemo(
+    () => fisioterapeutas.map((f) => ({ value: f.id, label: f.full_name })),
+    [fisioterapeutas]
+  );
+
   const semEvolucaoRecente = internacoesAtivas.filter(
     (i) => !evolucoes.some((e) => e.admission_id === i.id)
   );
+
+  const evolucoesFiltradas = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    const ordenadas = [...evolucoes].sort((a, b) => b.created_at.localeCompare(a.created_at));
+    if (!termo) return ordenadas;
+    return ordenadas.filter((e) => nomePaciente(e.admission_id).toLowerCase().includes(termo));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busca, evolucoes, internacoes, pacientes]);
+
+  function abrirNova() {
+    setInternacaoId(internacoesAtivas[0]?.id ?? "");
+    setFisioId(fisioterapeutas[0]?.id ?? "");
+    setOpen(true);
+  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -76,7 +119,7 @@ export default function EvolucaoClinica() {
         actions={
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" onClick={abrirNova}>
                 <Plus className="h-4 w-4" /> Nova evolução
               </Button>
             </SheetTrigger>
@@ -88,26 +131,25 @@ export default function EvolucaoClinica() {
                 </SheetHeader>
                 <div className="flex flex-1 flex-col gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <Label>Internação</Label>
-                    <Select value={internacaoId} onValueChange={setInternacaoId}>
-                      <SelectTrigger><SelectValue placeholder="Selecione a internação" /></SelectTrigger>
-                      <SelectContent>
-                        {internacoesAtivas.map((i) => (
-                          <SelectItem key={i.id} value={i.id}>{nomePaciente(i.id)}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Paciente internado</Label>
+                    <Combobox
+                      value={internacaoId}
+                      onValueChange={setInternacaoId}
+                      options={opcoesInternacao}
+                      placeholder="Buscar paciente internado…"
+                      searchPlaceholder="Nome do paciente ou unidade…"
+                      emptyText="Nenhuma internação ativa encontrada."
+                    />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label>Fisioterapeuta</Label>
-                    <Select value={fisioId} onValueChange={setFisioId}>
-                      <SelectTrigger><SelectValue placeholder="Selecione o fisioterapeuta" /></SelectTrigger>
-                      <SelectContent>
-                        {fisioterapeutas.map((f) => (
-                          <SelectItem key={f.id} value={f.id}>{f.full_name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      value={fisioId}
+                      onValueChange={setFisioId}
+                      options={opcoesFisioterapeuta}
+                      placeholder="Buscar fisioterapeuta…"
+                      searchPlaceholder="Nome do fisioterapeuta…"
+                    />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="content">Evolução</Label>
@@ -145,32 +187,47 @@ export default function EvolucaoClinica() {
         </Card>
       )}
 
-      <div className="flex flex-col gap-4">
-        {evolucoes.map((e) => (
-          <Card key={e.id}>
-            <CardContent className="pt-5">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-clinical-50 text-clinical-600">
-                  <NotebookPen className="h-4 w-4" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <p className="font-medium text-ink">{nomePaciente(e.admission_id)}</p>
-                      <p className="text-xs text-ink-soft">Internação {e.admission_id.slice(0, 8)}</p>
-                    </div>
-                    <Badge variant="neutral">{new Date(e.created_at).toLocaleString("pt-BR")}</Badge>
-                  </div>
-                  <p className="mt-2 text-sm text-ink-soft">{e.content}</p>
-                  <p className="mt-2 text-xs text-ink-soft">
-                    Registrado por {fisioterapeutas.find((f) => f.id === e.physiotherapist_id)?.full_name ?? "—"}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="relative max-w-sm">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
+        <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por paciente…" className="pl-9" />
       </div>
+
+      {evolucoesFiltradas.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
+            <NotebookPen className="h-8 w-8 text-ink-soft" />
+            <p className="font-medium text-ink">Nenhuma evolução encontrada</p>
+            <p className="text-sm text-ink-soft">Ajuste a busca ou registre uma nova evolução.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {evolucoesFiltradas.map((e) => (
+            <Card key={e.id}>
+              <CardContent className="pt-5">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-clinical-50 text-clinical-600">
+                    <NotebookPen className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="font-medium text-ink">{nomePaciente(e.admission_id)}</p>
+                        <p className="text-xs text-ink-soft">{localAtendimento(e.admission_id)}</p>
+                      </div>
+                      <Badge variant="neutral">{new Date(e.created_at).toLocaleString("pt-BR")}</Badge>
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-ink-soft">{e.content}</p>
+                    <p className="mt-2 text-xs text-ink-soft">
+                      Registrado por {fisioterapeutas.find((f) => f.id === e.physiotherapist_id)?.full_name ?? "—"}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

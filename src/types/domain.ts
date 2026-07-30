@@ -191,12 +191,15 @@ export interface DailyProduction {
   physiotherapist_id: string | null;
   procedure_id: string | null;
   production_date: string;
+  production_time: string;
   source: "manual" | "tasy";
   tasy_reference: string | null;
   glosado: boolean;
   valor_glosado: number | null;
   motivo_glosa: string | null;
   data_glosa: string | null;
+  confirmado_tasy: boolean;
+  confirmado_em: string | null;
   created_at: string;
 }
 
@@ -258,4 +261,24 @@ export interface TasyImport {
   status: "processando" | "concluida" | "desfeita" | "erro";
   created_at: string;
   undone_at: string | null;
+}
+
+export interface TasyImportRow {
+  id: string;
+  import_id: string;
+  company_id: string;
+  raw_data: {
+    hospital: string;
+    convenio: string;
+    fisioterapeuta: string;
+    paciente: string;
+    procedimentoCodigo: string;
+    procedimentoNome: string;
+    data: string;
+    referenciaExterna: string;
+  };
+  matched_daily_production_id: string | null;
+  status: "confirmado" | "pendente" | "ignorado";
+  error_message: string | null;
+  created_at: string;
 }

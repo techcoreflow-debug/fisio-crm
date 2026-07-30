@@ -20,6 +20,76 @@ Antes de subir um deploy:
 
 ---
 
+## v0.7.0 — 30/07/2026
+
+**Correção de bug crítico:** edição de paciente (e qualquer tela com Select
+dentro de Sheet) podia travar a página inteira sem erro no console —
+combinação conhecida de conflito de foco entre essas duas bibliotecas.
+Adicionada rede de segurança global (`usePointerEventsGuard`) que libera a
+página sozinha se isso acontecer de novo, em qualquer tela.
+
+**Evolução Clínica reescrita** — tinha o mesmo defeito de seletor sem busca
+já corrigido em outras telas, mostrava ID cru em vez de hospital/unidade,
+e não tinha filtro nenhum. Agora com Combobox pesquisável, filtro por
+paciente e exibição decente.
+
+**Hora no lançamento de procedimento** (migration `0018`) — todo
+lançamento agora registra horário, não só data. Aplicado em Produção
+Diária, lançamento rápido em Pacientes Internados e lançamento antes da
+alta. Data+hora exibidos juntos em todas as tabelas e relatórios que
+mostram produção.
+
+**Código do procedimento visível** em todas as telas que mostram nome de
+procedimento (Produção Diária, Painel de Procedimentos, Relatórios,
+linha do tempo do paciente).
+
+**Status "Em atendimento"** — internação com 1+ procedimento lançado no
+dia deixa de aparecer como "Lançado" e passa a "Em atendimento";
+"Pendente" fica só para quem não tem nenhum lançamento ainda.
+
+**Filtros em Pacientes Internados**: status (internado/alta/todos) e
+período de entrada (de/até), além dos já existentes (unidade, busca,
+pendentes de hoje).
+
+**Novo módulo "Novo Atendimento"** — fluxo guiado Paciente → Internação →
+Procedimento, um passo de cada vez, podendo encerrar em qualquer etapa
+(só cadastrar o paciente, ou parar depois da internação, sem obrigar o
+lançamento do procedimento). Liberado também para o perfil fisioterapeuta
+lançador, como rota inicial dele.
+
+---
+
+## v0.6.0 — 29/07/2026 — *"Tasy vira conciliação"*
+
+**Mudança de modelo, não incremento** — a importação Tasy funcionava
+errado desde a v0.5.x: tratava o arquivo como carga (criava paciente,
+internação, procedimento do zero). O real é o oposto: a equipe lança o
+procedimento manualmente primeiro; o Tasy chega depois só para conferir.
+
+- Importação Tasy **não cria mais nada** — hospital, convênio,
+  fisioterapeuta, paciente, procedimento e internação continuam 100%
+  cadastro manual, anterior ao Tasy.
+- Cada linha do relatório tenta casar com um lançamento de produção já
+  existente (**paciente + código do procedimento + data**). Bateu →
+  `confirmado_tasy = true` (baixado/finalizado). Não bateu → vira uma
+  **pendência** (nova aba na tela), sem criar nada e sem virar glosa
+  sozinha — alguém decide depois.
+- **"Desfazer conciliação" agora reverte de verdade**: volta
+  `confirmado_tasy` a `false` em tudo que aquela importação tinha
+  confirmado (antes só mudava um rótulo no histórico).
+- Produção Diária mostra o status de conciliação (Confirmado / Não
+  confirmado) em vez da antiga coluna "Origem".
+- Migration `0017`: `daily_production.confirmado_tasy` +
+  `confirmado_em`; `tasy_import_rows` ganha `matched_daily_production_id`
+  e os status viram `confirmado` / `pendente` / `ignorado`.
+
+**Isolado como etapa futura, de propósito:** valores em R$ no Financeiro
+dependem de uma tabela de preço por procedimento×convênio que ainda não
+existe — hoje o sistema só pode mostrar contagem (lançados × confirmados),
+não faturamento em reais.
+
+---
+
 ## v0.5.3 — 29/07/2026
 
 - Fisioterapeuta lançador ganhou acesso a **Pacientes Internados** (antes

@@ -79,11 +79,13 @@ export default function Relatorios() {
     try {
       const linhas: LinhaRelatorio[] = producaoNoPeriodo.map((p) => ({
         Data: formatarData(p.production_date),
+        Hora: p.production_time?.slice(0, 5) ?? "—",
         Paciente: nomePaciente(p.admission_id),
         Categoria: procedimentos.find((pr) => pr.id === p.procedure_id)?.category ?? "Sem categoria",
+        "Código do procedimento": procedimentos.find((pr) => pr.id === p.procedure_id)?.code ?? "—",
         Procedimento: procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—",
         Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
-        Origem: p.source === "tasy" ? "Tasy" : "Manual",
+        Conciliação: p.confirmado_tasy ? "Confirmado" : "Não confirmado",
       }));
       exportarCsv("producao-contabilizada", linhas);
       notificarSucesso(`Relatório exportado (${linhas.length} linha(s)).`);
@@ -101,10 +103,12 @@ export default function Relatorios() {
       gerar: () =>
         producao.map((p) => ({
           Data: formatarData(p.production_date),
+          Hora: p.production_time?.slice(0, 5) ?? "—",
           Paciente: nomePaciente(p.admission_id),
+          "Código do procedimento": procedimentos.find((pr) => pr.id === p.procedure_id)?.code ?? "—",
           Procedimento: procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—",
           Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
-          Origem: p.source === "tasy" ? "Tasy" : "Manual",
+          Conciliação: p.confirmado_tasy ? "Confirmado" : "Não confirmado",
         })),
     },
     {

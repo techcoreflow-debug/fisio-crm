@@ -76,6 +76,9 @@ export default function Internacoes() {
 
   const [busca, setBusca] = useState("");
   const [filtroUnidade, setFiltroUnidade] = useState<string>("todas");
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "internado" | "alta">("todos");
+  const [filtroEntradaDe, setFiltroEntradaDe] = useState("");
+  const [filtroEntradaAte, setFiltroEntradaAte] = useState("");
   const [apenasPendentes, setApenasPendentes] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [salvando, setSalvando] = useState(false);
@@ -121,6 +124,7 @@ export default function Internacoes() {
   const [fisioLancarId, setFisioLancarId] = useState(fisioterapeutas[0]?.id ?? "");
   const [procedimentoLancarId, setProcedimentoLancarId] = useState(procedimentos[0]?.id ?? "");
   const [dataLancar, setDataLancar] = useState(hojeIso);
+  const [horaLancar, setHoraLancar] = useState(new Date().toTimeString().slice(0, 5));
   const [salvandoLancamento, setSalvandoLancamento] = useState(false);
 
   function abrirLancarProcedimento(internacao: Admission) {
@@ -128,6 +132,7 @@ export default function Internacoes() {
     setFisioLancarId(fisioterapeutas[0]?.id ?? "");
     setProcedimentoLancarId(procedimentos[0]?.id ?? "");
     setDataLancar(hojeIso);
+    setHoraLancar(new Date().toTimeString().slice(0, 5));
   }
 
   async function handleLancarProcedimento(e: FormEvent<HTMLFormElement>) {
@@ -140,6 +145,7 @@ export default function Internacoes() {
         physiotherapist_id: fisioLancarId,
         procedure_id: procedimentoLancarId,
         production_date: dataLancar,
+        production_time: horaLancar,
         source: "manual",
         company_id: internacaoParaLancar.company_id,
       });
@@ -156,12 +162,15 @@ export default function Internacoes() {
     const termo = busca.trim().toLowerCase();
     return internacoes.filter((i) => {
       if (filtroUnidade !== "todas" && i.unit_id !== filtroUnidade) return false;
+      if (filtroStatus !== "todos" && i.status !== filtroStatus) return false;
+      if (filtroEntradaDe && i.admission_date < filtroEntradaDe) return false;
+      if (filtroEntradaAte && i.admission_date > filtroEntradaAte) return false;
       if (apenasPendentes && (i.status !== "internado" || internacoesComAtendimentoHoje.has(i.id))) return false;
       if (!termo) return true;
       const paciente = pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "";
       return paciente.toLowerCase().includes(termo) || String(i.admission_number).includes(termo);
     });
-  }, [busca, filtroUnidade, apenasPendentes, internacoes, pacientes, internacoesComAtendimentoHoje]);
+  }, [busca, filtroUnidade, filtroStatus, filtroEntradaDe, filtroEntradaAte, apenasPendentes, internacoes, pacientes, internacoesComAtendimentoHoje]);
 
   const { pagina: paginaAtual, totalPaginas, paginaValida } = usarPaginacao(filtradas, 25, pagina);
 
@@ -262,6 +271,7 @@ export default function Internacoes() {
         physiotherapist_id: fisioAltaId,
         procedure_id: procedimentoAltaId,
         production_date: dataHoraAlta.slice(0, 10),
+        production_time: dataHoraAlta.slice(11, 16),
         source: "manual",
         company_id: internacaoParaAlta.company_id,
       });
@@ -360,30 +370,61 @@ export default function Internacoes() {
       />
 
       <Card>
-        <div className="flex flex-col gap-4 border-b border-line p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-1 flex-col gap-2 sm:flex-row">
-            <div className="relative max-w-sm flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-              <Input value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} placeholder="Buscar por paciente ou código…" className="pl-9" />
+        <div className="flex flex-col gap-3 border-b border-line p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+              <div className="relative max-w-sm flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
+                <Input value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} placeholder="Buscar por paciente ou código…" className="pl-9" />
+              </div>
+              <Select value={filtroUnidade} onValueChange={(v) => { setFiltroUnidade(v); setPagina(1); }}>
+                <SelectTrigger className="sm:w-56"><SelectValue placeholder="Todas as unidades" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas as unidades</SelectItem>
+                  {unidades.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filtroStatus} onValueChange={(v) => { setFiltroStatus(v as typeof filtroStatus); setPagina(1); }}>
+                <SelectTrigger className="sm:w-44"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os status</SelectItem>
+                  <SelectItem value="internado">Só internados</SelectItem>
+                  <SelectItem value="alta">Só com alta</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant={apenasPendentes ? "primary" : "secondary"}
+                size="sm"
+                onClick={() => { setApenasPendentes((v) => !v); setPagina(1); }}
+              >
+                <AlertTriangle className="h-3.5 w-3.5" /> Só pendentes de hoje
+              </Button>
             </div>
-            <Select value={filtroUnidade} onValueChange={(v) => { setFiltroUnidade(v); setPagina(1); }}>
-              <SelectTrigger className="sm:w-56"><SelectValue placeholder="Todas as unidades" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas as unidades</SelectItem>
-                {unidades.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant={apenasPendentes ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => { setApenasPendentes((v) => !v); setPagina(1); }}
-            >
-              <AlertTriangle className="h-3.5 w-3.5" /> Só pendentes de hoje
-            </Button>
+            <p className="whitespace-nowrap text-sm text-ink-soft">{filtradas.length} de {internacoes.length} internações</p>
           </div>
-          <p className="whitespace-nowrap text-sm text-ink-soft">{filtradas.length} de {internacoes.length} internações</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-ink-soft">Entrada entre</span>
+            <Input
+              type="date"
+              value={filtroEntradaDe}
+              onChange={(e) => { setFiltroEntradaDe(e.target.value); setPagina(1); }}
+              className="w-40"
+            />
+            <span className="text-xs text-ink-soft">e</span>
+            <Input
+              type="date"
+              value={filtroEntradaAte}
+              onChange={(e) => { setFiltroEntradaAte(e.target.value); setPagina(1); }}
+              className="w-40"
+            />
+            {(filtroEntradaDe || filtroEntradaAte) && (
+              <Button variant="ghost" size="sm" onClick={() => { setFiltroEntradaDe(""); setFiltroEntradaAte(""); setPagina(1); }}>
+                Limpar período
+              </Button>
+            )}
+          </div>
         </div>
 
         {filtradas.length === 0 ? (
@@ -430,7 +471,7 @@ export default function Internacoes() {
                     <td className="px-4 py-3">
                       {i.status === "internado" ? (
                         internacoesComAtendimentoHoje.has(i.id) ? (
-                          <Badge variant="recovery">Lançado</Badge>
+                          <Badge variant="recovery">Em atendimento</Badge>
                         ) : (
                           <Badge variant="attention">
                             <AlertTriangle className="h-3 w-3" /> Pendente
@@ -602,9 +643,15 @@ export default function Internacoes() {
                   searchPlaceholder="Nome ou categoria…"
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="data_lancar">Data</Label>
-                <Input id="data_lancar" type="date" required value={dataLancar} onChange={(e) => setDataLancar(e.target.value)} />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="data_lancar">Data</Label>
+                  <Input id="data_lancar" type="date" required value={dataLancar} onChange={(e) => setDataLancar(e.target.value)} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="hora_lancar">Horário</Label>
+                  <Input id="hora_lancar" type="time" required value={horaLancar} onChange={(e) => setHoraLancar(e.target.value)} />
+                </div>
               </div>
             </div>
             <SheetFooter>

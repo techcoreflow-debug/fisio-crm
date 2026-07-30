@@ -66,10 +66,11 @@ export function PatientTimeline({ paciente, onClose }: { paciente: Patient | nul
 
   for (const p of producao) {
     if (!p.admission_id || !idsInternacoes.has(p.admission_id)) continue;
+    const procedimento = procedimentos.find((pr) => pr.id === p.procedure_id);
     eventos.push({
-      data: p.production_date,
+      data: `${p.production_date}T${p.production_time?.slice(0, 5) ?? "00:00"}:00`,
       icone: ClipboardList,
-      titulo: procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "Procedimento",
+      titulo: procedimento ? `${procedimento.code} · ${procedimento.name}` : "Procedimento",
       detalhe: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name,
       tom: p.glosado ? "attention" : "recovery",
     });

@@ -26,6 +26,7 @@ import {
   Plug,
   UploadCloud,
   SlidersHorizontal,
+  Workflow,
 } from "lucide-react";
 
 export interface ModuleDef {
@@ -99,6 +100,7 @@ export const moduleGroups: ModuleGroup[] = [
     id: "assistencial",
     label: "Assistencial",
     modules: [
+      { slug: "novo-atendimento", path: "/novo-atendimento", label: "Novo Atendimento", icon: Workflow, description: "Cadastra paciente, internação e o primeiro procedimento em sequência — pode parar em qualquer etapa.", status: "pronto" },
       { slug: "pacientes", path: "/pacientes", label: "Pacientes", icon: Users, description: "Cadastro de pacientes atendidos, histórico clínico e internações relacionadas.", status: "pronto" },
       { slug: "internacoes", path: "/internacoes", label: "Pacientes Internados", icon: BedDouble, description: "Pacientes internados acompanhados pela equipe, com leito, hospital e status de atendimento do dia.", status: "pronto" },
       { slug: "leitos", path: "/leitos", label: "Leitos", icon: BedDouble, description: "Mapa de leitos por ala e quarto, ocupação em tempo real e histórico de giro.", status: "pronto" },
@@ -148,5 +150,5 @@ export const allModules: ModuleDef[] = moduleGroups.flatMap((g) => g.modules);
  * papéis (admin de empresa, gestor, financeiro, auditor) continuam vendo
  * tudo normalmente.
  */
-export const SLUGS_LANCADOR = ["pacientes", "internacoes", "producao-diaria"];
-export const ROTA_PADRAO_LANCADOR = "/internacoes";
+export const SLUGS_LANCADOR = ["novo-atendimento", "pacientes", "internacoes", "producao-diaria"];
+export const ROTA_PADRAO_LANCADOR = "/novo-atendimento";
