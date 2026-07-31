@@ -88,6 +88,7 @@ export default function Fechamento() {
       paciente: pacientes.find((pa) => pa.id === internacao?.patient_id),
       hospitalId: internacao?.hospital_id ?? null,
       convenioId: internacao?.health_insurance_id ?? null,
+      nrAtendimento: internacao?.external_reference ?? null,
     };
   }
 
@@ -342,6 +343,7 @@ export default function Fechamento() {
               <thead>
                 <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-soft">
                   <th className="px-4 py-3 font-medium">Data</th>
+                  <th className="px-4 py-3 font-medium">Nr. Atendimento</th>
                   <th className="px-4 py-3 font-medium">Paciente</th>
                   <th className="px-4 py-3 font-medium">Hospital</th>
                   <th className="px-4 py-3 font-medium">Procedimento</th>
@@ -357,6 +359,7 @@ export default function Fechamento() {
                       <td className="px-4 py-3 font-mono text-xs text-ink-soft">
                         {p.production_date.split("-").reverse().join("/")} {p.production_time?.slice(0, 5)}
                       </td>
+                      <td className="px-4 py-3 font-mono text-xs text-ink-soft">{ctx.nrAtendimento ?? "—"}</td>
                       <td className="px-4 py-3 font-medium text-ink">{ctx.paciente?.full_name ?? "—"}</td>
                       <td className="px-4 py-3 text-ink-soft">{hospitais.find((h) => h.id === ctx.hospitalId)?.name ?? "—"}</td>
                       <td className="px-4 py-3 text-ink-soft">

@@ -42,6 +42,7 @@ export function useDraftState<T>(chave: string, valorInicial: T): [T, (novo: T) 
     } catch {
       // ver comentário acima
     }
+    setValor(valorInicial);
   }
 
   return [valor, setValor, limpar];

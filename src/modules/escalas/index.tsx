@@ -43,7 +43,7 @@ export default function Escalas() {
 
   const [open, setOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
-  const [fisioId, setFisioId] = useState(fisioterapeutas[0]?.id ?? "");
+  const [fisioId, setFisioId] = useState("");
   const [unidadeId, setUnidadeId] = useState(unidades[0]?.id ?? "");
   const [periodo, setPeriodo] = useState<ShiftPeriod>("manha");
 

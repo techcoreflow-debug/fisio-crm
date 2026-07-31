@@ -7,10 +7,13 @@ import {
   excluirLinhaPorEmpresa,
   contarDependentes,
   registrarAuditoria,
+  buscarOuCriarEmLote,
   emLotes,
 } from "@/data/supabase-collection";
 import { parseTasyReport, resumirImportacao } from "@/lib/tasy-parser";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/auth/auth-provider";
+import { permissaoPadrao, type Permissao } from "@/lib/permissions";
 import type {
   Company,
   Profile,
@@ -34,6 +37,9 @@ import type {
   Shift,
   TasyImport,
   TasyImportRow,
+  RolePermission,
+  BillingEntry,
+  PatientQueueItem,
   ActivityLog,
   Receivable,
 } from "@/types/domain";
@@ -135,6 +141,30 @@ export function useTasyImports(): TasyImport[] {
 }
 export function useTasyImportRowsPendentes(): TasyImportRow[] {
   return useSupabaseCollection<TasyImportRow>("tasy_import_rows", { company_id: useActiveCompanyId(), status: "pendente" });
+}
+export function useRolePermissions(): RolePermission[] {
+  return useSupabaseCollection<RolePermission>("role_permissions", { company_id: useActiveCompanyId() });
+}
+export function useBillingEntries(): BillingEntry[] {
+  return useSupabaseCollection<BillingEntry>("billing_entries", { company_id: useActiveCompanyId() });
+}
+export function usePatientQueue(): PatientQueueItem[] {
+  return useSupabaseCollection<PatientQueueItem>("patient_queue", { company_id: useActiveCompanyId() });
+}
+
+/**
+ * Permissão efetiva do usuário logado pra um módulo — admin InovareTech
+ * sempre tem tudo; senão usa a linha de `role_permissions` se existir,
+ * caindo pro padrão embutido (`permissaoPadrao`) quando não existe.
+ */
+export function usePermission(moduleSlug: string): Permissao {
+  const { profile } = useAuth();
+  const permissoes = useRolePermissions();
+  if (!profile) return { can_view: false, can_create: false, can_edit: false, can_delete: false };
+  if (profile.is_platform_admin) return { can_view: true, can_create: true, can_edit: true, can_delete: true };
+  const linha = permissoes.find((p) => p.role === profile.role && p.module_slug === moduleSlug);
+  if (linha) return { can_view: linha.can_view, can_create: linha.can_create, can_edit: linha.can_edit, can_delete: linha.can_delete };
+  return permissaoPadrao(profile.role, moduleSlug);
 }
 export function useActivityLog(): ActivityLog[] {
   return useSupabaseCollection<ActivityLog>("activity_log", { company_id: useActiveCompanyId() });
@@ -438,18 +468,42 @@ export const repository = {
 
   admissions: {
     create: async (
-      data: Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "company_id">
+      data: Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "external_reference" | "company_id">
     ): Promise<Admission> => {
-      const row = await inserirLinha<Admission>("admissions", { ...data, status: "internado" });
-      if (row.bed_id) await atualizarLinha("beds", row.bed_id, { status: "ocupado" });
-      return row;
+      try {
+        const row = await inserirLinha<Admission>("admissions", { ...data, status: "internado" });
+        if (row.bed_id) await atualizarLinha("beds", row.bed_id, { status: "ocupado" });
+        return row;
+      } catch (erro) {
+        const msg = erro instanceof Error ? erro.message : "";
+        if (msg.includes("duplicate key") || msg.includes("unique")) {
+          throw new Error("Já existe uma internação com esse Nr. Atendimento nesta empresa.");
+        }
+        throw erro;
+      }
     },
     update: async (
       id: string,
-      patch: Partial<Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "company_id">>
+      patch: Partial<Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "external_reference" | "company_id">>
     ): Promise<void> => {
-      await atualizarLinha("admissions", id, patch);
-      if (patch.bed_id) await atualizarLinha("beds", patch.bed_id, { status: "ocupado" });
+      try {
+        await atualizarLinha("admissions", id, patch);
+      } catch (erro) {
+        const msg = erro instanceof Error ? erro.message : "";
+        if (msg.includes("duplicate key") || msg.includes("unique")) {
+          throw new Error("Já existe uma internação com esse Nr. Atendimento nesta empresa.");
+        }
+        throw erro;
+      }
+      // Só reocupa o leito se a internação ainda estiver ativa — editar
+      // uma internação já com alta (ex.: corrigir a unidade) não pode
+      // devolver o leito pra "ocupado" outra vez.
+      if (patch.bed_id) {
+        const { data: atual } = await supabase.from("admissions").select("status").eq("id", id).maybeSingle();
+        if (atual?.status === "internado") {
+          await atualizarLinha("beds", patch.bed_id, { status: "ocupado" });
+        }
+      }
     },
     /**
      * Dar alta é bloqueado por padrão se não houver nenhum procedimento
@@ -636,15 +690,18 @@ export const repository = {
         );
       }
 
-      // Pacientes e procedimentos precisam já existir — a importação não cria.
-      const nomesPacientes = [...new Set(resultado.linhas.map((l) => l.pacienteNome))];
-      const { data: pacientesExistentes, error: errPac } = await supabase
-        .from("patients")
-        .select("id, full_name")
+      // A internação precisa já existir, cadastrada com o Nr. Atendimento
+      // certo — é a CHAVE de conciliação agora, não paciente+procedimento.
+      // Um Nr. Atendimento é 1:1 com uma internação, que pode ter vários
+      // procedimentos em várias datas enquanto o paciente estiver internado.
+      const referencias = [...new Set(resultado.linhas.map((l) => l.referenciaExterna).filter(Boolean))];
+      const { data: internacoesExistentes, error: errInt } = await supabase
+        .from("admissions")
+        .select("id, external_reference")
         .eq("company_id", companyId)
-        .in("full_name", nomesPacientes);
-      if (errPac) throw new Error(`Falha ao buscar pacientes: ${errPac.message}`);
-      const pacienteIdPorNome = new Map((pacientesExistentes ?? []).map((p) => [p.full_name, p.id as string]));
+        .in("external_reference", referencias);
+      if (errInt) throw new Error(`Falha ao buscar internações: ${errInt.message}`);
+      const admissionIdPorReferencia = new Map((internacoesExistentes ?? []).map((a) => [a.external_reference as string, a.id as string]));
 
       const codigos = [...new Set(resultado.linhas.map((l) => l.procedimentoCodigo))];
       const { data: procedimentosExistentes, error: errProc } = await supabase
@@ -655,38 +712,30 @@ export const repository = {
       if (errProc) throw new Error(`Falha ao buscar procedimentos: ${errProc.message}`);
       const procedimentoIdPorCodigo = new Map((procedimentosExistentes ?? []).map((p) => [p.code as string, p.id as string]));
 
-      // Candidatos a conciliar: lançamentos manuais/tasy ainda não
-      // confirmados, dentro do período coberto pelo arquivo.
-      const datas = resultado.linhas.map((l) => l.dataProducao);
-      const dataMin = datas.reduce((a, b) => (a < b ? a : b));
-      const dataMax = datas.reduce((a, b) => (a > b ? a : b));
-      const { data: candidatos, error: errCand } = await supabase
-        .from("daily_production")
-        .select("id, admission_id, procedure_id, production_date")
-        .eq("company_id", companyId)
-        .eq("confirmado_tasy", false)
-        .gte("production_date", dataMin)
-        .lte("production_date", dataMax);
-      if (errCand) throw new Error(`Falha ao buscar lançamentos existentes: ${errCand.message}`);
-
-      const admissionIds = [...new Set((candidatos ?? []).map((c) => c.admission_id).filter((v): v is string => Boolean(v)))];
-      let patientIdPorAdmissionId = new Map<string, string>();
-      if (admissionIds.length > 0) {
-        const { data: admissoesRel, error: errAdm } = await supabase.from("admissions").select("id, patient_id").in("id", admissionIds);
-        if (errAdm) throw new Error(`Falha ao buscar internações: ${errAdm.message}`);
-        patientIdPorAdmissionId = new Map((admissoesRel ?? []).map((a) => [a.id as string, a.patient_id as string]));
+      // Candidatos a conciliar: lançamentos ainda não confirmados, das
+      // internações que batem com algum Nr. Atendimento do arquivo.
+      const admissionIdsCandidatos = [...admissionIdPorReferencia.values()];
+      let candidatos: { id: string; admission_id: string | null; procedure_id: string | null; production_date: string }[] = [];
+      if (admissionIdsCandidatos.length > 0) {
+        const { data: candidatosData, error: errCand } = await supabase
+          .from("daily_production")
+          .select("id, admission_id, procedure_id, production_date")
+          .eq("company_id", companyId)
+          .eq("confirmado_tasy", false)
+          .in("admission_id", admissionIdsCandidatos);
+        if (errCand) throw new Error(`Falha ao buscar lançamentos existentes: ${errCand.message}`);
+        candidatos = candidatosData ?? [];
       }
 
-      // Map de fila: pode haver 2+ lançamentos do MESMO paciente+procedimento
-      // no MESMO dia (ex.: Motora de manhã e à tarde) — cada linha do Tasy
-      // consome UM candidato da fila, não um único "o" candidato fixo. A
-      // conciliação valida quantidade por dia, não horário exato.
+      // Map de fila: pode haver 2+ lançamentos do MESMO procedimento na
+      // MESMA internação no mesmo dia (ex.: Motora de manhã e à tarde) —
+      // cada linha do Tasy consome UM candidato da fila, não um único "o"
+      // candidato fixo. A conciliação valida quantidade por dia, não
+      // horário exato.
       const indice = new Map<string, string[]>(); // chave -> fila de daily_production.id
-      for (const c of candidatos ?? []) {
+      for (const c of candidatos) {
         if (!c.admission_id || !c.procedure_id) continue;
-        const patientId = patientIdPorAdmissionId.get(c.admission_id);
-        if (!patientId) continue;
-        const chave = `${patientId}|${c.procedure_id}|${c.production_date}`;
+        const chave = `${c.admission_id}|${c.procedure_id}|${c.production_date}`;
         const fila = indice.get(chave) ?? [];
         fila.push(c.id);
         indice.set(chave, fila);
@@ -696,11 +745,11 @@ export const repository = {
       let pendentes = 0;
       const idsParaConfirmar: string[] = [];
       const linhasParaImportRows = resultado.linhas.map((l) => {
-        const patientId = pacienteIdPorNome.get(l.pacienteNome);
+        const admissionId = admissionIdPorReferencia.get(l.referenciaExterna);
         const procedureId = procedimentoIdPorCodigo.get(l.procedimentoCodigo);
         let matchId: string | null = null;
-        if (patientId && procedureId) {
-          const chave = `${patientId}|${procedureId}|${l.dataProducao}`;
+        if (admissionId && procedureId) {
+          const chave = `${admissionId}|${procedureId}|${l.dataProducao}`;
           const fila = indice.get(chave);
           if (fila && fila.length > 0) {
             matchId = fila.shift()!; // consome um da fila — a próxima linha do Tasy com a mesma chave pega o próximo
@@ -757,12 +806,167 @@ export const repository = {
 
       return { totalLinhas: resultado.linhas.length, confirmados, pendentes, avisos: resultado.avisos, resumo, tasyImport };
     },
+
+    /**
+     * Modo alternativo — "carga inicial": cria hospital/convênio/
+     * fisioterapeuta/paciente/procedimento/internação a partir do
+     * arquivo, quando ainda não existem (não sobrescreve quem já existe
+     * por nome/código). Útil pra popular uma empresa nova de uma vez,
+     * mesmo sabendo que pode precisar corrigir detalhes depois — bem
+     * diferente do modo de conciliação (que nunca cria nada). Tudo que
+     * entra por aqui já nasce `confirmado_tasy = true`, porque veio
+     * direto do relatório do Tasy.
+     */
+    processarComoCarga: async (
+      companyId: string,
+      fileName: string,
+      texto: string
+    ): Promise<{ totalLinhas: number; totalInseridos: number; totalDuplicados: number; resumo: ReturnType<typeof resumirImportacao> }> => {
+      const resultado = parseTasyReport(texto);
+      if (resultado.linhas.length === 0) {
+        throw new Error("Nenhuma linha de produção foi reconhecida neste arquivo.");
+      }
+
+      const hospitalPorNome = await buscarOuCriarEmLote(
+        "hospitals", "name", resultado.linhas.map((l) => l.hospitalNome), () => ({ company_id: companyId })
+      );
+      const convenioPorNome = await buscarOuCriarEmLote(
+        "health_insurances", "name", resultado.linhas.map((l) => l.convenioNome), () => ({ company_id: companyId })
+      );
+      const fisioPorNome = await buscarOuCriarEmLote(
+        "physiotherapists", "full_name", resultado.linhas.map((l) => l.fisioterapeutaNome), () => ({ company_id: companyId })
+      );
+      const pacientePorNome = await buscarOuCriarEmLote(
+        "patients", "full_name", resultado.linhas.map((l) => l.pacienteNome), () => ({ company_id: companyId })
+      );
+
+      const nomePorCodigo = new Map<string, string>();
+      for (const l of resultado.linhas) if (!nomePorCodigo.has(l.procedimentoCodigo)) nomePorCodigo.set(l.procedimentoCodigo, l.procedimentoNome);
+      const procedimentoPorCodigo = await buscarOuCriarEmLote(
+        "procedures", "code", resultado.linhas.map((l) => l.procedimentoCodigo),
+        (codigo) => ({ company_id: companyId, name: nomePorCodigo.get(codigo) ?? codigo })
+      );
+
+      const gruposPorAtendimento = new Map<string, typeof resultado.linhas>();
+      for (const l of resultado.linhas) {
+        const grupo = gruposPorAtendimento.get(l.referenciaExterna) ?? [];
+        grupo.push(l);
+        gruposPorAtendimento.set(l.referenciaExterna, grupo);
+      }
+      const admissaoPorReferencia = await buscarOuCriarEmLote(
+        "admissions", "external_reference", [...gruposPorAtendimento.keys()],
+        (referencia) => {
+          const grupo = gruposPorAtendimento.get(referencia)!;
+          const primeira = grupo[0];
+          const dataMinima = grupo.reduce((min, l) => (l.dataProducao < min ? l.dataProducao : min), primeira.dataProducao);
+          const patientId = pacientePorNome.get(primeira.pacienteNome);
+          const hospitalId = hospitalPorNome.get(primeira.hospitalNome);
+          const healthInsuranceId = convenioPorNome.get(primeira.convenioNome);
+          if (!patientId || !hospitalId) throw new Error(`Não foi possível resolver paciente/hospital para o atendimento ${referencia}.`);
+          return {
+            company_id: companyId,
+            patient_id: patientId,
+            hospital_id: hospitalId,
+            health_insurance_id: healthInsuranceId ?? null,
+            admission_date: dataMinima,
+            admission_time: "08:00",
+            external_reference: referencia,
+            status: "internado",
+          };
+        }
+      );
+
+      const linhasParaInserir = resultado.linhas.map((l) => ({
+        company_id: companyId,
+        admission_id: admissaoPorReferencia.get(l.referenciaExterna) ?? null,
+        physiotherapist_id: fisioPorNome.get(l.fisioterapeutaNome) ?? null,
+        procedure_id: procedimentoPorCodigo.get(l.procedimentoCodigo) ?? null,
+        production_date: l.dataProducao,
+        production_time: l.dataHoraISO?.slice(11, 16) || "08:00",
+        source: "tasy" as const,
+        tasy_reference: `${l.referenciaExterna}-${l.procedimentoCodigo}-${l.dataHoraISO}`,
+        confirmado_tasy: true,
+        confirmado_em: new Date().toISOString(),
+      }));
+
+      let totalInseridos = 0;
+      for (const lote of emLotes(linhasParaInserir, 500)) {
+        const { data, error } = await supabase
+          .from("daily_production")
+          .upsert(lote, { onConflict: "company_id,tasy_reference", ignoreDuplicates: true })
+          .select("id");
+        if (error) throw new Error(`Falha ao gravar produção diária: ${error.message}`);
+        totalInseridos += (data ?? []).length;
+      }
+
+      const resumo = resumirImportacao(resultado.linhas);
+      await registrarAuditoria({ company_id: companyId, action: "importado", entity_type: "Importação Tasy (carga inicial)", entity_label: fileName });
+
+      return { totalLinhas: resultado.linhas.length, totalInseridos, totalDuplicados: linhasParaInserir.length - totalInseridos, resumo };
+    },
   },
 
   tasyImportRows: {
     ignorar: async (id: string): Promise<void> => {
       await atualizarLinha("tasy_import_rows", id, { status: "ignorado" });
     },
+  },
+
+  rolePermissions: {
+    /** Cria ou atualiza a permissão de um papel num módulo — upsert pela chave única (empresa, papel, módulo). */
+    definir: async (companyId: string, role: string, moduleSlug: string, patch: Partial<Permissao>): Promise<void> => {
+      const { error } = await supabase
+        .from("role_permissions")
+        .upsert(
+          { company_id: companyId, role, module_slug: moduleSlug, ...patch },
+          { onConflict: "company_id,role,module_slug" }
+        );
+      if (error) throw new Error(error.message);
+    },
+  },
+
+  billingEntries: {
+    create: async (
+      data: Pick<BillingEntry, "admission_id" | "procedure_id" | "competencia" | "data_atendimento" | "quantidade" | "valor_repasse" | "valor_glosado" | "company_id">
+    ): Promise<BillingEntry> => {
+      const row = await inserirLinha<BillingEntry>("billing_entries", { ...data, origem: "manual" });
+      await registrarAuditoria({ company_id: row.company_id, action: "criado", entity_type: "Faturamento", entity_label: `Repasse ${row.valor_repasse}` });
+      return row;
+    },
+    remove: async (id: string): Promise<void> => excluirLinha("billing_entries", id),
+  },
+
+  patientQueue: {
+    /**
+     * Distribui uma lista de internações pra um fisioterapeuta, numa
+     * data — a ordem do array vira a sequência. Reatribuir um paciente já
+     * distribuído no mesmo dia substitui a distribuição anterior (upsert
+     * pela chave única empresa+internação+data).
+     */
+    distribuir: async (
+      companyId: string,
+      physiotherapistId: string,
+      data: string,
+      admissionIds: string[],
+      distribuidoPor: string | null
+    ): Promise<void> => {
+      const linhas = admissionIds.map((admissionId, i) => ({
+        company_id: companyId,
+        admission_id: admissionId,
+        physiotherapist_id: physiotherapistId,
+        data,
+        sequencia: i + 1,
+        status: "pendente" as const,
+        distribuido_por: distribuidoPor,
+      }));
+      const { error } = await supabase.from("patient_queue").upsert(linhas, { onConflict: "company_id,admission_id,data" });
+      if (error) throw new Error(error.message);
+      await registrarAuditoria({ company_id: companyId, action: "criado", entity_type: "Distribuição de fila", entity_label: `${admissionIds.length} paciente(s)` });
+    },
+    concluir: async (id: string): Promise<void> => {
+      await atualizarLinha("patient_queue", id, { status: "concluido" });
+    },
+    remover: async (id: string): Promise<void> => excluirLinha("patient_queue", id),
   },
 
   /**

@@ -28,6 +28,8 @@ import {
   SlidersHorizontal,
   Workflow,
   ClipboardCheck,
+  Receipt,
+  ListOrdered,
 } from "lucide-react";
 
 export interface ModuleDef {
@@ -101,6 +103,7 @@ export const moduleGroups: ModuleGroup[] = [
     id: "assistencial",
     label: "Assistencial",
     modules: [
+      { slug: "minha-fila", path: "/minha-fila", label: "Minha Fila", icon: ListOrdered, description: "Pacientes distribuídos para o fisioterapeuta logado hoje, em ordem de atendimento.", status: "pronto" },
       { slug: "novo-atendimento", path: "/novo-atendimento", label: "Novo Atendimento", icon: Workflow, description: "Cadastra paciente, internação e o primeiro procedimento em sequência — pode parar em qualquer etapa.", status: "pronto" },
       { slug: "pacientes", path: "/pacientes", label: "Pacientes", icon: Users, description: "Cadastro de pacientes atendidos, histórico clínico e internações relacionadas.", status: "pronto" },
       { slug: "internacoes", path: "/internacoes", label: "Pacientes Internados", icon: BedDouble, description: "Pacientes internados acompanhados pela equipe, com leito, hospital e status de atendimento do dia.", status: "pronto" },
@@ -117,6 +120,7 @@ export const moduleGroups: ModuleGroup[] = [
     label: "Financeiro & auditoria",
     modules: [
       { slug: "financeiro", path: "/financeiro", label: "Financeiro", icon: Wallet, description: "Faturamento, contas a receber por convênio/contrato e fechamento mensal.", status: "pronto" },
+      { slug: "faturamento", path: "/faturamento", label: "Faturamento", icon: Receipt, description: "Lançamento manual do relatório de repasse do Tasy — o que o hospital de fato pagou.", status: "pronto" },
       { slug: "auditoria", path: "/auditoria", label: "Auditoria", icon: ShieldAlert, description: "Trilha de auditoria de lançamentos, importações e alterações sensíveis.", status: "pronto" },
     ],
   },
@@ -153,4 +157,4 @@ export const allModules: ModuleDef[] = moduleGroups.flatMap((g) => g.modules);
  * tudo normalmente.
  */
 export const SLUGS_LANCADOR = ["novo-atendimento", "pacientes", "internacoes", "producao-diaria"];
-export const ROTA_PADRAO_LANCADOR = "/novo-atendimento";
+export const ROTA_PADRAO_LANCADOR = "/minha-fila";

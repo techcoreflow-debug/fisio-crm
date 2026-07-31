@@ -1,22 +1,29 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Activity, X, ChevronDown } from "lucide-react";
-import { moduleGroups, SLUGS_LANCADOR } from "@/app/modules-registry";
+import { moduleGroups } from "@/app/modules-registry";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/app-store";
 import { useAuth } from "@/auth/auth-provider";
+import { useRolePermissions } from "@/data/repository";
+import { permissaoPadrao } from "@/lib/permissions";
 
 function SidebarContent() {
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
   const { profile } = useAuth();
   const location = useLocation();
-  const ehLancador = profile?.role === "fisioterapeuta" && !profile.is_platform_admin;
+  const permissoes = useRolePermissions();
 
-  const grupos = ehLancador
-    ? moduleGroups
-        .map((g) => ({ ...g, modules: g.modules.filter((m) => SLUGS_LANCADOR.includes(m.slug)) }))
-        .filter((g) => g.modules.length > 0)
-    : moduleGroups;
+  function podeVer(slug: string) {
+    if (!profile) return false;
+    if (profile.is_platform_admin) return true;
+    const linha = permissoes.find((p) => p.role === profile.role && p.module_slug === slug);
+    return linha ? linha.can_view : permissaoPadrao(profile.role, slug).can_view;
+  }
+
+  const grupos = moduleGroups
+    .map((g) => ({ ...g, modules: g.modules.filter((m) => podeVer(m.slug)) }))
+    .filter((g) => g.modules.length > 0);
 
   const [recolhidos, setRecolhidos] = useState<Set<string>>(
     () => new Set(grupos.filter((g) => g.recolhidoPorPadrao).map((g) => g.id))

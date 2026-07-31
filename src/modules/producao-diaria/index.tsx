@@ -46,8 +46,8 @@ export default function ProducaoDiaria() {
   const [open, setOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [internacaoId, setInternacaoId] = useState(internacoes.find((i) => i.status === "internado")?.id ?? "");
-  const [fisioId, setFisioId] = useState(fisioterapeutas[0]?.id ?? "");
-  const [procedimentoId, setProcedimentoId] = useState(procedimentos[0]?.id ?? "");
+  const [fisioId, setFisioId] = useState("");
+  const [procedimentoId, setProcedimentoId] = useState("");
 
   const companies = useCompanies();
   const activeCompanyId = useAppStore((s) => s.activeCompanyId);
@@ -291,6 +291,7 @@ export default function ProducaoDiaria() {
               <thead>
                 <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-soft">
                   <th className="px-4 py-3 font-medium">Data</th>
+                  <th className="px-4 py-3 font-medium">Nr. Atendimento</th>
                   <th className="px-4 py-3 font-medium">Paciente</th>
                   <th className="px-4 py-3 font-medium">Procedimento</th>
                   <th className="px-4 py-3 font-medium">Fisioterapeuta</th>
@@ -303,6 +304,9 @@ export default function ProducaoDiaria() {
                 {paginaAtual.map((p) => (
                   <tr key={p.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
                     <td className="px-4 py-3 font-mono text-xs text-ink-soft">{p.production_date.split("-").reverse().join("/")} {p.production_time?.slice(0, 5)}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">
+                      {internacoes.find((i) => i.id === p.admission_id)?.external_reference ?? "—"}
+                    </td>
                     <td className="px-4 py-3 font-medium text-ink">{nomePaciente(p.admission_id)}</td>
                     <td className="px-4 py-3 text-ink-soft">
                       {(() => {

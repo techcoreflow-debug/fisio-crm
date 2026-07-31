@@ -73,6 +73,18 @@ export default function Leitos() {
     }
   }
 
+  // Sem critério automático pra saber quando a limpeza física terminou —
+  // por isso é uma ação manual: alguém confirma que o leito já foi
+  // higienizado e está pronto para uma nova internação.
+  async function handleLiberarLeito(id: string) {
+    try {
+      await repository.beds.updateStatus(id, "livre");
+      notificarSucesso("Leito liberado.");
+    } catch (erro) {
+      notificarErro("Não foi possível liberar o leito", erro);
+    }
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
@@ -243,6 +255,18 @@ export default function Leitos() {
                             )}
                             <span className="font-mono text-xs font-semibold">{leito.code}</span>
                             {internacaoAtiva && <span className="truncate text-[11px] leading-tight">Ocupado</span>}
+                            {!internacaoAtiva && leito.status === "higienizacao" && (
+                              <>
+                                <span className="truncate text-[11px] leading-tight">Higienização</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleLiberarLeito(leito.id)}
+                                  className="mt-0.5 rounded-sm bg-attention-400 px-1.5 py-0.5 text-[10px] font-medium text-white hover:bg-attention-600"
+                                >
+                                  Concluir
+                                </button>
+                              </>
+                            )}
                           </div>
                         );
                       })}

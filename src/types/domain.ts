@@ -283,3 +283,41 @@ export interface TasyImportRow {
   error_message: string | null;
   created_at: string;
 }
+
+export interface RolePermission {
+  id: string;
+  company_id: string;
+  role: UserRole;
+  module_slug: string;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  created_at: string;
+}
+
+export interface BillingEntry {
+  id: string;
+  company_id: string;
+  admission_id: string;
+  procedure_id: string | null;
+  competencia: string;
+  data_atendimento: string;
+  quantidade: number;
+  valor_repasse: number;
+  valor_glosado: number;
+  origem: "manual" | "importado";
+  created_at: string;
+}
+
+export interface PatientQueueItem {
+  id: string;
+  company_id: string;
+  admission_id: string;
+  physiotherapist_id: string;
+  data: string;
+  sequencia: number;
+  status: "pendente" | "concluido";
+  distribuido_por: string | null;
+  created_at: string;
+}

@@ -24,6 +24,7 @@ export default function ImportacaoTasy() {
   const [prevendo, setPrevendo] = useState(false);
   const [resultado, setResultado] = useState<TasyParseResult | null>(null);
   const [confirmando, setConfirmando] = useState(false);
+  const [modo, setModo] = useState<"conciliar" | "carga">("conciliar");
 
   async function handleSelecionarArquivo(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -61,13 +62,21 @@ export default function ImportacaoTasy() {
     setConfirmando(true);
     try {
       const texto = await lerArquivoComoTextoLatin1(arquivo);
-      const saida = await repository.tasyImports.processarArquivo(empresaId, arquivo.name, texto);
-      const partes = [`${saida.confirmados} confirmado(s)`];
-      if (saida.pendentes > 0) partes.push(`${saida.pendentes} sem lançamento correspondente (pendência)`);
-      notificarSucesso("Conciliação concluída", partes.join(" · "));
+      if (modo === "carga") {
+        const saida = await repository.tasyImports.processarComoCarga(empresaId, arquivo.name, texto);
+        notificarSucesso(
+          "Carga concluída",
+          `${saida.totalInseridos} lançamento(s) criado(s)${saida.totalDuplicados > 0 ? ` · ${saida.totalDuplicados} já existiam` : ""}`
+        );
+      } else {
+        const saida = await repository.tasyImports.processarArquivo(empresaId, arquivo.name, texto);
+        const partes = [`${saida.confirmados} confirmado(s)`];
+        if (saida.pendentes > 0) partes.push(`${saida.pendentes} sem lançamento correspondente (pendência)`);
+        notificarSucesso("Conciliação concluída", partes.join(" · "));
+      }
       handleTrocarArquivo();
     } catch (erro) {
-      notificarErro("Não foi possível concluir a conciliação", erro);
+      notificarErro(modo === "carga" ? "Não foi possível concluir a carga" : "Não foi possível concluir a conciliação", erro);
     } finally {
       setConfirmando(false);
     }
@@ -161,6 +170,7 @@ export default function ImportacaoTasy() {
                         <thead>
                           <tr className="border-b border-line bg-surface-sunken text-left text-xs uppercase tracking-wide text-ink-soft">
                             <th className="px-3 py-2 font-medium">Data</th>
+                            <th className="px-3 py-2 font-medium">Nr. Atendimento</th>
                             <th className="px-3 py-2 font-medium">Paciente</th>
                             <th className="px-3 py-2 font-medium">Convênio</th>
                             <th className="px-3 py-2 font-medium">Procedimento</th>
@@ -172,6 +182,7 @@ export default function ImportacaoTasy() {
                               <td className="px-3 py-2 font-mono text-xs text-ink-soft">
                                 {linha.dataProducao.split("-").reverse().join("/")}
                               </td>
+                              <td className="px-3 py-2 font-mono text-xs text-ink-soft">{linha.referenciaExterna}</td>
                               <td className="px-3 py-2 text-ink">{linha.pacienteNome}</td>
                               <td className="px-3 py-2 text-ink-soft">{linha.convenioNome}</td>
                               <td className="px-3 py-2 text-ink-soft">
@@ -206,13 +217,34 @@ export default function ImportacaoTasy() {
                     </div>
                   )}
 
+                  <div className="flex flex-col gap-2 rounded-md border border-line p-3">
+                    <p className="text-sm font-medium text-ink">Como processar este arquivo?</p>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <label className={`flex-1 cursor-pointer rounded-md border p-3 text-sm ${modo === "conciliar" ? "border-clinical-500 bg-clinical-50" : "border-line"}`}>
+                        <input type="radio" name="modo" className="mr-2" checked={modo === "conciliar"} onChange={() => setModo("conciliar")} />
+                        <span className="font-medium text-ink">Conciliar com o que já foi lançado</span>
+                        <span className="mt-1 block text-xs text-ink-soft">Padrão. Não cria nada — só confirma lançamentos já existentes.</span>
+                      </label>
+                      <label className={`flex-1 cursor-pointer rounded-md border p-3 text-sm ${modo === "carga" ? "border-attention-400 bg-attention-100" : "border-line"}`}>
+                        <input type="radio" name="modo" className="mr-2" checked={modo === "carga"} onChange={() => setModo("carga")} />
+                        <span className="font-medium text-ink">Carga inicial (criar tudo)</span>
+                        <span className="mt-1 block text-xs text-ink-soft">
+                          Cria hospital, convênio, paciente, procedimento e internação a partir do arquivo. Use pra
+                          popular uma empresa nova — dá pra corrigir os cadastros depois.
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
                   <div className="flex justify-end gap-2">
                     <Button variant="secondary" onClick={handleTrocarArquivo} disabled={confirmando}>
                       Cancelar
                     </Button>
-                    <Button onClick={handleConfirmar} disabled={confirmando}>
+                    <Button onClick={handleConfirmar} disabled={confirmando} variant={modo === "carga" ? "destructive" : "primary"}>
                       {confirmando ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                      {confirmando ? "Conciliando…" : `Conciliar (${resumo.totalLinhas} linhas)`}
+                      {confirmando
+                        ? modo === "carga" ? "Importando…" : "Conciliando…"
+                        : modo === "carga" ? `Importar como carga (${resumo.totalLinhas} linhas)` : `Conciliar (${resumo.totalLinhas} linhas)`}
                     </Button>
                   </div>
                 </>
@@ -238,6 +270,7 @@ export default function ImportacaoTasy() {
               <thead>
                 <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-soft">
                   <th className="px-4 py-3 font-medium">Data</th>
+                  <th className="px-4 py-3 font-medium">Nr. Atendimento</th>
                   <th className="px-4 py-3 font-medium">Paciente</th>
                   <th className="px-4 py-3 font-medium">Convênio</th>
                   <th className="px-4 py-3 font-medium">Procedimento</th>
@@ -248,6 +281,7 @@ export default function ImportacaoTasy() {
                 {pendencias.map((p) => (
                   <tr key={p.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
                     <td className="px-4 py-3 font-mono text-xs text-ink-soft">{p.raw_data.data.split("-").reverse().join("/")}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">{p.raw_data.referenciaExterna}</td>
                     <td className="px-4 py-3 font-medium text-ink">{p.raw_data.paciente}</td>
                     <td className="px-4 py-3 text-ink-soft">{p.raw_data.convenio}</td>
                     <td className="px-4 py-3 text-ink-soft">

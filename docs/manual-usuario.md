@@ -38,6 +38,25 @@ Ordem que funciona sem travar em nenhum cadastro-pré-requisito:
 Depois disso, o dia a dia roda por **Pacientes Internados** e
 **Produção Diária** — o resto é consulta/ajuste ocasional.
 
+## Lista de atendimento e distribuição
+
+Em Pacientes Internados, selecione pacientes (checkbox por linha — sem
+seleção nenhuma, usa todos os que estiverem no filtro atual) e:
+
+- **Gerar/imprimir lista**: escolhe quais colunas aparecem (sequência
+  numerada sempre entra; Nr. Atendimento, paciente, procedimento do dia,
+  quarto, leito e hospital são opcionais, todas ligadas por padrão) e
+  abre uma janela pronta pra imprimir.
+- **Distribuir**: escolhe um fisioterapeuta e uma data — os pacientes
+  selecionados entram na fila dele, na ordem em que aparecem na tela.
+
+## Minha Fila
+
+Tela do fisioterapeuta: só os pacientes distribuídos pra ele naquele
+dia, em ordem, com aviso se já foi lançado algum procedimento hoje pra
+aquele paciente, e um botão pra marcar como concluído. É a primeira tela
+que o fisioterapeuta vê ao logar.
+
 ## Novo Atendimento (fluxo guiado)
 
 Jeito mais rápido de começar: cadastra **paciente → internação →
@@ -74,6 +93,29 @@ Os três campos (internação, fisioterapeuta, procedimento) usam busca —
 digite pra filtrar em vez de rolar uma lista longa. Só aparecem internações
 **ativas**.
 
+## Permissões por papel
+
+Em Usuários e Permissões: uma matriz de ver/criar/editar/excluir por
+módulo, ajustável por papel (Admin de empresa, Gestor, Financeiro,
+Fisioterapeuta, Auditor). Sem ajuste manual, cada papel usa um padrão
+sensato já embutido — o fisioterapeuta, por exemplo, só vê Novo
+Atendimento, Pacientes, Pacientes Internados e Produção Diária.
+
+## Faturamento
+
+Lançamento manual do relatório de repasse do Tasy (valor pago, valor
+glosado) por Nr. Atendimento + procedimento + data — mesma chave da
+conciliação. É uma ponte: o relatório oficial hoje só existe em PDF
+escaneado (sem texto real por trás), então a importação automática dele
+ainda não é confiável o suficiente para dado financeiro.
+
+## Modo tablet (fisioterapeuta)
+
+Quem loga como fisioterapeuta (lançador) vê um app diferente: sem menu
+lateral, navegação por ícones grandes na parte de baixo da tela — pensado
+pra usar com o dedo em tablet, na correria do plantão. As abas mostradas
+se ajustam sozinhas conforme as permissões daquele papel.
+
 ## Conciliação Tasy
 
 **Não é carga** — a equipe lança o procedimento manualmente primeiro (em
@@ -91,6 +133,12 @@ existente, pela combinação **paciente + código do procedimento + data**.
 
 "Desfazer conciliação" reverte de verdade: volta tudo que aquela
 conciliação tinha confirmado para "não confirmado".
+
+**Modo alternativo — Carga inicial:** pra popular uma empresa nova de uma
+vez, dá pra escolher "Carga inicial" em vez de "Conciliar" — aí cria
+hospital, convênio, paciente, procedimento e internação a partir do
+arquivo (o modo antigo). Fica marcado visualmente como arriscado, porque
+pode precisar corrigir cadastros depois.
 
 **Limitação conhecida e proposital:** hoje não existe tabela de preço por
 procedimento×convênio, então não há valor em R$ pra mostrar por

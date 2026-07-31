@@ -41,7 +41,7 @@ export default function EvolucaoClinica() {
   const [gruposFechados, setGruposFechados] = useState<Set<string>>(new Set());
   const internacoesAtivas = internacoes.filter((i) => i.status === "internado");
   const [internacaoId, setInternacaoId] = useState(internacoesAtivas[0]?.id ?? "");
-  const [fisioId, setFisioId] = useState(fisioterapeutas[0]?.id ?? "");
+  const [fisioId, setFisioId] = useState("");
 
   function nomePaciente(admissionId: string) {
     const internacao = internacoes.find((i) => i.id === admissionId);
@@ -105,7 +105,7 @@ export default function EvolucaoClinica() {
 
   function abrirNova() {
     setInternacaoId(internacoesAtivas[0]?.id ?? "");
-    setFisioId(fisioterapeutas[0]?.id ?? "");
+    setFisioId("");
     setOpen(true);
   }
 

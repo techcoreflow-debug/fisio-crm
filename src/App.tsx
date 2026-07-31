@@ -2,8 +2,10 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy, type ComponentType } from "react";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
-import { allModules, SLUGS_LANCADOR, ROTA_PADRAO_LANCADOR } from "@/app/modules-registry";
+import { allModules, ROTA_PADRAO_LANCADOR } from "@/app/modules-registry";
 import { AuthProvider, useAuth } from "@/auth/auth-provider";
+import { useRolePermissions } from "@/data/repository";
+import { permissaoPadrao } from "@/lib/permissions";
 import Login from "@/modules/auth/login";
 import { Button } from "@/components/ui/button";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -14,6 +16,7 @@ const pageComponents: Record<string, ComponentType> = {
   "dashboard-executivo": lazy(() => import("@/modules/dashboard-executivo")),
   "dashboard-operacional": lazy(() => import("@/modules/dashboard-operacional")),
   "dashboard-financeiro": lazy(() => import("@/modules/dashboard-financeiro")),
+  faturamento: lazy(() => import("@/modules/faturamento")),
   empresas: lazy(() => import("@/modules/empresas")),
   hospitais: lazy(() => import("@/modules/hospitais")),
   clinicas: lazy(() => import("@/modules/clinicas")),
@@ -33,6 +36,7 @@ const pageComponents: Record<string, ComponentType> = {
   "painel-procedimentos": lazy(() => import("@/modules/painel-producao")),
   fechamento: lazy(() => import("@/modules/fechamento")),
   "novo-atendimento": lazy(() => import("@/modules/novo-atendimento")),
+  "minha-fila": lazy(() => import("@/modules/minha-fila")),
   "evolucao-clinica": lazy(() => import("@/modules/evolucao-clinica")),
   financeiro: lazy(() => import("@/modules/financeiro")),
   auditoria: lazy(() => import("@/modules/auditoria")),
@@ -64,6 +68,7 @@ function TelaCarregando() {
 
 function AuthGate() {
   const { session, profile, loading, profileLoading, refreshProfile, signOut } = useAuth();
+  const permissoes = useRolePermissions();
 
   if (loading) return <TelaCarregando />;
   if (!session) return <Login />;
@@ -87,14 +92,20 @@ function AuthGate() {
     );
   }
 
+  const perfil = profile;
+  function podeVer(slug: string) {
+    if (perfil.is_platform_admin) return true;
+    const linha = permissoes.find((p) => p.role === perfil.role && p.module_slug === slug);
+    return linha ? linha.can_view : permissaoPadrao(perfil.role, slug).can_view;
+  }
+
   return (
     <BrowserRouter>
       <Routes>
         <Route element={<AppShell />}>
           {allModules.map((mod) => {
             const Component = pageComponents[mod.slug];
-            const ehLancador = profile.role === "fisioterapeuta" && !profile.is_platform_admin;
-            const bloqueado = ehLancador && !SLUGS_LANCADOR.includes(mod.slug);
+            const bloqueado = !podeVer(mod.slug);
             return (
               <Route
                 key={mod.slug}

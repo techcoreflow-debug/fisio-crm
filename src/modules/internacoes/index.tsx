@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Search, Plus, Pencil, BedDouble, LogOut, AlertTriangle, ClipboardPlus } from "lucide-react";
+import { Search, Plus, Pencil, BedDouble, LogOut, AlertTriangle, ClipboardPlus, Printer, Users, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   Sheet,
   SheetContent,
@@ -21,6 +22,7 @@ import {
   usePatients,
   useHospitals,
   useUnits,
+  useRooms,
   useBeds,
   useHealthInsurances,
   usePhysiotherapists,
@@ -33,6 +35,7 @@ import { Paginacao, usarPaginacao } from "@/components/shared/paginacao";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useDraftState } from "@/lib/use-draft-state";
 import { useAuth } from "@/auth/auth-provider";
+import { useAppStore } from "@/store/app-store";
 import type { Admission } from "@/types/domain";
 
 type StatusInternacao = "internado" | "alta";
@@ -64,6 +67,35 @@ export default function Internacoes() {
   const procedimentos = useProcedures();
   const producao = useDailyProduction();
   const { profile } = useAuth();
+  const quartos = useRooms();
+  const empresaId = useAppStore((s) => s.activeCompanyId);
+
+  // Seleção de linhas — base pra "gerar lista" (imprimir) e "distribuir".
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  function toggleSelecionado(id: string) {
+    setSelecionados((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(id)) novo.delete(id);
+      else novo.add(id);
+      return novo;
+    });
+  }
+
+  const COLUNAS_LISTA = [
+    { chave: "nrAtendimento", rotulo: "Nr. Atendimento" },
+    { chave: "paciente", rotulo: "Paciente" },
+    { chave: "procedimento", rotulo: "Procedimento (hoje)" },
+    { chave: "quarto", rotulo: "Quarto" },
+    { chave: "leito", rotulo: "Leito" },
+    { chave: "hospital", rotulo: "Hospital" },
+  ] as const;
+  const [colunasLista, setColunasLista] = useState<Set<string>>(new Set(COLUNAS_LISTA.map((c) => c.chave)));
+  const [dialogListaAberto, setDialogListaAberto] = useState(false);
+
+  const [dialogDistribuirAberto, setDialogDistribuirAberto] = useState(false);
+  const [fisioDistribuirId, setFisioDistribuirId] = useState("");
+  const [dataDistribuir, setDataDistribuir] = useState(new Date().toISOString().slice(0, 10));
+  const [distribuindo, setDistribuindo] = useState(false);
   // Fisioterapeuta lançador: só lança procedimento e cadastra paciente —
   // não administra internação (criar/editar/dar alta continua restrito).
   const podeAdministrarInternacao = !(profile?.role === "fisioterapeuta" && !profile.is_platform_admin);
@@ -76,7 +108,7 @@ export default function Internacoes() {
 
   const [busca, setBusca] = useState("");
   const [filtroUnidade, setFiltroUnidade] = useState<string>("todas");
-  const [filtroStatus, setFiltroStatus] = useState<"todos" | "internado" | "alta">("todos");
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "internado" | "alta">("internado");
   const [filtroEntradaDe, setFiltroEntradaDe] = useState("");
   const [filtroEntradaAte, setFiltroEntradaAte] = useState("");
   const [apenasPendentes, setApenasPendentes] = useState(false);
@@ -92,6 +124,7 @@ export default function Internacoes() {
     unidadeId: "",
     leitoId: "",
     convenioId: "",
+    nrAtendimento: "",
   });
   const open = rascunho.open;
   const editando = rascunho.editandoId ? internacoes.find((i) => i.id === rascunho.editandoId) ?? null : null;
@@ -99,11 +132,13 @@ export default function Internacoes() {
   const unidadeId = rascunho.unidadeId;
   const leitoId = rascunho.leitoId;
   const convenioId = rascunho.convenioId;
+  const nrAtendimento = rascunho.nrAtendimento;
   const setOpen = (v: boolean) => setRascunho({ ...rascunho, open: v });
   const setPacienteId = (v: string) => setRascunho({ ...rascunho, pacienteId: v });
   const setUnidadeId = (v: string) => setRascunho({ ...rascunho, unidadeId: v });
   const setLeitoId = (v: string) => setRascunho({ ...rascunho, leitoId: v });
   const setConvenioId = (v: string) => setRascunho({ ...rascunho, convenioId: v });
+  const setNrAtendimento = (v: string) => setRascunho({ ...rascunho, nrAtendimento: v });
 
   const leitosDaUnidade = leitos.filter(
     (l) => l.unit_id === unidadeId && (l.status === "livre" || l.id === editando?.bed_id)
@@ -115,24 +150,111 @@ export default function Internacoes() {
   const [etapaAlta, setEtapaAlta] = useState<"data" | "sem-atendimento" | "lancar">("data");
   const [dataHoraAlta, setDataHoraAlta] = useState(agoraParaInputDatetime());
   const [salvandoAlta, setSalvandoAlta] = useState(false);
-  const [fisioAltaId, setFisioAltaId] = useState(fisioterapeutas[0]?.id ?? "");
-  const [procedimentoAltaId, setProcedimentoAltaId] = useState(procedimentos[0]?.id ?? "");
+  const [fisioAltaId, setFisioAltaId] = useState("");
+  const [procedimentoAltaId, setProcedimentoAltaId] = useState("");
 
   // Lançar procedimento direto da lista — não precisa sair daqui e ir
   // procurar o paciente de novo em Produção Diária.
   const [internacaoParaLancar, setInternacaoParaLancar] = useState<Admission | null>(null);
-  const [fisioLancarId, setFisioLancarId] = useState(fisioterapeutas[0]?.id ?? "");
-  const [procedimentoLancarId, setProcedimentoLancarId] = useState(procedimentos[0]?.id ?? "");
+  const [fisioLancarId, setFisioLancarId] = useState("");
+  const [procedimentoLancarId, setProcedimentoLancarId] = useState("");
   const [dataLancar, setDataLancar] = useState(hojeIso);
   const [horaLancar, setHoraLancar] = useState(new Date().toTimeString().slice(0, 5));
   const [salvandoLancamento, setSalvandoLancamento] = useState(false);
 
   function abrirLancarProcedimento(internacao: Admission) {
     setInternacaoParaLancar(internacao);
-    setFisioLancarId(fisioterapeutas[0]?.id ?? "");
-    setProcedimentoLancarId(procedimentos[0]?.id ?? "");
+    setFisioLancarId("");
+    setProcedimentoLancarId("");
     setDataLancar(hojeIso);
     setHoraLancar(new Date().toTimeString().slice(0, 5));
+  }
+
+  function nomeProcedimentoHoje(admissionId: string) {
+    const hoje = new Date().toISOString().slice(0, 10);
+    const lancamentos = producao.filter((p) => p.admission_id === admissionId && p.production_date === hoje);
+    if (lancamentos.length === 0) return "—";
+    return lancamentos
+      .map((p) => procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—")
+      .join(", ");
+  }
+
+  function handleImprimirLista() {
+    const linhas = selecionados.size > 0 ? filtradas.filter((i) => selecionados.has(i.id)) : filtradas;
+    if (linhas.length === 0) {
+      notificarErro("Nada para imprimir", "Não há internações no filtro/seleção atual.");
+      return;
+    }
+    const colunasAtivas = COLUNAS_LISTA.filter((c) => colunasLista.has(c.chave));
+    const linhasHtml = linhas
+      .map((i, idx) => {
+        const celulas = colunasAtivas.map((c) => {
+          switch (c.chave) {
+            case "nrAtendimento": return i.external_reference ?? "—";
+            case "paciente": return pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "—";
+            case "procedimento": return nomeProcedimentoHoje(i.id);
+            case "quarto": {
+              const leito = leitos.find((l) => l.id === i.bed_id);
+              return quartos.find((q) => q.id === leito?.room_id)?.code ?? "—";
+            }
+            case "leito": return leitos.find((l) => l.id === i.bed_id)?.code ?? "—";
+            case "hospital": return hospitais.find((h) => h.id === i.hospital_id)?.name ?? "—";
+            default: return "—";
+          }
+        });
+        return `<tr><td>${idx + 1}</td>${celulas.map((v) => `<td>${v}</td>`).join("")}</tr>`;
+      })
+      .join("");
+    const cabecalho = `<tr><th>#</th>${colunasAtivas.map((c) => `<th>${c.rotulo}</th>`).join("")}</tr>`;
+    const janela = window.open("", "_blank");
+    if (!janela) {
+      notificarErro("Não foi possível abrir a janela de impressão", "O navegador pode ter bloqueado o pop-up.");
+      return;
+    }
+    janela.document.write(`
+      <html>
+        <head>
+          <title>Lista de atendimento — ${new Date().toLocaleDateString("pt-BR")}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #16202b; }
+            h1 { font-size: 18px; margin-bottom: 4px; }
+            p { font-size: 12px; color: #47566b; margin-top: 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            th, td { border: 1px solid #dbe2ea; padding: 6px 10px; font-size: 12px; text-align: left; }
+            th { background: #f4f6fa; text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px; }
+          </style>
+        </head>
+        <body>
+          <h1>Lista de atendimento</h1>
+          <p>${new Date().toLocaleDateString("pt-BR")} · ${linhas.length} paciente(s)</p>
+          <table>${cabecalho}${linhasHtml}</table>
+          <script>window.onload = () => window.print();</script>
+        </body>
+      </html>
+    `);
+    janela.document.close();
+    setDialogListaAberto(false);
+  }
+
+  async function handleDistribuir() {
+    if (!empresaId || !fisioDistribuirId || selecionados.size === 0) return;
+    setDistribuindo(true);
+    try {
+      await repository.patientQueue.distribuir(
+        empresaId,
+        fisioDistribuirId,
+        dataDistribuir,
+        [...selecionados],
+        profile?.id ?? null
+      );
+      notificarSucesso(`${selecionados.size} paciente(s) distribuído(s).`);
+      setDialogDistribuirAberto(false);
+      setSelecionados(new Set());
+    } catch (erro) {
+      notificarErro("Não foi possível distribuir", erro);
+    } finally {
+      setDistribuindo(false);
+    }
   }
 
   async function handleLancarProcedimento(e: FormEvent<HTMLFormElement>) {
@@ -168,7 +290,11 @@ export default function Internacoes() {
       if (apenasPendentes && (i.status !== "internado" || internacoesComAtendimentoHoje.has(i.id))) return false;
       if (!termo) return true;
       const paciente = pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "";
-      return paciente.toLowerCase().includes(termo) || String(i.admission_number).includes(termo);
+      return (
+        paciente.toLowerCase().includes(termo) ||
+        String(i.admission_number).includes(termo) ||
+        (i.external_reference ?? "").toLowerCase().includes(termo)
+      );
     });
   }, [busca, filtroUnidade, filtroStatus, filtroEntradaDe, filtroEntradaAte, apenasPendentes, internacoes, pacientes, internacoesComAtendimentoHoje]);
 
@@ -178,10 +304,11 @@ export default function Internacoes() {
     setRascunho({
       open: true,
       editandoId: null,
-      pacienteId: pacientes[0]?.id ?? "",
-      unidadeId: unidades[0]?.id ?? "",
+      pacienteId: "",
+      unidadeId: "",
       leitoId: "",
-      convenioId: convenios[0]?.id ?? "",
+      convenioId: "",
+      nrAtendimento: "",
     });
   }
 
@@ -193,6 +320,7 @@ export default function Internacoes() {
       unidadeId: internacao.unit_id ?? "",
       leitoId: internacao.bed_id ?? "",
       convenioId: internacao.health_insurance_id ?? "",
+      nrAtendimento: internacao.external_reference ?? "",
     });
   }
 
@@ -212,6 +340,7 @@ export default function Internacoes() {
         health_insurance_id: convenioId || null,
         admission_date: String(form.get("admission_date") ?? ""),
         admission_time: String(form.get("admission_time") ?? "") || "08:00",
+        external_reference: nrAtendimento.trim() || null,
         company_id: paciente.company_id,
       };
       if (editando) {
@@ -352,6 +481,19 @@ export default function Internacoes() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="flex flex-col gap-1.5 rounded-md border border-clinical-300 bg-clinical-50 p-3">
+                    <Label htmlFor="nr_atendimento">Nr. Atendimento (Tasy)</Label>
+                    <Input
+                      id="nr_atendimento"
+                      value={nrAtendimento}
+                      onChange={(e) => setNrAtendimento(e.target.value)}
+                      placeholder="Ex.: 706065"
+                    />
+                    <p className="text-xs text-ink-soft">
+                      É o ID da internação no Tasy — usado pra confrontar automaticamente com a importação da
+                      produção. Sem ele, essa internação não concilia sozinha.
+                    </p>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="admission_date">Data de entrada</Label>
@@ -382,7 +524,7 @@ export default function Internacoes() {
             <div className="flex flex-1 flex-col gap-2 sm:flex-row">
               <div className="relative max-w-sm flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-                <Input value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} placeholder="Buscar por paciente ou código…" className="pl-9" />
+                <Input value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} placeholder="Buscar por paciente, código ou Nr. Atendimento…" className="pl-9" />
               </div>
               <Select value={filtroUnidade} onValueChange={(v) => { setFiltroUnidade(v); setPagina(1); }}>
                 <SelectTrigger className="sm:w-56"><SelectValue placeholder="Todas as unidades" /></SelectTrigger>
@@ -434,6 +576,30 @@ export default function Internacoes() {
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
+          <span className="text-xs text-ink-soft">
+            {selecionados.size > 0 ? `${selecionados.size} selecionado(s)` : "Nenhuma seleção — a lista/distribuição usa todos os filtrados"}
+          </span>
+          <div className="ml-auto flex gap-2">
+            {selecionados.size > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setSelecionados(new Set())}>
+                <X className="h-3.5 w-3.5" /> Limpar seleção
+              </Button>
+            )}
+            <Button variant="secondary" size="sm" onClick={() => setDialogListaAberto(true)}>
+              <Printer className="h-3.5 w-3.5" /> Gerar/imprimir lista
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={selecionados.size === 0}
+              onClick={() => setDialogDistribuirAberto(true)}
+            >
+              <Users className="h-3.5 w-3.5" /> Distribuir
+            </Button>
+          </div>
+        </div>
+
         {filtradas.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <BedDouble className="h-8 w-8 text-ink-soft" />
@@ -445,7 +611,9 @@ export default function Internacoes() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-soft">
+                  <th className="w-8 px-4 py-3" />
                   <th className="px-4 py-3 font-medium">Código</th>
+                  <th className="px-4 py-3 font-medium">Nr. Atendimento</th>
                   <th className="px-4 py-3 font-medium">Paciente</th>
                   <th className="px-4 py-3 font-medium">Hospital / Unidade</th>
                   <th className="px-4 py-3 font-medium">Leito</th>
@@ -459,7 +627,16 @@ export default function Internacoes() {
               <tbody>
                 {paginaAtual.map((i) => (
                   <tr key={i.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selecionados.has(i.id)}
+                        onChange={() => toggleSelecionado(i.id)}
+                        className="h-4 w-4 rounded border-line-strong accent-clinical-500"
+                      />
+                    </td>
                     <td className="px-4 py-3 font-mono text-xs text-ink-soft">IN-{String(i.admission_number).padStart(6, "0")}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">{i.external_reference ?? "—"}</td>
                     <td className="px-4 py-3">
                       <p className="font-medium text-ink">{pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "—"}</p>
                     </td>
@@ -529,12 +706,27 @@ export default function Internacoes() {
           {etapaAlta === "data" && (
             <form className="flex h-full flex-col" onSubmit={handleConfirmarData}>
               <SheetHeader>
-                <SheetTitle>Dar alta</SheetTitle>
+                <SheetTitle>Tem certeza que quer dar alta?</SheetTitle>
                 <SheetDescription>
                   {internacaoParaAlta && (pacientes.find((p) => p.id === internacaoParaAlta.patient_id)?.full_name ?? "—")}
                 </SheetDescription>
               </SheetHeader>
               <div className="flex flex-1 flex-col gap-4">
+                <div
+                  className={`flex items-center gap-2 rounded-md px-3 py-2.5 text-sm ${
+                    internacaoParaAlta && internacoesComAtendimentoHoje.has(internacaoParaAlta.id)
+                      ? "bg-recovery-100 text-recovery-700"
+                      : "bg-attention-100 text-attention-700"
+                  }`}
+                >
+                  {internacaoParaAlta && internacoesComAtendimentoHoje.has(internacaoParaAlta.id) ? (
+                    <>Este paciente já tem procedimento lançado hoje.</>
+                  ) : (
+                    <>
+                      <AlertTriangle className="h-4 w-4 shrink-0" /> Nenhum procedimento lançado hoje para este paciente ainda.
+                    </>
+                  )}
+                </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="discharge_at">Data e hora da alta</Label>
                   <Input
@@ -548,7 +740,7 @@ export default function Internacoes() {
               </div>
               <SheetFooter>
                 <Button type="button" variant="secondary" onClick={() => setInternacaoParaAlta(null)}>Cancelar</Button>
-                <Button type="submit" disabled={salvandoAlta}>{salvandoAlta ? "Verificando…" : "Confirmar alta"}</Button>
+                <Button type="submit" disabled={salvandoAlta}>{salvandoAlta ? "Verificando…" : "Sim, confirmar alta"}</Button>
               </SheetFooter>
             </form>
           )}
@@ -670,6 +862,80 @@ export default function Internacoes() {
           </form>
         </SheetContent>
       </Sheet>
+
+      <Dialog open={dialogListaAberto} onOpenChange={setDialogListaAberto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gerar lista de atendimento</DialogTitle>
+            <DialogDescription>
+              {selecionados.size > 0
+                ? `${selecionados.size} paciente(s) selecionado(s).`
+                : `Todos os ${filtradas.length} pacientes do filtro atual (nenhuma seleção específica).`}
+              {" "}Escolha quais informações aparecem na lista.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-2.5">
+            {COLUNAS_LISTA.map((c) => (
+              <label key={c.chave} className="flex items-center gap-2 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  checked={colunasLista.has(c.chave)}
+                  onChange={(e) =>
+                    setColunasLista((atual) => {
+                      const novo = new Set(atual);
+                      if (e.target.checked) novo.add(c.chave);
+                      else novo.delete(c.chave);
+                      return novo;
+                    })
+                  }
+                  className="h-4 w-4 rounded border-line-strong accent-clinical-500"
+                />
+                {c.rotulo}
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setDialogListaAberto(false)}>Cancelar</Button>
+            <Button onClick={handleImprimirLista}>
+              <Printer className="h-4 w-4" /> Gerar e imprimir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogDistribuirAberto} onOpenChange={setDialogDistribuirAberto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Distribuir para fisioterapeuta</DialogTitle>
+            <DialogDescription>
+              {selecionados.size} paciente(s) vão entrar na fila do dia desse fisioterapeuta, na ordem em que
+              aparecem na lista.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label>Fisioterapeuta</Label>
+              <Combobox
+                value={fisioDistribuirId}
+                onValueChange={setFisioDistribuirId}
+                options={fisioterapeutas.map((f) => ({ value: f.id, label: f.full_name }))}
+                placeholder="Buscar fisioterapeuta…"
+                searchPlaceholder="Nome do fisioterapeuta…"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="data_distribuir">Data</Label>
+              <Input id="data_distribuir" type="date" value={dataDistribuir} onChange={(e) => setDataDistribuir(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setDialogDistribuirAberto(false)}>Cancelar</Button>
+            <Button onClick={handleDistribuir} disabled={distribuindo || !fisioDistribuirId}>
+              {distribuindo ? "Distribuindo…" : "Distribuir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

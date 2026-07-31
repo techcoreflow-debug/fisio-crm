@@ -37,6 +37,7 @@ export default function Contratos() {
   const [open, setOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [hospitalId, setHospitalId] = useState(hospitais[0]?.id ?? "");
+  const [temConvenio, setTemConvenio] = useState(false);
   const [convenioId, setConvenioId] = useState(convenios[0]?.id ?? "");
   const [centroCustoId, setCentroCustoId] = useState("");
   const [aplicaTodasUnidades, setAplicaTodasUnidades] = useState(true);
@@ -56,6 +57,7 @@ export default function Contratos() {
   function abrirNovo() {
     setEditando(null);
     setHospitalId(hospitais[0]?.id ?? "");
+    setTemConvenio(false);
     setConvenioId(convenios[0]?.id ?? "");
     setCentroCustoId("");
     setAplicaTodasUnidades(true);
@@ -66,6 +68,7 @@ export default function Contratos() {
   function abrirEdicao(contrato: Contract) {
     setEditando(contrato);
     setHospitalId(contrato.hospital_id ?? "");
+    setTemConvenio(Boolean(contrato.health_insurance_id));
     setConvenioId(contrato.health_insurance_id ?? "");
     setCentroCustoId(contrato.cost_center_id ?? "");
     setAplicaTodasUnidades(contrato.aplica_todas_unidades);
@@ -80,7 +83,7 @@ export default function Contratos() {
     if (!hospital) return;
     const dados = {
       hospital_id: hospitalId,
-      health_insurance_id: convenioId || null,
+      health_insurance_id: temConvenio ? convenioId || null : null,
       cost_center_id: centroCustoId || null,
       start_date: String(form.get("start_date") ?? ""),
       end_date: String(form.get("end_date") ?? "") || null,
@@ -145,20 +148,36 @@ export default function Contratos() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Convênio</Label>
-                    <Select value={convenioId} onValueChange={setConvenioId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o convênio" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {convenios.map((v) => (
-                          <SelectItem key={v.id} value={v.id}>
-                            {v.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="flex flex-col gap-2 rounded-md border border-line p-3">
+                    <label className="flex items-start gap-2.5 text-sm text-ink">
+                      <input
+                        type="checkbox"
+                        checked={temConvenio}
+                        onChange={(e) => setTemConvenio(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded border-line-strong accent-clinical-500"
+                      />
+                      <span>
+                        Este contrato tem um convênio específico
+                        <span className="mt-0.5 block text-xs text-ink-soft">
+                          Desmarcado: o contrato é direto com o hospital, cobrindo todos os atendimentos
+                          (independente do convênio do paciente).
+                        </span>
+                      </span>
+                    </label>
+                    {temConvenio && (
+                      <Select value={convenioId} onValueChange={setConvenioId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o convênio" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {convenios.map((v) => (
+                            <SelectItem key={v.id} value={v.id}>
+                              {v.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label>Centro de custo (opcional)</Label>
@@ -278,7 +297,13 @@ export default function Contratos() {
                 {filtrados.map((c) => (
                   <tr key={c.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
                     <td className="px-4 py-3 font-medium text-ink">{hospitais.find((h) => h.id === c.hospital_id)?.name ?? "—"}</td>
-                    <td className="px-4 py-3 text-ink-soft">{convenios.find((v) => v.id === c.health_insurance_id)?.name ?? "—"}</td>
+                    <td className="px-4 py-3 text-ink-soft">
+                      {c.health_insurance_id ? (
+                        convenios.find((v) => v.id === c.health_insurance_id)?.name ?? "—"
+                      ) : (
+                        <Badge variant="neutral">Direto com hospital</Badge>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-ink-soft">
                       {c.aplica_todas_unidades ? (
                         <Badge variant="clinical">Todas as unidades</Badge>

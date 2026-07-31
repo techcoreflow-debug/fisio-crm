@@ -2,10 +2,13 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
+import { usePermission } from "@/data/repository";
 
 interface DeleteButtonProps {
   itemLabel: string;
   onConfirm: () => Promise<void>;
+  /** Quando informado, o botão some se o papel do usuário não tiver permissão de excluir nesse módulo. */
+  moduleSlug?: string;
 }
 
 /**
@@ -14,8 +17,10 @@ interface DeleteButtonProps {
  * simples. Erro (ex.: registro ainda referenciado por outro cadastro)
  * é sempre exibido — nunca falha em silêncio.
  */
-export function DeleteButton({ itemLabel, onConfirm }: DeleteButtonProps) {
+export function DeleteButton({ itemLabel, onConfirm, moduleSlug }: DeleteButtonProps) {
   const [excluindo, setExcluindo] = useState(false);
+  const permissao = usePermission(moduleSlug ?? "__sem-checagem__");
+  if (moduleSlug && !permissao.can_delete) return null;
 
   async function handleClick() {
     if (!window.confirm(`Excluir "${itemLabel}"? Esta ação não pode ser desfeita.`)) return;

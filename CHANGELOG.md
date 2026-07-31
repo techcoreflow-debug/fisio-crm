@@ -20,6 +20,96 @@ Antes de subir um deploy:
 
 ---
 
+## v0.12.0 — 31/07/2026
+
+**Gerar/imprimir lista de atendimento** — em Pacientes Internados,
+selecione pacientes (ou deixe sem seleção pra usar todos os filtrados) e
+gere uma lista pronta pra imprimir: sequência numerada, Nr. Atendimento,
+paciente, procedimento do dia, quarto, leito e hospital — cada coluna
+pode ser ligada/desligada antes de gerar.
+
+**Distribuir para fisioterapeuta** — a partir da mesma seleção, distribui
+os pacientes escolhidos pra um fisioterapeuta específico, numa data,
+criando uma fila em ordem. Migration `0021` (`patient_queue`).
+
+**Novo módulo "Minha Fila"** — o fisioterapeuta vê só os pacientes
+distribuídos pra ele no dia, em ordem de sequência, com indicador de
+"já lançado hoje" e botão de concluir. Virou a **rota inicial** do
+perfil fisioterapeuta (inclusive no modo tablet), substituindo Novo
+Atendimento nesse lugar — mas Novo Atendimento continua acessível como
+antes, só deixou de ser a primeira tela.
+
+---
+
+## v0.11.0 — 31/07/2026
+
+**Permissões granulares por papel** — nova tela em Usuários e Permissões:
+matriz de ver/criar/editar/excluir por módulo, para cada papel (Admin de
+empresa, Gestor, Financeiro, Fisioterapeuta, Auditor). Substitui a regra
+fixa que só existia pro fisioterapeuta — agora qualquer papel pode ser
+ajustado, e o padrão embutido cobre tudo até alguém mexer manualmente.
+Migration `0020` (`role_permissions`).
+
+**Faturamento manual** — novo módulo pra lançar o que veio no relatório
+de repasse do Tasy (valor pago, glosado) por Nr. Atendimento +
+procedimento + data, enquanto a importação automática desse relatório
+não é viável (é PDF escaneado, sem texto real — OCR testado e não confiável
+o bastante pra dado financeiro). Migration `0020` (`billing_entries`).
+
+**Importação Tasy ganhou um segundo modo**: além de "Conciliar" (padrão,
+não cria nada), agora tem "Carga inicial" — cria hospital, convênio,
+paciente, procedimento e internação a partir do arquivo, pra popular uma
+empresa nova de uma vez. Visualmente marcado como modo de risco (pode
+precisar corrigir depois).
+
+**Modo tablet para o fisioterapeuta** — perfil lançador agora usa um
+shell completamente diferente ao logar: sem sidebar, navegação inferior
+com ícones grandes (Lançar, Internados, Pacientes, Produção), pensado
+pra uso com o dedo em tablet na correria do plantão. Se adapta sozinho às
+permissões configuradas (se um admin liberar mais acesso pro
+fisioterapeuta, a barra inferior mostra mais abas).
+
+---
+
+## v0.10.0 — 31/07/2026
+
+**Bug crítico corrigido — travamento ao criar/editar internação.** Causa
+raiz: o hook `useDraftState` (rascunho persistido contra reload de aba)
+tinha uma função "limpar" que só apagava o rascunho salvo, mas nunca
+resetava o estado de verdade — por isso Cancelar/X não fechavam nada, só
+o botão Voltar do navegador. Corrigido.
+
+**Nr. Atendimento vira campo real da internação e chave da conciliação.**
+Antes casávamos Tasy × lançamento por (paciente + procedimento + data);
+agora é pelo **Nr. Atendimento** — o ID da internação no Tasy, 1:1 com a
+internação (que pode ter vários procedimentos em várias datas enquanto o
+paciente estiver internado). Campo adicionado no cadastro de internação
+(Internações e Novo Atendimento), visível e buscável na listagem, e
+exibido em Produção Diária, na conciliação Tasy e no Fechamento.
+
+**Internações finalizadas ficam ocultas por padrão** — só aparecem se o
+filtro de status for mudado explicitamente.
+
+**Alta sempre confirma** — o passo inicial virou uma pergunta explícita
+("Tem certeza que quer dar alta?"), mostrando se já tem procedimento
+lançado hoje ou não, em vez de só completar silenciosamente quando havia
+lançamento.
+
+**Combobox de fisioterapeuta/procedimento não vem mais pré-selecionado**
+em nenhuma tela — força busca, evita lançar sem querer no default.
+
+**Leitos**: corrigido bug onde editar uma internação já com alta
+reocupava o leito sem querer. Adicionado botão "Concluir" pra sair de
+"Higienização" — não existe critério automático pra saber quando a
+limpeza física terminou, então é uma ação manual.
+
+**Contratos**: convênio agora é opcional via checkbox — "Este contrato
+tem um convênio específico"; desmarcado, o contrato é direto com o
+hospital, cobrindo todos os atendimentos independente do convênio do
+paciente.
+
+---
+
 ## v0.9.0 — 30/07/2026
 
 **Correção crítica**: importações/conciliações grandes causavam

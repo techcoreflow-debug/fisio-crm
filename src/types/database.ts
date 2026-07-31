@@ -20,6 +20,9 @@ import type {
   ClinicalEvolution,
   TasyImport,
   TasyImportRow,
+  RolePermission,
+  BillingEntry,
+  PatientQueueItem,
   Shift,
   ActivityLog,
   Receivable,
@@ -71,6 +74,9 @@ export interface Database {
       clinical_evolutions: TableDef<ClinicalEvolution>;
       tasy_imports: TableDef<TasyImport>;
       tasy_import_rows: TableDef<TasyImportRow>;
+      role_permissions: TableDef<RolePermission>;
+      billing_entries: TableDef<BillingEntry>;
+      patient_queue: TableDef<PatientQueueItem>;
       shifts: TableDef<Shift>;
       activity_log: TableDef<ActivityLog>;
       receivables: TableDef<Receivable>;

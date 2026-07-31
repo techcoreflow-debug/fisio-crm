@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { TabletShell } from "@/components/layout/tablet-shell";
 import { Toaster } from "@/components/shared/toaster";
 import { OfflineBanner } from "@/components/shared/offline-banner";
 import { useAuth } from "@/auth/auth-provider";
@@ -33,6 +34,17 @@ export function AppShell() {
       setActiveCompanyId(profile.company_id);
     }
   }, [profile, companies, activeCompanyId, setActiveCompanyId]);
+
+  const ehFisioterapeuta = profile?.role === "fisioterapeuta" && !profile.is_platform_admin;
+
+  if (ehFisioterapeuta) {
+    return (
+      <TabletShell>
+        <Outlet />
+        <Toaster />
+      </TabletShell>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface">

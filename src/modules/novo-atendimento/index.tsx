@@ -58,6 +58,7 @@ export default function NovoAtendimento() {
   const [unidadeId, setUnidadeId] = useState("");
   const [leitoId, setLeitoId] = useState("");
   const [convenioInternacaoId, setConvenioInternacaoId] = useState("");
+  const [nrAtendimento, setNrAtendimento] = useState("");
   const [internacaoCriada, setInternacaoCriada] = useState<Admission | null>(null);
 
   const [fisioId, setFisioId] = useState("");
@@ -84,6 +85,7 @@ export default function NovoAtendimento() {
     setUnidadeId("");
     setLeitoId("");
     setConvenioInternacaoId("");
+    setNrAtendimento("");
     setInternacaoCriada(null);
     setFisioId("");
     setProcedimentoId("");
@@ -132,6 +134,7 @@ export default function NovoAtendimento() {
         health_insurance_id: convenioInternacaoId || null,
         admission_date: String(form.get("admission_date") ?? ""),
         admission_time: String(form.get("admission_time") ?? ""),
+        external_reference: nrAtendimento.trim() || null,
         company_id: pacienteAtual.company_id,
       });
       setInternacaoCriada(criada);
@@ -309,6 +312,18 @@ export default function NovoAtendimento() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="flex flex-col gap-1.5 rounded-md border border-clinical-300 bg-clinical-50 p-3 sm:w-96">
+                <Label htmlFor="nr_atendimento_novo">Nr. Atendimento (Tasy)</Label>
+                <Input
+                  id="nr_atendimento_novo"
+                  value={nrAtendimento}
+                  onChange={(e) => setNrAtendimento(e.target.value)}
+                  placeholder="Ex.: 706065"
+                />
+                <p className="text-xs text-ink-soft">
+                  ID da internação no Tasy — usado pra confrontar com a importação da produção depois.
+                </p>
               </div>
               <div className="grid gap-3 sm:w-96 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">

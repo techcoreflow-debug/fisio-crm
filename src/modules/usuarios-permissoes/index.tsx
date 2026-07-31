@@ -1,11 +1,15 @@
+import { useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { useProfiles, useUnassignedProfiles, useCompanies, repository } from "@/data/repository";
+import { useProfiles, useUnassignedProfiles, useCompanies, useRolePermissions, repository } from "@/data/repository";
 import { useAuth } from "@/auth/auth-provider";
+import { useAppStore } from "@/store/app-store";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
+import { moduleGroups } from "@/app/modules-registry";
+import { permissaoPadrao, ROLE_LABEL, TODOS_OS_ROLES, type Permissao } from "@/lib/permissions";
 import type { UserRole } from "@/types/domain";
 
 const papelConfig: Record<UserRole, { label: string; variant: NonNullable<BadgeProps["variant"]> }> = {
@@ -26,6 +30,24 @@ export default function UsuariosPermissoes() {
   const pendentes = useUnassignedProfiles().filter((p) => !p.is_platform_admin);
   const empresas = useCompanies();
   const { profile: meuPerfil } = useAuth();
+  const empresaId = useAppStore((s) => s.activeCompanyId);
+  const permissoesSalvas = useRolePermissions();
+  const [papelEditando, setPapelEditando] = useState<UserRole>("fisioterapeuta");
+
+  function permissaoAtual(moduleSlug: string): Permissao {
+    const linha = permissoesSalvas.find((p) => p.role === papelEditando && p.module_slug === moduleSlug);
+    if (linha) return { can_view: linha.can_view, can_create: linha.can_create, can_edit: linha.can_edit, can_delete: linha.can_delete };
+    return permissaoPadrao(papelEditando, moduleSlug);
+  }
+
+  async function handleTogglePermissao(moduleSlug: string, campo: keyof Permissao, valor: boolean) {
+    if (!empresaId) return;
+    try {
+      await repository.rolePermissions.definir(empresaId, papelEditando, moduleSlug, { ...permissaoAtual(moduleSlug), [campo]: valor });
+    } catch (erro) {
+      notificarErro("Não foi possível salvar a permissão", erro);
+    }
+  }
 
   async function handleTrocarPapel(id: string, role: UserRole) {
     try {
@@ -143,6 +165,65 @@ export default function UsuariosPermissoes() {
             </table>
           </div>
         )}
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Permissões por papel</CardTitle>
+          <p className="text-sm text-ink-soft mt-0.5">
+            O que cada papel pode ver, criar, editar e excluir, módulo a módulo. Admin InovareTech sempre tem
+            acesso total e não aparece aqui.
+          </p>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <div className="flex flex-wrap gap-1.5">
+            {TODOS_OS_ROLES.map((r) => (
+              <button
+                key={r}
+                onClick={() => setPapelEditando(r)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  papelEditando === r ? "bg-clinical-500 text-white" : "bg-surface-sunken text-ink-soft hover:text-ink"
+                }`}
+              >
+                {ROLE_LABEL[r]}
+              </button>
+            ))}
+          </div>
+
+          <div className="overflow-x-auto rounded-md border border-line">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line bg-surface-sunken text-left text-xs uppercase tracking-wide text-ink-soft">
+                  <th className="px-4 py-2.5 font-medium">Módulo</th>
+                  <th className="px-4 py-2.5 text-center font-medium">Ver</th>
+                  <th className="px-4 py-2.5 text-center font-medium">Criar</th>
+                  <th className="px-4 py-2.5 text-center font-medium">Editar</th>
+                  <th className="px-4 py-2.5 text-center font-medium">Excluir</th>
+                </tr>
+              </thead>
+              <tbody>
+                {moduleGroups.flatMap((g) => g.modules).map((mod) => {
+                  const perm = permissaoAtual(mod.slug);
+                  return (
+                    <tr key={mod.slug} className="border-b border-line last:border-0">
+                      <td className="px-4 py-2 text-ink">{mod.label}</td>
+                      {(["can_view", "can_create", "can_edit", "can_delete"] as const).map((campo) => (
+                        <td key={campo} className="px-4 py-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={perm[campo]}
+                            onChange={(e) => handleTogglePermissao(mod.slug, campo, e.target.checked)}
+                            className="h-4 w-4 rounded border-line-strong accent-clinical-500"
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
       </Card>
     </div>
   );
