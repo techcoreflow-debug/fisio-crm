@@ -1,8 +1,21 @@
 import { useState } from "react";
+import { UserPlus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useProfiles, useUnassignedProfiles, useCompanies, useRolePermissions, repository } from "@/data/repository";
 import { useAuth } from "@/auth/auth-provider";
@@ -10,6 +23,7 @@ import { useAppStore } from "@/store/app-store";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { moduleGroups } from "@/app/modules-registry";
 import { permissaoPadrao, ROLE_LABEL, TODOS_OS_ROLES, type Permissao } from "@/lib/permissions";
+import { supabase } from "@/lib/supabase";
 import type { UserRole } from "@/types/domain";
 
 const papelConfig: Record<UserRole, { label: string; variant: NonNullable<BadgeProps["variant"]> }> = {
@@ -67,11 +81,114 @@ export default function UsuariosPermissoes() {
     }
   }
 
+  const [openCriarUsuario, setOpenCriarUsuario] = useState(false);
+  const [salvandoUsuario, setSalvandoUsuario] = useState(false);
+  const [empresaNovoUsuario, setEmpresaNovoUsuario] = useState(empresas[0]?.id ?? "");
+  const [papelNovoUsuario, setPapelNovoUsuario] = useState<UserRole>("fisioterapeuta");
+
+  function abrirCriarUsuario() {
+    setEmpresaNovoUsuario(empresaId || empresas[0]?.id || "");
+    setPapelNovoUsuario("fisioterapeuta");
+    setOpenCriarUsuario(true);
+  }
+
+  async function handleCriarUsuario(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    setSalvandoUsuario(true);
+    try {
+      const { data: sessao } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("create-user", {
+        body: {
+          email: String(form.get("email") ?? ""),
+          password: String(form.get("password") ?? ""),
+          fullName: String(form.get("full_name") ?? ""),
+          companyId: empresaNovoUsuario,
+          role: papelNovoUsuario,
+        },
+        headers: { Authorization: `Bearer ${sessao.session?.access_token ?? ""}` },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      notificarSucesso("Usuário criado e vinculado — já pode logar direto, sem confirmar e-mail.");
+      setOpenCriarUsuario(false);
+      e.currentTarget.reset();
+    } catch (erro) {
+      notificarErro("Não foi possível criar o usuário", erro);
+    } finally {
+      setSalvandoUsuario(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Usuários e Permissões"
-        description="Usuários com acesso a esta empresa e seus papéis. Convite por e-mail ainda não está automatizado — quem se cadastra pelo app entra aqui."
+        description="Usuários com acesso a esta empresa e seus papéis."
+        actions={
+          meuPerfil?.is_platform_admin ? (
+            <Sheet open={openCriarUsuario} onOpenChange={setOpenCriarUsuario}>
+              <SheetTrigger asChild>
+                <Button size="sm" onClick={abrirCriarUsuario}>
+                  <UserPlus className="h-4 w-4" /> Criar usuário
+                </Button>
+              </SheetTrigger>
+              <SheetContent>
+                <form className="flex h-full flex-col" onSubmit={handleCriarUsuario}>
+                  <SheetHeader>
+                    <SheetTitle>Criar usuário</SheetTitle>
+                    <SheetDescription>
+                      Já entra ativo, vinculado à empresa e papel escolhidos — sem precisar confirmar e-mail.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="flex flex-1 flex-col gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="full_name">Nome completo</Label>
+                      <Input id="full_name" name="full_name" required placeholder="Ex.: Ana Paula Ferreira" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="email">E-mail</Label>
+                      <Input id="email" name="email" type="email" required placeholder="ana@inovaretech.com.br" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="password">Senha provisória</Label>
+                      <Input id="password" name="password" type="text" required minLength={6} placeholder="Mínimo 6 caracteres" />
+                      <p className="text-xs text-ink-soft">Combine com a pessoa depois — não força troca no primeiro login.</p>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Empresa</Label>
+                      <Select value={empresaNovoUsuario} onValueChange={setEmpresaNovoUsuario}>
+                        <SelectTrigger><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
+                        <SelectContent>
+                          {empresas.map((e) => (
+                            <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Papel</Label>
+                      <Select value={papelNovoUsuario} onValueChange={(v) => setPapelNovoUsuario(v as UserRole)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {TODOS_OS_ROLES.map((r) => (
+                            <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <SheetFooter>
+                    <Button type="button" variant="secondary" onClick={() => setOpenCriarUsuario(false)}>Cancelar</Button>
+                    <Button type="submit" disabled={salvandoUsuario || !empresaNovoUsuario}>
+                      {salvandoUsuario ? "Criando…" : "Criar usuário"}
+                    </Button>
+                  </SheetFooter>
+                </form>
+              </SheetContent>
+            </Sheet>
+          ) : undefined
+        }
       />
 
       {meuPerfil?.is_platform_admin && pendentes.length > 0 && (

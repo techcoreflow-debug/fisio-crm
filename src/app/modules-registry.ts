@@ -66,6 +66,14 @@ export const moduleGroups: ModuleGroup[] = [
         status: "pronto",
       },
       {
+        slug: "painel-gestor",
+        path: "/painel-gestor",
+        label: "Painel do Gestor",
+        icon: Users,
+        description: "Acompanhamento em tempo real do dia: equipe, distribuição, confirmação e atalhos financeiros.",
+        status: "pronto",
+      },
+      {
         slug: "dashboard-operacional",
         path: "/operacional",
         label: "Dashboard Operacional",

@@ -20,6 +20,45 @@ Antes de subir um deploy:
 
 ---
 
+## v0.14.0 — 01/08/2026
+
+**Admin InovareTech pode criar usuário direto** — em Usuários e
+Permissões, botão "Criar usuário" (só visível pro admin InovareTech):
+nome, e-mail, senha provisória, empresa e papel, tudo numa tela só. O
+usuário já nasce **confirmado e vinculado** — não precisa clicar em
+nenhum e-mail de confirmação nem esperar alguém "resgatar" ele da lista
+de pendentes depois.
+
+Implementado como **Edge Function** (`supabase/functions/create-user`),
+porque criar usuário sem confirmação exige a `service_role key` do
+Supabase — essa chave nunca pode rodar no navegador, só no servidor.
+**Precisa fazer o deploy da função** (`supabase functions deploy
+create-user`) pra esse botão funcionar — só copiar o código não é
+suficiente dessa vez.
+
+---
+
+## v0.13.0 — 31/07/2026
+
+**Novo módulo "Painel do Gestor"** — central de comando do dia, em tempo
+real (nada aqui é dado parado, tudo vem dos mesmos hooks com Realtime já
+usados no resto do sistema):
+
+- Goniômetro de taxa de confirmação do dia, internados agora,
+  procedimentos lançados hoje, e quantos ainda não foram distribuídos
+  pra nenhum fisioterapeuta.
+- **Equipe hoje**: um cartão por fisioterapeuta com fila distribuída,
+  barra de progresso (concluídos × total) e a lista de quem ainda falta.
+- **Ainda sem distribuição**: internados ativos que ninguém colocou na
+  fila do dia, com atalho direto pra ir distribuir.
+- Atalhos visuais pra Fechamento, Faturamento, Financeiro e Painel de
+  Procedimentos, cada um já com um número relevante daquele painel.
+
+Sem migration — usa só tabelas que já existiam (`patient_queue`,
+`daily_production`, `billing_entries`, `admissions`).
+
+---
+
 ## v0.12.0 — 31/07/2026
 
 **Gerar/imprimir lista de atendimento** — em Pacientes Internados,
