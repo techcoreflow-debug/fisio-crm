@@ -6,6 +6,7 @@ import { allModules, ROTA_PADRAO_LANCADOR } from "@/app/modules-registry";
 import { AuthProvider, useAuth } from "@/auth/auth-provider";
 import { useRolePermissions } from "@/data/repository";
 import { permissaoPadrao } from "@/lib/permissions";
+import { Toaster } from "@/components/shared/toaster";
 import Login from "@/modules/auth/login";
 import { Button } from "@/components/ui/button";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -149,6 +150,7 @@ export default function App() {
   return (
     <AuthProvider>
       <AuthGate />
+      <Toaster />
     </AuthProvider>
   );
 }

@@ -3,7 +3,6 @@ import { Outlet } from "react-router-dom";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { TabletShell } from "@/components/layout/tablet-shell";
-import { Toaster } from "@/components/shared/toaster";
 import { OfflineBanner } from "@/components/shared/offline-banner";
 import { useAuth } from "@/auth/auth-provider";
 import { useAppStore } from "@/store/app-store";
@@ -41,7 +40,6 @@ export function AppShell() {
     return (
       <TabletShell>
         <Outlet />
-        <Toaster />
       </TabletShell>
     );
   }
@@ -58,7 +56,6 @@ export function AppShell() {
           </div>
         </main>
       </div>
-      <Toaster />
     </div>
   );
 }

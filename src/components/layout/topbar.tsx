@@ -6,6 +6,7 @@ import { useCompanies } from "@/data/repository";
 import { useAuth } from "@/auth/auth-provider";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -174,11 +175,11 @@ export function Topbar() {
             <div className="flex flex-col gap-4 py-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="nova_senha">Nova senha</Label>
-                <Input id="nova_senha" name="nova_senha" type="password" required minLength={6} placeholder="Mínimo 6 caracteres" />
+                <PasswordInput id="nova_senha" name="nova_senha" required minLength={6} placeholder="Mínimo 6 caracteres" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="confirmacao">Confirmar nova senha</Label>
-                <Input id="confirmacao" name="confirmacao" type="password" required minLength={6} />
+                <PasswordInput id="confirmacao" name="confirmacao" required minLength={6} />
               </div>
             </div>
             <DialogFooter>

@@ -20,6 +20,34 @@ Antes de subir um deploy:
 
 ---
 
+## v0.18.0 — 02/08/2026
+
+**Três bugs de sessão/login corrigidos:**
+
+- **Foco perdido ao trocar de janela/ALT+TAB**: alguns navegadores
+  disparam `SIGNED_IN` de novo ao voltar o foco da aba, revalidando a
+  MESMA sessão — sem tratar isso, o app achava que era um login novo,
+  mostrava a tela cheia de carregamento e desmontava a tela que a
+  pessoa estava usando. Agora só trata como login de verdade quando o
+  usuário realmente muda.
+- **Usuário novo caindo em Usuários e Permissões**: a URL ficava presa
+  na última tela de quem tinha acabado de sair (ex.: admin criando
+  usuários) — quando a próxima pessoa logava na mesma aba, o roteador
+  tentava abrir aquela mesma rota antes de checar se ela podia ver.
+  Agora a URL volta pra `/` no logout, então o próximo login sempre
+  começa limpo e cada um cai na tela certa pro seu papel.
+- **Erro de senha errada não aparecia**: o componente que mostra os
+  avisos na tela (`Toaster`) só existia dentro da área logada — a tela
+  de login não tinha onde exibir nada. Movido pra raiz do app, sempre
+  presente.
+
+**Olhinho pra mostrar a senha** — campo de login e "Trocar senha" (menu
+do usuário, desktop e tablet) ganharam o ícone de mostrar/esconder.
+
+Sem migration — só código.
+
+---
+
 ## v0.17.1 — 02/08/2026
 
 **Minha Fila não conclui mais sozinho depois de lançar.** Antes, lançar
