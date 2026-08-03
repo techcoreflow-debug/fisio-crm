@@ -689,11 +689,9 @@ export default function Internacoes() {
                             <Button variant="ghost" size="sm" onClick={() => abrirLancarProcedimento(i)}>
                               <ClipboardPlus className="h-3.5 w-3.5" /> Lançar procedimento
                             </Button>
-                            {podeAdministrarInternacao && (
-                              <Button variant="ghost" size="sm" onClick={() => abrirFluxoAlta(i)}>
-                                <LogOut className="h-3.5 w-3.5" /> Dar alta
-                              </Button>
-                            )}
+                            <Button variant="ghost" size="sm" onClick={() => abrirFluxoAlta(i)}>
+                              <LogOut className="h-3.5 w-3.5" /> Dar alta
+                            </Button>
                           </>
                         )}
                       </div>

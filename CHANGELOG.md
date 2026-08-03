@@ -20,6 +20,17 @@ Antes de subir um deploy:
 
 ---
 
+## v0.19.1 — 02/08/2026
+
+**Fisioterapeuta agora dá alta** — o botão "Dar alta" volta a aparecer
+em Pacientes Internados pro perfil fisioterapeuta (antes só para
+admin/gestor). Continua com a mesma validação de sempre (confirma
+explicitamente, bloqueia se não tiver procedimento lançado no dia).
+"Nova internação" e "Editar" continuam restritos — só a alta foi
+liberada.
+
+---
+
 ## v0.19.0 — 02/08/2026
 
 **Filtros em Produção Diária** — período (data de/até), unidade e
