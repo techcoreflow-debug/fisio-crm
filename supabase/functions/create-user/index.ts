@@ -35,17 +35,28 @@ Deno.serve(async (req) => {
     });
     const { data: { user: usuarioChamador }, error: erroAuth } = await clienteChamador.auth.getUser();
     if (erroAuth || !usuarioChamador) {
-      return new Response(JSON.stringify({ error: "Sessão inválida." }), { status: 401, headers: CORS_HEADERS });
+      console.log("Falha ao identificar o usuário chamador:", erroAuth?.message);
+      return new Response(JSON.stringify({ error: `Sessão inválida: ${erroAuth?.message ?? "usuário não encontrado"}` }), {
+        status: 401,
+        headers: CORS_HEADERS,
+      });
     }
 
     const clienteAdmin = createClient(supabaseUrl, serviceRoleKey);
-    const { data: perfilChamador } = await clienteAdmin
+    const { data: perfilChamador, error: erroBuscarPerfil } = await clienteAdmin
       .from("profiles")
       .select("is_platform_admin")
       .eq("id", usuarioChamador.id)
       .maybeSingle();
+    console.log("Chamador:", usuarioChamador.id, usuarioChamador.email, "Perfil encontrado:", perfilChamador, "Erro:", erroBuscarPerfil?.message);
+    if (erroBuscarPerfil) {
+      return new Response(JSON.stringify({ error: `Falha ao checar permissão: ${erroBuscarPerfil.message}` }), {
+        status: 500,
+        headers: CORS_HEADERS,
+      });
+    }
     if (!perfilChamador?.is_platform_admin) {
-      return new Response(JSON.stringify({ error: "Só o admin InovareTech pode criar usuários por aqui." }), {
+      return new Response(JSON.stringify({ error: `Só o admin InovareTech pode criar usuários por aqui. (uid=${usuarioChamador.id})` }), {
         status: 403,
         headers: CORS_HEADERS,
       });

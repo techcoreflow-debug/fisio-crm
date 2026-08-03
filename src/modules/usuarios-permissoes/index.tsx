@@ -108,7 +108,19 @@ export default function UsuariosPermissoes() {
         },
         headers: { Authorization: `Bearer ${sessao.session?.access_token ?? ""}` },
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        // O supabase-js só dá uma mensagem genérica ("non-2xx status
+        // code") — o texto de verdade que a função devolveu fica no
+        // corpo da resposta, dentro de error.context.
+        let mensagem = error.message;
+        try {
+          const corpo = await error.context?.json();
+          if (corpo?.error) mensagem = corpo.error;
+        } catch {
+          // resposta não veio em JSON — fica com a mensagem genérica mesmo
+        }
+        throw new Error(mensagem);
+      }
       if (data?.error) throw new Error(data.error);
       notificarSucesso("Usuário criado e vinculado — já pode logar direto, sem confirmar e-mail.");
       setOpenCriarUsuario(false);
