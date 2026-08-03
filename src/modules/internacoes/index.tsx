@@ -115,6 +115,7 @@ export default function Internacoes() {
   const [filtroEntradaDe, setFiltroEntradaDe] = useState("");
   const [filtroEntradaAte, setFiltroEntradaAte] = useState("");
   const [apenasPendentes, setApenasPendentes] = useState(false);
+  const [quartoInlineId, setQuartoInlineId] = useState("");
   const [pagina, setPagina] = useState(1);
   const [salvando, setSalvando] = useState(false);
 
@@ -306,6 +307,7 @@ export default function Internacoes() {
   const { pagina: paginaAtual, totalPaginas, paginaValida } = usarPaginacao(filtradas, 25, pagina);
 
   function abrirNova() {
+    setQuartoInlineId("");
     setRascunho({
       open: true,
       editandoId: null,
@@ -318,6 +320,7 @@ export default function Internacoes() {
   }
 
   function abrirEdicao(internacao: Admission) {
+    setQuartoInlineId("");
     setRascunho({
       open: true,
       editandoId: internacao.id,
@@ -337,6 +340,12 @@ export default function Internacoes() {
     if (!paciente || !unidade) return;
     setSalvando(true);
     try {
+      if (leitoId && quartoInlineId) {
+        const leitoAtual = leitos.find((l) => l.id === leitoId);
+        if (leitoAtual) {
+          await repository.beds.update(leitoId, { room_id: quartoInlineId });
+        }
+      }
       const dados = {
         patient_id: pacienteId,
         hospital_id: unidade.hospital_id,
@@ -462,7 +471,7 @@ export default function Internacoes() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label>Leito (opcional)</Label>
-                    <Select value={leitoId} onValueChange={setLeitoId}>
+                    <Select value={leitoId} onValueChange={(v) => { setLeitoId(v); setQuartoInlineId(""); }}>
                       <SelectTrigger><SelectValue placeholder="Selecione um leito livre" /></SelectTrigger>
                       <SelectContent>
                         {leitosDaUnidade.length === 0 ? (
@@ -475,6 +484,23 @@ export default function Internacoes() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {leitoId && leitos.find((l) => l.id === leitoId)?.room_id === null && (
+                    <div className="flex flex-col gap-1.5 rounded-md border border-attention-400/40 bg-attention-100 p-3">
+                      <Label>Quarto deste leito (opcional)</Label>
+                      <Select value={quartoInlineId} onValueChange={setQuartoInlineId}>
+                        <SelectTrigger><SelectValue placeholder="Sem quarto vinculado ainda" /></SelectTrigger>
+                        <SelectContent>
+                          {quartos.filter((q) => q.unit_id === unidadeId).map((q) => (
+                            <SelectItem key={q.id} value={q.id}>{q.code}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-attention-700">
+                        Esse leito ainda não tem quarto — definindo aqui, já grava direto nele, e passa a aparecer
+                        nas listas/relatórios pra sempre, sem precisar mexer em Leitos depois.
+                      </p>
+                    </div>
+                  )}
                   <div className="flex flex-col gap-1.5">
                     <Label>Convênio</Label>
                     <Select value={convenioId} onValueChange={setConvenioId}>

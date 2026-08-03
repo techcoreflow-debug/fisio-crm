@@ -20,6 +20,34 @@ Antes de subir um deploy:
 
 ---
 
+## v0.21.0 — 03/08/2026
+
+**Quarto definido na hora, sem precisar ir em Leitos antes.** No
+formulário de internação (Internações e Novo Atendimento), se o leito
+escolhido ainda não tem quarto vinculado, aparece um campo extra
+"Quarto deste leito (opcional)" — e ao salvar, isso já grava direto no
+leito. Continua sendo a mesma fonte única de verdade (o quarto vem do
+leito, não da internação), só que agora dá pra resolver isso num passo
+só, sem precisar de uma ida separada a Leitos antes de internar alguém.
+
+---
+
+## v0.20.0 — 03/08/2026
+
+**Filtros em Leitos** — busca por código, unidade, status (livre/ocupado/
+higienização) e um botão "Só sem quarto vinculado".
+
+**Explicado e sinalizado o motivo do quarto sumindo em algumas listas**:
+o quarto de um paciente nunca vem do cadastro dele nem da internação —
+vem só do **leito** (campo "Quarto (opcional)" ao cadastrar/editar em
+Leitos). Se um leito foi criado sem vincular quarto, nenhum paciente
+alocado nele mostra quarto em lugar nenhum do sistema, não importa por
+onde a internação foi feita. Agora cada leito sem quarto mostra
+**"sem quarto"** no próprio card, pra ficar fácil de achar e corrigir —
+e o filtro novo já isola só esses de uma vez.
+
+---
+
 ## v0.19.1 — 02/08/2026
 
 **Fisioterapeuta agora dá alta** — o botão "Dar alta" volta a aparecer

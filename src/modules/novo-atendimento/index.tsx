@@ -13,6 +13,7 @@ import {
   useHealthInsurances,
   useUnits,
   useBeds,
+  useRooms,
   usePhysiotherapists,
   useProcedures,
   repository,
@@ -44,6 +45,7 @@ export default function NovoAtendimento() {
   const convenios = useHealthInsurances();
   const unidades = useUnits();
   const leitos = useBeds();
+  const quartos = useRooms();
   const fisioterapeutas = usePhysiotherapists();
   const procedimentos = useProcedures();
 
@@ -58,6 +60,7 @@ export default function NovoAtendimento() {
 
   const [unidadeId, setUnidadeId] = useState("");
   const [leitoId, setLeitoId] = useState("");
+  const [quartoInlineId, setQuartoInlineId] = useState("");
   const [convenioInternacaoId, setConvenioInternacaoId] = useState("");
   const [nrAtendimento, setNrAtendimento] = useState("");
   const [internacaoCriada, setInternacaoCriada] = useState<Admission | null>(null);
@@ -85,6 +88,7 @@ export default function NovoAtendimento() {
     setSexoNovoPaciente("");
     setUnidadeId("");
     setLeitoId("");
+    setQuartoInlineId("");
     setConvenioInternacaoId("");
     setNrAtendimento("");
     setInternacaoCriada(null);
@@ -127,6 +131,9 @@ export default function NovoAtendimento() {
     if (!pacienteAtual || !unidade) return;
     setSalvando(true);
     try {
+      if (leitoId && quartoInlineId) {
+        await repository.beds.update(leitoId, { room_id: quartoInlineId });
+      }
       const criada = await repository.admissions.create({
         patient_id: pacienteAtual.id,
         hospital_id: unidade.hospital_id,
@@ -292,7 +299,7 @@ export default function NovoAtendimento() {
               </div>
               <div className="flex flex-col gap-1.5 sm:w-96">
                 <Label>Leito (opcional)</Label>
-                <Select value={leitoId} onValueChange={setLeitoId}>
+                <Select value={leitoId} onValueChange={(v) => { setLeitoId(v); setQuartoInlineId(""); }}>
                   <SelectTrigger><SelectValue placeholder="Selecione um leito livre" /></SelectTrigger>
                   <SelectContent>
                     {leitosDaUnidade.length === 0 ? (
@@ -303,6 +310,23 @@ export default function NovoAtendimento() {
                   </SelectContent>
                 </Select>
               </div>
+              {leitoId && leitos.find((l) => l.id === leitoId)?.room_id === null && (
+                <div className="flex flex-col gap-1.5 rounded-md border border-attention-400/40 bg-attention-100 p-3 sm:w-96">
+                  <Label>Quarto deste leito (opcional)</Label>
+                  <Select value={quartoInlineId} onValueChange={setQuartoInlineId}>
+                    <SelectTrigger><SelectValue placeholder="Sem quarto vinculado ainda" /></SelectTrigger>
+                    <SelectContent>
+                      {quartos.filter((q) => q.unit_id === unidadeId).map((q) => (
+                        <SelectItem key={q.id} value={q.id}>{q.code}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-attention-700">
+                    Esse leito ainda não tem quarto — definindo aqui, já grava direto nele, e passa a aparecer nas
+                    listas/relatórios pra sempre.
+                  </p>
+                </div>
+              )}
               <div className="flex flex-col gap-1.5 sm:w-96">
                 <Label>Convênio</Label>
                 <Select value={convenioInternacaoId} onValueChange={setConvenioInternacaoId}>

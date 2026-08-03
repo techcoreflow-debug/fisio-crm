@@ -99,7 +99,15 @@ oposto do fluxo assistencial do dia a dia.
   tela). Sobe pra "higienização" quando a internação recebe alta. Sair
   de "higienização" é manual — não existe jeito automático de saber
   quando a limpeza física terminou, então tem um botão "Concluir" no
-  próprio leito.
+  próprio leito. Filtros por código, unidade, status e "só sem quarto
+  vinculado". **O quarto de um paciente vem só do leito** (campo
+  "Quarto" ao cadastrar o leito) — se um leito não tem quarto vinculado,
+  nenhum paciente alocado nele mostra quarto em lugar nenhum do sistema;
+  esses leitos aparecem marcados "sem quarto" no próprio card. Não
+  precisa ir em Leitos pra resolver isso antes de internar alguém: se o
+  leito escolhido na hora da internação (em Internações ou Novo
+  Atendimento) ainda não tem quarto, um campo extra aparece ali mesmo
+  pra definir — e já grava direto no leito.
 - **Convênios**: operadoras (Unimed, Apas, etc.).
 - **Centros de Custo**: agrupam contratos/financeiro por área.
 - **Equipes**: agrupam fisioterapeutas.
