@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { hojeLocalIso } from "@/lib/data-local";
 import { ClipboardList, CheckCircle2, BedDouble, ClipboardPlus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,7 +32,7 @@ import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import type { PatientQueueItem } from "@/types/domain";
 
 function hojeIso() {
-  return new Date().toISOString().slice(0, 10);
+  return hojeLocalIso();
 }
 function agoraHora() {
   return new Date().toTimeString().slice(0, 5);
@@ -78,6 +79,7 @@ export default function MinhaFila() {
   }
 
   const [itemLancando, setItemLancando] = useState<PatientQueueItem | null>(null);
+  const [etapaLancar, setEtapaLancar] = useState<"lancar" | "pergunta">("lancar");
   const [procedimentoLancarId, setProcedimentoLancarId] = useState("");
   const [dataLancar, setDataLancar] = useState(hojeIso());
   const [horaLancar, setHoraLancar] = useState(agoraHora());
@@ -85,6 +87,7 @@ export default function MinhaFila() {
 
   function abrirLancar(item: PatientQueueItem) {
     setItemLancando(item);
+    setEtapaLancar("lancar");
     setProcedimentoLancarId(item.procedure_id ?? "");
     setDataLancar(hojeIso());
     setHoraLancar(agoraHora());
@@ -106,16 +109,35 @@ export default function MinhaFila() {
         source: "manual",
         company_id: internacao.company_id,
       });
-      if (itemLancando.status === "pendente") {
-        await repository.patientQueue.concluir(itemLancando.id);
-      }
       notificarSucesso("Procedimento lançado.");
-      setItemLancando(null);
+      // Não conclui sozinho — pergunta o que fazer, já que pode ter mais
+      // de um procedimento previsto pro mesmo paciente no dia.
+      setEtapaLancar("pergunta");
     } catch (erro) {
       notificarErro("Não foi possível lançar o procedimento", erro);
     } finally {
       setSalvandoLancamento(false);
     }
+  }
+
+  async function handleConcluirAposLancar() {
+    if (!itemLancando) return;
+    try {
+      if (itemLancando.status === "pendente") {
+        await repository.patientQueue.concluir(itemLancando.id);
+      }
+      notificarSucesso("Atendimento concluído.");
+    } catch (erro) {
+      notificarErro("Não foi possível concluir", erro);
+    } finally {
+      setItemLancando(null);
+    }
+  }
+
+  function handleLancarOutro() {
+    setEtapaLancar("lancar");
+    setProcedimentoLancarId("");
+    setHoraLancar(agoraHora());
   }
 
   const pendentes = filaDeHoje.filter((i) => i.status === "pendente");
@@ -208,40 +230,65 @@ export default function MinhaFila() {
 
       <Sheet open={itemLancando !== null} onOpenChange={(open) => !open && setItemLancando(null)}>
         <SheetContent>
-          <form className="flex h-full flex-col" onSubmit={handleLancar}>
-            <SheetHeader>
-              <SheetTitle>Lançar procedimento</SheetTitle>
-              <SheetDescription>{itemLancando && (pacienteDoItem(itemLancando.admission_id)?.full_name ?? "—")}</SheetDescription>
-            </SheetHeader>
-            <div className="flex flex-1 flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <Label>Procedimento</Label>
-                <Combobox
-                  value={procedimentoLancarId}
-                  onValueChange={setProcedimentoLancarId}
-                  options={procedimentos.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}`, sublabel: p.category ?? undefined }))}
-                  placeholder="Buscar procedimento…"
-                  searchPlaceholder="Nome, código ou categoria…"
-                />
+          {etapaLancar === "lancar" && (
+            <form className="flex h-full flex-col" onSubmit={handleLancar}>
+              <SheetHeader>
+                <SheetTitle>Lançar procedimento</SheetTitle>
+                <SheetDescription>{itemLancando && (pacienteDoItem(itemLancando.admission_id)?.full_name ?? "—")}</SheetDescription>
+              </SheetHeader>
+              <div className="flex flex-1 flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label>Procedimento</Label>
+                  <Combobox
+                    value={procedimentoLancarId}
+                    onValueChange={setProcedimentoLancarId}
+                    options={procedimentos.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}`, sublabel: p.category ?? undefined }))}
+                    placeholder="Buscar procedimento…"
+                    searchPlaceholder="Nome, código ou categoria…"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="data_lancar_fila">Data</Label>
+                    <Input id="data_lancar_fila" type="date" required value={dataLancar} onChange={(e) => setDataLancar(e.target.value)} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="hora_lancar_fila">Horário</Label>
+                    <Input id="hora_lancar_fila" type="time" required value={horaLancar} onChange={(e) => setHoraLancar(e.target.value)} />
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="data_lancar_fila">Data</Label>
-                  <Input id="data_lancar_fila" type="date" required value={dataLancar} onChange={(e) => setDataLancar(e.target.value)} />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="hora_lancar_fila">Horário</Label>
-                  <Input id="hora_lancar_fila" type="time" required value={horaLancar} onChange={(e) => setHoraLancar(e.target.value)} />
-                </div>
+              <SheetFooter>
+                <Button type="button" variant="secondary" onClick={() => setItemLancando(null)}>Cancelar</Button>
+                <Button type="submit" disabled={salvandoLancamento || !procedimentoLancarId}>
+                  {salvandoLancamento ? "Salvando…" : "Lançar procedimento"}
+                </Button>
+              </SheetFooter>
+            </form>
+          )}
+
+          {etapaLancar === "pergunta" && (
+            <div className="flex h-full flex-col">
+              <SheetHeader>
+                <SheetTitle>O que fazer agora?</SheetTitle>
+                <SheetDescription>
+                  Procedimento lançado pra {itemLancando && (pacienteDoItem(itemLancando.admission_id)?.full_name ?? "—")}. O
+                  paciente ainda pode precisar de outro atendimento hoje.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="flex flex-1 flex-col justify-center gap-3">
+                <Button onClick={handleConcluirAposLancar}>
+                  <CheckCircle2 className="h-4 w-4" /> Concluir atendimento do paciente
+                </Button>
+                <Button variant="secondary" onClick={handleLancarOutro}>
+                  <ClipboardPlus className="h-4 w-4" /> Lançar outro procedimento
+                </Button>
+                <Button variant="ghost" onClick={() => setItemLancando(null)}>
+                  Deixar em aberto por enquanto
+                </Button>
               </div>
             </div>
-            <SheetFooter>
-              <Button type="button" variant="secondary" onClick={() => setItemLancando(null)}>Cancelar</Button>
-              <Button type="submit" disabled={salvandoLancamento || !procedimentoLancarId}>
-                {salvandoLancamento ? "Salvando…" : "Lançar procedimento"}
-              </Button>
-            </SheetFooter>
-          </form>
+          )}
         </SheetContent>
       </Sheet>
     </div>

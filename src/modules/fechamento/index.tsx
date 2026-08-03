@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { hojeLocalIso, dataParaIsoLocal } from "@/lib/data-local";
 import {
   BarChart,
   Bar,
@@ -30,18 +31,18 @@ import { notificarErro, notificarSucesso } from "@/store/toast-store";
 const TODOS = "todos";
 
 function hojeIso() {
-  return new Date().toISOString().slice(0, 10);
+  return hojeLocalIso();
 }
 function somarDias(iso: string, dias: number) {
   const d = new Date(`${iso}T00:00:00`);
   d.setDate(d.getDate() + dias);
-  return d.toISOString().slice(0, 10);
+  return dataParaIsoLocal(d);
 }
 function primeiroDiaSemana(iso: string) {
   const d = new Date(`${iso}T00:00:00`);
   const diaSemana = d.getDay() || 7;
   d.setDate(d.getDate() - diaSemana + 1);
-  return d.toISOString().slice(0, 10);
+  return dataParaIsoLocal(d);
 }
 function primeiroDiaMes(iso: string) {
   return `${iso.slice(0, 7)}-01`;

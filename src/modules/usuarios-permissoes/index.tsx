@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Users2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -92,36 +92,38 @@ export default function UsuariosPermissoes() {
     setOpenCriarUsuario(true);
   }
 
+  /** Chama a Edge Function pra criar um único usuário — reaproveitada tanto pelo formulário simples quanto pelo lote. */
+  async function criarUsuario(email: string, password: string, fullName: string, companyId: string, role: UserRole) {
+    const { data: sessao } = await supabase.auth.getSession();
+    const { data, error } = await supabase.functions.invoke("create-user", {
+      body: { email, password, fullName, companyId, role },
+      headers: { Authorization: `Bearer ${sessao.session?.access_token ?? ""}` },
+    });
+    if (error) {
+      let mensagem = error.message;
+      try {
+        const corpo = await error.context?.json();
+        if (corpo?.error) mensagem = corpo.error;
+      } catch {
+        // resposta não veio em JSON — fica com a mensagem genérica mesmo
+      }
+      throw new Error(mensagem);
+    }
+    if (data?.error) throw new Error(data.error);
+  }
+
   async function handleCriarUsuario(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     setSalvandoUsuario(true);
     try {
-      const { data: sessao } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke("create-user", {
-        body: {
-          email: String(form.get("email") ?? ""),
-          password: String(form.get("password") ?? ""),
-          fullName: String(form.get("full_name") ?? ""),
-          companyId: empresaNovoUsuario,
-          role: papelNovoUsuario,
-        },
-        headers: { Authorization: `Bearer ${sessao.session?.access_token ?? ""}` },
-      });
-      if (error) {
-        // O supabase-js só dá uma mensagem genérica ("non-2xx status
-        // code") — o texto de verdade que a função devolveu fica no
-        // corpo da resposta, dentro de error.context.
-        let mensagem = error.message;
-        try {
-          const corpo = await error.context?.json();
-          if (corpo?.error) mensagem = corpo.error;
-        } catch {
-          // resposta não veio em JSON — fica com a mensagem genérica mesmo
-        }
-        throw new Error(mensagem);
-      }
-      if (data?.error) throw new Error(data.error);
+      await criarUsuario(
+        String(form.get("email") ?? ""),
+        String(form.get("password") ?? ""),
+        String(form.get("full_name") ?? ""),
+        empresaNovoUsuario,
+        papelNovoUsuario
+      );
       notificarSucesso("Usuário criado e vinculado — já pode logar direto, sem confirmar e-mail.");
       setOpenCriarUsuario(false);
       e.currentTarget.reset();
@@ -132,6 +134,60 @@ export default function UsuariosPermissoes() {
     }
   }
 
+  // --- Criação em lote ---
+  function normalizarSemAcento(texto: string) {
+    return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+  function gerarEmail(nomeCompleto: string, dominio: string) {
+    const partes = normalizarSemAcento(nomeCompleto.trim()).toLowerCase().split(/\s+/).filter(Boolean);
+    const primeiro = partes[0] ?? "";
+    const ultimo = partes.length > 1 ? partes[partes.length - 1] : "";
+    return `${primeiro}${ultimo ? "." + ultimo : ""}@${dominio}`;
+  }
+
+  const [openLote, setOpenLote] = useState(false);
+  const [nomesLote, setNomesLote] = useState("");
+  const [dominioLote, setDominioLote] = useState("inovarefisio.com.br");
+  const [senhaLote, setSenhaLote] = useState("");
+  const [empresaLote, setEmpresaLote] = useState("");
+  const [papelLote, setPapelLote] = useState<UserRole>("fisioterapeuta");
+  const [processandoLote, setProcessandoLote] = useState(false);
+  const [resultadoLote, setResultadoLote] = useState<{ nome: string; email: string; ok: boolean; erro?: string }[]>([]);
+
+  function abrirLote() {
+    setNomesLote("");
+    setSenhaLote("");
+    setEmpresaLote(empresaId || empresas[0]?.id || "");
+    setPapelLote("fisioterapeuta");
+    setResultadoLote([]);
+    setOpenLote(true);
+  }
+
+  const previaLote = nomesLote
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((nome) => ({ nome, email: gerarEmail(nome, dominioLote) }));
+
+  async function handleCriarLote() {
+    if (!empresaLote || !senhaLote || previaLote.length === 0) return;
+    setProcessandoLote(true);
+    const resultados: typeof resultadoLote = [];
+    for (const item of previaLote) {
+      try {
+        await criarUsuario(item.email, senhaLote, item.nome, empresaLote, papelLote);
+        resultados.push({ ...item, ok: true });
+      } catch (erro) {
+        resultados.push({ ...item, ok: false, erro: erro instanceof Error ? erro.message : "Erro desconhecido" });
+      }
+      setResultadoLote([...resultados]);
+    }
+    setProcessandoLote(false);
+    const sucesso = resultados.filter((r) => r.ok).length;
+    if (sucesso > 0) notificarSucesso(`${sucesso} de ${resultados.length} usuário(s) criado(s).`);
+    if (sucesso < resultados.length) notificarErro("Alguns usuários não foram criados", "Veja o detalhe de cada um na lista.");
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -139,6 +195,7 @@ export default function UsuariosPermissoes() {
         description="Usuários com acesso a esta empresa e seus papéis."
         actions={
           meuPerfil?.is_platform_admin ? (
+            <div className="flex gap-2">
             <Sheet open={openCriarUsuario} onOpenChange={setOpenCriarUsuario}>
               <SheetTrigger asChild>
                 <Button size="sm" onClick={abrirCriarUsuario}>
@@ -199,6 +256,102 @@ export default function UsuariosPermissoes() {
                 </form>
               </SheetContent>
             </Sheet>
+
+            <Sheet open={openLote} onOpenChange={setOpenLote}>
+              <SheetTrigger asChild>
+                <Button size="sm" variant="secondary" onClick={abrirLote}>
+                  <Users2 className="h-4 w-4" /> Criar em lote
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="sm:max-w-lg">
+                <SheetHeader>
+                  <SheetTitle>Criar usuários em lote</SheetTitle>
+                  <SheetDescription>
+                    Um nome completo por linha — o e-mail é gerado sozinho (primeiro.último@domínio).
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="flex flex-1 flex-col gap-4 overflow-y-auto">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="nomes_lote">Nomes completos (um por linha)</Label>
+                    <textarea
+                      id="nomes_lote"
+                      rows={6}
+                      value={nomesLote}
+                      onChange={(e) => setNomesLote(e.target.value)}
+                      placeholder={"Thais de Oliveira Souza\nBeatriz Moura Silva\n..."}
+                      className="rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm text-ink shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/40"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="dominio_lote">Domínio do e-mail</Label>
+                    <Input id="dominio_lote" value={dominioLote} onChange={(e) => setDominioLote(e.target.value)} placeholder="inovarefisio.com.br" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="senha_lote">Senha provisória (igual pra todos)</Label>
+                    <Input id="senha_lote" value={senhaLote} onChange={(e) => setSenhaLote(e.target.value)} minLength={6} placeholder="Mínimo 6 caracteres" />
+                    <p className="text-xs text-ink-soft">Cada pessoa pode trocar a própria senha depois, no menu do usuário (canto superior direito).</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Empresa</Label>
+                      <Select value={empresaLote} onValueChange={setEmpresaLote}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          {empresas.map((e) => (
+                            <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Papel</Label>
+                      <Select value={papelLote} onValueChange={(v) => setPapelLote(v as UserRole)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {TODOS_OS_ROLES.map((r) => (
+                            <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {previaLote.length > 0 && (
+                    <div className="flex flex-col gap-1.5 rounded-md border border-line p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">
+                        Prévia ({previaLote.length})
+                      </p>
+                      {previaLote.map((item) => {
+                        const resultado = resultadoLote.find((r) => r.nome === item.nome);
+                        return (
+                          <div key={item.nome} className="flex items-center justify-between text-sm">
+                            <div>
+                              <span className="text-ink">{item.nome}</span>
+                              <span className="ml-2 font-mono text-xs text-ink-soft">{item.email}</span>
+                            </div>
+                            {resultado && (
+                              <Badge variant={resultado.ok ? "recovery" : "critical"}>
+                                {resultado.ok ? "Criado" : resultado.erro ?? "Falhou"}
+                              </Badge>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <SheetFooter>
+                  <Button type="button" variant="secondary" onClick={() => setOpenLote(false)}>Fechar</Button>
+                  <Button
+                    onClick={handleCriarLote}
+                    disabled={processandoLote || previaLote.length === 0 || !senhaLote || !empresaLote}
+                  >
+                    {processandoLote ? "Criando…" : `Criar ${previaLote.length} usuário(s)`}
+                  </Button>
+                </SheetFooter>
+              </SheetContent>
+            </Sheet>
+            </div>
           ) : undefined
         }
       />

@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { hojeLocalIso } from "@/lib/data-local";
 import { UserRound, BedDouble, ClipboardList, CheckCircle2, ArrowRight, RotateCcw } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -328,7 +329,7 @@ export default function NovoAtendimento() {
               <div className="grid gap-3 sm:w-96 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="admission_date">Data de entrada</Label>
-                  <Input id="admission_date" name="admission_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
+                  <Input id="admission_date" name="admission_date" type="date" required defaultValue={hojeLocalIso()} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="admission_time">Horário</Label>
@@ -378,7 +379,7 @@ export default function NovoAtendimento() {
               <div className="grid gap-3 sm:w-96 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="production_date">Data</Label>
-                  <Input id="production_date" name="production_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
+                  <Input id="production_date" name="production_date" type="date" required defaultValue={hojeLocalIso()} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="production_time">Horário</Label>

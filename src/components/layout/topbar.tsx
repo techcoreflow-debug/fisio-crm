@@ -1,12 +1,17 @@
-import { Menu, Search, Bell, ChevronsUpDown, LogOut, Settings, Moon, Sun, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { Menu, Search, Bell, ChevronsUpDown, LogOut, Settings, Moon, Sun, ShieldCheck, KeyRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/store/app-store";
 import { useCompanies } from "@/data/repository";
 import { useAuth } from "@/auth/auth-provider";
-import { notificarErro } from "@/store/toast-store";
+import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { supabase } from "@/lib/supabase";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +40,32 @@ export function Topbar() {
 
   async function handleSignOut() {
     await signOut();
+  }
+
+  const [openTrocarSenha, setOpenTrocarSenha] = useState(false);
+  const [salvandoSenha, setSalvandoSenha] = useState(false);
+
+  async function handleTrocarSenha(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const novaSenha = String(form.get("nova_senha") ?? "");
+    const confirmacao = String(form.get("confirmacao") ?? "");
+    if (novaSenha !== confirmacao) {
+      notificarErro("As senhas não coincidem", "Digite a mesma senha nos dois campos.");
+      return;
+    }
+    setSalvandoSenha(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: novaSenha });
+      if (error) throw new Error(error.message);
+      notificarSucesso("Senha alterada.");
+      setOpenTrocarSenha(false);
+      e.currentTarget.reset();
+    } catch (erro) {
+      notificarErro("Não foi possível trocar a senha", erro);
+    } finally {
+      setSalvandoSenha(false);
+    }
   }
 
   return (
@@ -123,12 +154,40 @@ export function Topbar() {
             <DropdownMenuItem onSelect={() => navigate("/configuracoes")}>
               <Settings className="h-4 w-4" /> Configurações
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setOpenTrocarSenha(true)}>
+              <KeyRound className="h-4 w-4" /> Trocar senha
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={handleSignOut}>
               <LogOut className="h-4 w-4" /> Sair
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <Dialog open={openTrocarSenha} onOpenChange={setOpenTrocarSenha}>
+        <DialogContent>
+          <form onSubmit={handleTrocarSenha}>
+            <DialogHeader>
+              <DialogTitle>Trocar senha</DialogTitle>
+              <DialogDescription>Vale a partir do próximo login.</DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-4 py-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="nova_senha">Nova senha</Label>
+                <Input id="nova_senha" name="nova_senha" type="password" required minLength={6} placeholder="Mínimo 6 caracteres" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="confirmacao">Confirmar nova senha</Label>
+                <Input id="confirmacao" name="confirmacao" type="password" required minLength={6} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="secondary" onClick={() => setOpenTrocarSenha(false)}>Cancelar</Button>
+              <Button type="submit" disabled={salvandoSenha}>{salvandoSenha ? "Salvando…" : "Trocar senha"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </header>
   );
 }

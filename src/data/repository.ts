@@ -14,6 +14,7 @@ import { parseTasyReport, resumirImportacao } from "@/lib/tasy-parser";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/auth-provider";
 import { permissaoPadrao, type Permissao } from "@/lib/permissions";
+import { hojeLocalIso } from "@/lib/data-local";
 import type {
   Company,
   Profile,
@@ -587,7 +588,7 @@ export const repository = {
         glosado: true,
         valor_glosado: valor,
         motivo_glosa: motivo || null,
-        data_glosa: new Date().toISOString().slice(0, 10),
+        data_glosa: hojeLocalIso(),
       });
     },
     removerGlosa: async (id: string): Promise<void> => {

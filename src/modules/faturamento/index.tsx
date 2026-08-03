@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { hojeLocalIso } from "@/lib/data-local";
 import { Plus, Wallet, Search } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,7 +30,7 @@ import { useAppStore } from "@/store/app-store";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 
 function hojeIso() {
-  return new Date().toISOString().slice(0, 10);
+  return hojeLocalIso();
 }
 
 export default function Faturamento() {

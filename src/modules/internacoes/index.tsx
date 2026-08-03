@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { hojeLocalIso } from "@/lib/data-local";
 import { Search, Plus, Pencil, BedDouble, LogOut, AlertTriangle, ClipboardPlus, Printer, Users, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
@@ -96,13 +97,13 @@ export default function Internacoes() {
   const [dialogDistribuirAberto, setDialogDistribuirAberto] = useState(false);
   const [fisioDistribuirId, setFisioDistribuirId] = useState("");
   const [procedimentoDistribuirId, setProcedimentoDistribuirId] = useState("");
-  const [dataDistribuir, setDataDistribuir] = useState(new Date().toISOString().slice(0, 10));
+  const [dataDistribuir, setDataDistribuir] = useState(hojeLocalIso());
   const [distribuindo, setDistribuindo] = useState(false);
   // Fisioterapeuta lançador: só lança procedimento e cadastra paciente —
   // não administra internação (criar/editar/dar alta continua restrito).
   const podeAdministrarInternacao = !(profile?.role === "fisioterapeuta" && !profile.is_platform_admin);
 
-  const hojeIso = new Date().toISOString().slice(0, 10);
+  const hojeIso = hojeLocalIso();
   const internacoesComAtendimentoHoje = useMemo(
     () => new Set(producao.filter((p) => p.production_date === hojeIso).map((p) => p.admission_id)),
     [producao, hojeIso]
@@ -173,7 +174,7 @@ export default function Internacoes() {
   }
 
   function nomeProcedimentoHoje(admissionId: string) {
-    const hoje = new Date().toISOString().slice(0, 10);
+    const hoje = hojeLocalIso();
     const lancamentos = producao.filter((p) => p.admission_id === admissionId && p.production_date === hoje);
     if (lancamentos.length === 0) return "—";
     return lancamentos
@@ -501,7 +502,7 @@ export default function Internacoes() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="admission_date">Data de entrada</Label>
-                      <Input id="admission_date" name="admission_date" type="date" required defaultValue={editando?.admission_date ?? new Date().toISOString().slice(0, 10)} />
+                      <Input id="admission_date" name="admission_date" type="date" required defaultValue={editando?.admission_date ?? hojeLocalIso()} />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="admission_time">Horário</Label>

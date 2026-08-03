@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { hojeLocalIso } from "@/lib/data-local";
 import { Search, Plus, ClipboardList, TriangleAlert, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
@@ -250,7 +251,7 @@ export default function ProducaoDiaria() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="production_date">Data</Label>
-                      <Input id="production_date" name="production_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
+                      <Input id="production_date" name="production_date" type="date" required defaultValue={hojeLocalIso()} />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="production_time">Horário</Label>

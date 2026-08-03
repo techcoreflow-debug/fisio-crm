@@ -9,6 +9,8 @@
 
 export type LinhaRelatorio = Record<string, string | number>;
 
+import { hojeLocalIso } from "@/lib/data-local";
+
 function escaparCampo(valor: string | number): string {
   const texto = String(valor ?? "");
   if (texto.includes(";") || texto.includes('"') || texto.includes("\n")) {
@@ -34,7 +36,7 @@ export function exportarCsv(nomeArquivo: string, linhas: LinhaRelatorio[]) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${nomeArquivo}-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = `${nomeArquivo}-${hojeLocalIso()}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

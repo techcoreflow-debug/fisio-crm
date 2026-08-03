@@ -20,6 +20,42 @@ Antes de subir um deploy:
 
 ---
 
+## v0.17.1 — 02/08/2026
+
+**Minha Fila não conclui mais sozinho depois de lançar.** Antes, lançar
+um procedimento marcava o item da fila como concluído automaticamente —
+agora pergunta: **"Concluir atendimento do paciente"**, **"Lançar outro
+procedimento"** (reabre o formulário pro mesmo paciente, em branco) ou
+**"Deixar em aberto por enquanto"** (fecha sem concluir, o item continua
+pendente na fila). Cobre o caso de paciente com mais de um procedimento
+previsto no dia.
+
+---
+
+## v0.17.0 — 02/08/2026
+
+**Bug crítico de fuso horário corrigido em todo o sistema.** Várias
+telas calculavam "hoje" com `new Date().toISOString().slice(0,10)` —
+isso converte pra **UTC** antes de formatar. Como o Brasil está 3h atrás
+de UTC, entre **21h e meia-noite (horário de Brasília)**, essa conta
+calculava o dia **seguinte** por engano. Isso explica casos como
+"distribuí um paciente mas não apareceu pro fisioterapeuta" — a
+distribuição pode ter sido gravada com a data de amanhã sem ninguém
+perceber.
+
+Corrigido em 13 arquivos: Minha Fila, Painel do Gestor, Fechamento,
+Painel de Procedimentos, Pacientes Internados, Produção Diária, Novo
+Atendimento, Faturamento, Relatórios, Escalas, Dashboard Operacional,
+o repository e a exportação de CSV. Criado `src/lib/data-local.ts`
+(`hojeLocalIso()`, `dataParaIsoLocal()`) como padrão único daqui pra
+frente — nenhum lugar do sistema deve mais usar `toISOString()` pra
+calcular datas de "hoje".
+
+**Sem migration** — é só código. Vale reconferir distribuições feitas à
+noite antes desta versão; podem ter ficado com a data errada gravada.
+
+---
+
 ## v0.16.1 — 02/08/2026
 
 **Pacientes Internados mais enxuto pro fisioterapeuta** — o perfil

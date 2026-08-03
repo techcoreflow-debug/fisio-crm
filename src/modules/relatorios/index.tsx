@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { hojeLocalIso } from "@/lib/data-local";
 import { BarChart3, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,7 +57,7 @@ export default function Relatorios() {
     return pacientes.find((p) => p.id === internacao?.patient_id)?.full_name ?? "—";
   }
 
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeLocalIso();
   const primeiroDiaMes = `${hoje.slice(0, 7)}-01`;
   const [periodoDe, setPeriodoDe] = useState(primeiroDiaMes);
   const [periodoAte, setPeriodoAte] = useState(hoje);

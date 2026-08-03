@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { hojeLocalIso } from "@/lib/data-local";
 import {
   BarChart,
   Bar,
@@ -39,7 +40,7 @@ const CORES = ["#2f80ed", "#4f8f5f", "#d98d3d", "#bd4238", "#7db3ec", "#a8c4bd"]
 const TODOS = "todos";
 
 function hoje() {
-  return new Date().toISOString().slice(0, 10);
+  return hojeLocalIso();
 }
 
 export default function PainelProducao() {
