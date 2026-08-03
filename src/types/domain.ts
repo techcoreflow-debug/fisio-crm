@@ -315,6 +315,7 @@ export interface PatientQueueItem {
   company_id: string;
   admission_id: string;
   physiotherapist_id: string;
+  procedure_id: string | null;
   data: string;
   sequencia: number;
   status: "pendente" | "concluido";

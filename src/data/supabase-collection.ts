@@ -25,7 +25,11 @@ let proximoIdDeCanal = 0;
  * chamada de `.on(...)` depois do `.subscribe()` derruba a aplicação
  * inteira (erro não capturado, tela em branco).
  */
-export function useSupabaseCollection<T>(table: TableName, filtros: Record<string, string | null | undefined>): T[] {
+export function useSupabaseCollection<T>(
+  table: TableName,
+  filtros: Record<string, string | null | undefined>,
+  ordenarPor?: string
+): T[] {
   const [linhas, setLinhas] = useState<T[]>([]);
   const chaveFiltro = JSON.stringify(filtros);
   const filtroIncompleto = Object.values(filtros).some((v) => v === undefined || v === "");
@@ -51,6 +55,9 @@ export function useSupabaseCollection<T>(table: TableName, filtros: Record<strin
         } else if (valor !== undefined) {
           query = query.eq(campo, valor);
         }
+      }
+      if (ordenarPor) {
+        query = query.order(ordenarPor, { ascending: true });
       }
       const { data, error } = await query;
       if (!ativo) return;
@@ -84,7 +91,7 @@ export function useSupabaseCollection<T>(table: TableName, filtros: Record<strin
       supabase.removeChannel(canal);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table, chaveFiltro, filtroIncompleto]);
+  }, [table, chaveFiltro, filtroIncompleto, ordenarPor]);
 
   return linhas;
 }

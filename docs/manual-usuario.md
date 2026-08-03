@@ -120,10 +120,13 @@ oposto do fluxo assistencial do dia a dia.
 ## Minha Fila
 
 Tela do fisioterapeuta: só os pacientes **distribuídos pra ele** naquele
-dia, em ordem de sequência, com aviso se já foi lançado algum
-procedimento hoje pra aquele paciente, e um botão pra marcar como
-concluído. É a primeira tela que o fisioterapeuta vê ao logar (inclusive
-no modo tablet).
+dia, em ordem, com o **procedimento sugerido** (se quem distribuiu
+escolheu um) e um botão **"Lançar procedimento"** — abre um formulário
+rápido, já pré-preenchido com a sugestão, e lança direto, marcando o
+item da fila como concluído sozinho. Depois de concluído, ainda dá pra
+lançar mais um procedimento pro mesmo paciente (igual o fluxo de Novo
+Atendimento). É a primeira tela que o fisioterapeuta vê ao logar
+(inclusive no modo tablet).
 
 ## Novo Atendimento (fluxo guiado)
 
@@ -160,13 +163,13 @@ ou **Nr. Atendimento**, e um botão "Só pendentes de hoje".
   houver nenhum procedimento lançado na data da alta, **bloqueia** e
   pergunta se houve atendimento antes de sair — obriga lançar na hora ou
   confirmar explicitamente que não houve.
-- **Gerar/imprimir lista**: seleciona pacientes (ou usa todos os
-  filtrados, se nada selecionado) e gera uma lista pronta pra imprimir —
-  sequência numerada, Nr. Atendimento, paciente, procedimento do dia,
-  quarto, leito e hospital (cada coluna liga/desliga antes de gerar).
-- **Distribuir**: a partir da mesma seleção, escolhe um fisioterapeuta e
-  uma data — os pacientes entram na fila dele (**Minha Fila**), na ordem
-  em que aparecem na tela.
+- **Gerar/imprimir lista**: escolhe quais colunas aparecem (sequência
+  numerada sempre entra; Nr. Atendimento, paciente, procedimento do dia,
+  quarto, leito, hospital e convênio são opcionais, todas ligadas por
+  padrão) e abre uma janela pronta pra imprimir.
+- **Distribuir**: escolhe um fisioterapeuta, uma data e, opcionalmente,
+  um **procedimento sugerido** — os pacientes selecionados entram na
+  fila dele (**Minha Fila**), na ordem em que aparecem na tela.
 
 ## Produção Diária
 
@@ -294,7 +297,12 @@ manual, cada papel usa o padrão sensato já embutido no sistema.
 **Criar usuário** (só admin InovareTech): nome, e-mail, senha
 provisória, empresa e papel — o usuário já nasce confirmado e vinculado,
 sem precisar clicar em e-mail nenhum nem esperar alguém resgatar da
-lista de pendentes.
+lista de pendentes. **"Criar em lote"** faz o mesmo pra vários de uma
+vez — cola os nomes completos (um por linha), o e-mail é gerado sozinho
+(`primeiro.ultimo@dominio`).
+
+Qualquer usuário troca a própria senha depois, pelo menu de usuário
+(ícone de chave, tanto no desktop quanto no modo tablet).
 
 ## Configurações
 

@@ -88,12 +88,14 @@ export default function Internacoes() {
     { chave: "quarto", rotulo: "Quarto" },
     { chave: "leito", rotulo: "Leito" },
     { chave: "hospital", rotulo: "Hospital" },
+    { chave: "convenio", rotulo: "Convênio" },
   ] as const;
   const [colunasLista, setColunasLista] = useState<Set<string>>(new Set(COLUNAS_LISTA.map((c) => c.chave)));
   const [dialogListaAberto, setDialogListaAberto] = useState(false);
 
   const [dialogDistribuirAberto, setDialogDistribuirAberto] = useState(false);
   const [fisioDistribuirId, setFisioDistribuirId] = useState("");
+  const [procedimentoDistribuirId, setProcedimentoDistribuirId] = useState("");
   const [dataDistribuir, setDataDistribuir] = useState(new Date().toISOString().slice(0, 10));
   const [distribuindo, setDistribuindo] = useState(false);
   // Fisioterapeuta lançador: só lança procedimento e cadastra paciente —
@@ -199,6 +201,7 @@ export default function Internacoes() {
             }
             case "leito": return leitos.find((l) => l.id === i.bed_id)?.code ?? "—";
             case "hospital": return hospitais.find((h) => h.id === i.hospital_id)?.name ?? "—";
+            case "convenio": return convenios.find((c) => c.id === i.health_insurance_id)?.name ?? "—";
             default: return "—";
           }
         });
@@ -245,7 +248,8 @@ export default function Internacoes() {
         fisioDistribuirId,
         dataDistribuir,
         [...selecionados],
-        profile?.id ?? null
+        profile?.id ?? null,
+        procedimentoDistribuirId || null
       );
       notificarSucesso(`${selecionados.size} paciente(s) distribuído(s).`);
       setDialogDistribuirAberto(false);
@@ -593,7 +597,7 @@ export default function Internacoes() {
               variant="secondary"
               size="sm"
               disabled={selecionados.size === 0}
-              onClick={() => setDialogDistribuirAberto(true)}
+              onClick={() => { setProcedimentoDistribuirId(""); setDialogDistribuirAberto(true); }}
             >
               <Users className="h-3.5 w-3.5" /> Distribuir
             </Button>
@@ -926,6 +930,16 @@ export default function Internacoes() {
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="data_distribuir">Data</Label>
               <Input id="data_distribuir" type="date" value={dataDistribuir} onChange={(e) => setDataDistribuir(e.target.value)} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Procedimento sugerido (opcional)</Label>
+              <Combobox
+                value={procedimentoDistribuirId}
+                onValueChange={setProcedimentoDistribuirId}
+                options={procedimentos.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}`, sublabel: p.category ?? undefined }))}
+                placeholder="Sem sugestão — o fisio escolhe ao lançar"
+                searchPlaceholder="Nome, código ou categoria…"
+              />
             </div>
           </div>
           <DialogFooter>

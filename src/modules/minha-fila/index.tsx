@@ -1,9 +1,20 @@
-import { useMemo } from "react";
-import { ClipboardList, CheckCircle2, BedDouble } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
+import { ClipboardList, CheckCircle2, BedDouble, ClipboardPlus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Combobox } from "@/components/ui/combobox";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import {
   usePatientQueue,
   useAdmissions,
@@ -11,14 +22,19 @@ import {
   useHospitals,
   useUnits,
   usePhysiotherapists,
+  useProcedures,
   useDailyProduction,
   repository,
 } from "@/data/repository";
 import { useAuth } from "@/auth/auth-provider";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
+import type { PatientQueueItem } from "@/types/domain";
 
 function hojeIso() {
   return new Date().toISOString().slice(0, 10);
+}
+function agoraHora() {
+  return new Date().toTimeString().slice(0, 5);
 }
 
 export default function MinhaFila() {
@@ -29,6 +45,7 @@ export default function MinhaFila() {
   const hospitais = useHospitals();
   const unidades = useUnits();
   const fisioterapeutas = usePhysiotherapists();
+  const procedimentos = useProcedures();
   const producao = useDailyProduction();
 
   const meuFisioId = fisioterapeutas.find((f) => f.user_id === profile?.id)?.id;
@@ -43,7 +60,10 @@ export default function MinhaFila() {
   function internacaoDoItem(admissionId: string) {
     return internacoes.find((i) => i.id === admissionId);
   }
-
+  function pacienteDoItem(admissionId: string) {
+    const internacao = internacaoDoItem(admissionId);
+    return pacientes.find((p) => p.id === internacao?.patient_id);
+  }
   function temAtendimentoHoje(admissionId: string) {
     return producao.some((p) => p.admission_id === admissionId && p.production_date === hojeIso());
   }
@@ -54,6 +74,47 @@ export default function MinhaFila() {
       notificarSucesso("Marcado como concluído.");
     } catch (erro) {
       notificarErro("Não foi possível concluir", erro);
+    }
+  }
+
+  const [itemLancando, setItemLancando] = useState<PatientQueueItem | null>(null);
+  const [procedimentoLancarId, setProcedimentoLancarId] = useState("");
+  const [dataLancar, setDataLancar] = useState(hojeIso());
+  const [horaLancar, setHoraLancar] = useState(agoraHora());
+  const [salvandoLancamento, setSalvandoLancamento] = useState(false);
+
+  function abrirLancar(item: PatientQueueItem) {
+    setItemLancando(item);
+    setProcedimentoLancarId(item.procedure_id ?? "");
+    setDataLancar(hojeIso());
+    setHoraLancar(agoraHora());
+  }
+
+  async function handleLancar(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!itemLancando || !meuFisioId) return;
+    const internacao = internacaoDoItem(itemLancando.admission_id);
+    if (!internacao) return;
+    setSalvandoLancamento(true);
+    try {
+      await repository.dailyProduction.create({
+        admission_id: itemLancando.admission_id,
+        physiotherapist_id: meuFisioId,
+        procedure_id: procedimentoLancarId,
+        production_date: dataLancar,
+        production_time: horaLancar,
+        source: "manual",
+        company_id: internacao.company_id,
+      });
+      if (itemLancando.status === "pendente") {
+        await repository.patientQueue.concluir(itemLancando.id);
+      }
+      notificarSucesso("Procedimento lançado.");
+      setItemLancando(null);
+    } catch (erro) {
+      notificarErro("Não foi possível lançar o procedimento", erro);
+    } finally {
+      setSalvandoLancamento(false);
     }
   }
 
@@ -88,11 +149,12 @@ export default function MinhaFila() {
           <div className="flex flex-col gap-3">
             {pendentes.map((item) => {
               const internacao = internacaoDoItem(item.admission_id);
-              const paciente = pacientes.find((p) => p.id === internacao?.patient_id);
+              const paciente = pacienteDoItem(item.admission_id);
               const jaAtendido = temAtendimentoHoje(item.admission_id);
+              const procedimentoSugerido = procedimentos.find((p) => p.id === item.procedure_id);
               return (
                 <Card key={item.id}>
-                  <CardContent className="flex items-center gap-3 pt-5">
+                  <CardContent className="flex flex-col gap-3 pt-5 sm:flex-row sm:items-center">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-clinical-50 text-sm font-semibold text-clinical-600">
                       {item.sequencia}
                     </div>
@@ -103,11 +165,21 @@ export default function MinhaFila() {
                         {hospitais.find((h) => h.id === internacao?.hospital_id)?.name ?? "—"} ·{" "}
                         {unidades.find((u) => u.id === internacao?.unit_id)?.name ?? "—"}
                       </p>
+                      {procedimentoSugerido && (
+                        <p className="mt-1 text-xs text-clinical-700">
+                          Sugerido: <span className="font-mono">{procedimentoSugerido.code}</span> {procedimentoSugerido.name}
+                        </p>
+                      )}
                     </div>
-                    {jaAtendido && <Badge variant="recovery">Lançado hoje</Badge>}
-                    <Button variant="secondary" size="sm" onClick={() => handleConcluir(item.id)}>
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Concluir
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {jaAtendido && <Badge variant="recovery">Lançado hoje</Badge>}
+                      <Button size="sm" onClick={() => abrirLancar(item)}>
+                        <ClipboardPlus className="h-3.5 w-3.5" /> Lançar procedimento
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => handleConcluir(item.id)}>
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Concluir
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               );
@@ -118,12 +190,14 @@ export default function MinhaFila() {
             <div className="flex flex-col gap-2">
               <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">Concluídos ({concluidos.length})</p>
               {concluidos.map((item) => {
-                const internacao = internacaoDoItem(item.admission_id);
-                const paciente = pacientes.find((p) => p.id === internacao?.patient_id);
+                const paciente = pacienteDoItem(item.admission_id);
                 return (
                   <div key={item.id} className="flex items-center gap-3 rounded-md border border-line bg-surface-sunken/50 px-4 py-3 text-sm">
                     <CheckCircle2 className="h-4 w-4 text-recovery-500" />
-                    <span className="text-ink-soft line-through">{paciente?.full_name ?? "—"}</span>
+                    <span className="flex-1 text-ink-soft line-through">{paciente?.full_name ?? "—"}</span>
+                    <Button variant="ghost" size="sm" onClick={() => abrirLancar(item)}>
+                      <ClipboardPlus className="h-3.5 w-3.5" /> Lançar mais um procedimento
+                    </Button>
                   </div>
                 );
               })}
@@ -131,6 +205,45 @@ export default function MinhaFila() {
           )}
         </>
       )}
+
+      <Sheet open={itemLancando !== null} onOpenChange={(open) => !open && setItemLancando(null)}>
+        <SheetContent>
+          <form className="flex h-full flex-col" onSubmit={handleLancar}>
+            <SheetHeader>
+              <SheetTitle>Lançar procedimento</SheetTitle>
+              <SheetDescription>{itemLancando && (pacienteDoItem(itemLancando.admission_id)?.full_name ?? "—")}</SheetDescription>
+            </SheetHeader>
+            <div className="flex flex-1 flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label>Procedimento</Label>
+                <Combobox
+                  value={procedimentoLancarId}
+                  onValueChange={setProcedimentoLancarId}
+                  options={procedimentos.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}`, sublabel: p.category ?? undefined }))}
+                  placeholder="Buscar procedimento…"
+                  searchPlaceholder="Nome, código ou categoria…"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="data_lancar_fila">Data</Label>
+                  <Input id="data_lancar_fila" type="date" required value={dataLancar} onChange={(e) => setDataLancar(e.target.value)} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="hora_lancar_fila">Horário</Label>
+                  <Input id="hora_lancar_fila" type="time" required value={horaLancar} onChange={(e) => setHoraLancar(e.target.value)} />
+                </div>
+              </div>
+            </div>
+            <SheetFooter>
+              <Button type="button" variant="secondary" onClick={() => setItemLancando(null)}>Cancelar</Button>
+              <Button type="submit" disabled={salvandoLancamento || !procedimentoLancarId}>
+                {salvandoLancamento ? "Salvando…" : "Lançar procedimento"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

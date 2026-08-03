@@ -20,6 +20,47 @@ Antes de subir um deploy:
 
 ---
 
+## v0.16.0 — 02/08/2026
+
+**Convênio na lista impressa** — Pacientes Internados, "Gerar/imprimir
+lista" ganhou o Convênio como coluna opcional.
+
+**Minha Fila ganhou lançamento de verdade**: cada item pendente mostra o
+**procedimento sugerido** (se quem distribuiu escolheu um) e tem botão
+**"Lançar procedimento"** — abre um formulário rápido, pré-preenchido com
+a sugestão, e lança direto pra `daily_production`, marcando o item da
+fila como concluído sozinho. Depois de concluído, ainda dá pra "Lançar
+mais um procedimento" pro mesmo paciente, igual o fluxo de Novo
+Atendimento. Migration `0022` (`patient_queue.procedure_id`) — o campo
+"Procedimento sugerido (opcional)" também apareceu no diálogo de
+Distribuir, em Pacientes Internados.
+
+**Cadastros ordenados** — Empresas, Hospitais, Clínicas, Unidades,
+Quartos, Leitos, Convênios, Centros de Custo, Equipes, Fisioterapeutas e
+Procedimentos agora vêm sempre em ordem alfabética (ou por código, pra
+quartos/leitos/procedimentos) — ordenação feita direto na consulta ao
+banco, não só na tela, então vale em qualquer lugar que usa esses dados.
+Novo cadastro aparece na posição certa da lista sozinho, sem precisar
+recarregar nada.
+
+---
+
+## v0.15.0 — 02/08/2026
+
+**Criar usuários em lote** — em Usuários e Permissões, botão "Criar em
+lote" ao lado do individual: cola uma lista de nomes completos (um por
+linha), o e-mail é gerado sozinho (`primeiro.ultimo@dominio`, domínio
+configurável), define senha provisória + empresa + papel uma vez só pra
+todo mundo, mostra prévia antes de confirmar e o resultado (criado/erro)
+de cada um em tempo real.
+
+**Trocar a própria senha** — qualquer usuário logado agora troca a senha
+pelo menu de usuário (desktop: canto superior direito; tablet: ícone de
+chave no cabeçalho). Não precisa mais de um admin pra isso depois da
+conta criada com senha provisória.
+
+---
+
 ## v0.14.1 — 02/08/2026
 
 **Vínculo fisioterapeuta × login, agora pela tela** — em

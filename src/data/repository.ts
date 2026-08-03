@@ -73,35 +73,35 @@ function useActiveCompanyId(): string {
 // ---------------------------------------------------------------------------
 
 export function useCompanies(): Company[] {
-  return useSupabaseCollection<Company>("companies", {});
+  return useSupabaseCollection<Company>("companies", {}, "name");
 }
 /** Exceção proposital: painel do admin InovareTech, cross-empresa (ver Empresas). */
 export function useHospitalsAllCompanies(): Hospital[] {
-  return useSupabaseCollection<Hospital>("hospitals", {});
+  return useSupabaseCollection<Hospital>("hospitals", {}, "name");
 }
 export function useHospitals(): Hospital[] {
-  return useSupabaseCollection<Hospital>("hospitals", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<Hospital>("hospitals", { company_id: useActiveCompanyId() }, "name");
 }
 export function useClinics(): Clinic[] {
-  return useSupabaseCollection<Clinic>("clinics", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<Clinic>("clinics", { company_id: useActiveCompanyId() }, "name");
 }
 export function useUnits(): Unit[] {
-  return useSupabaseCollection<Unit>("units", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<Unit>("units", { company_id: useActiveCompanyId() }, "name");
 }
 export function useCostCenters(): CostCenter[] {
-  return useSupabaseCollection<CostCenter>("cost_centers", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<CostCenter>("cost_centers", { company_id: useActiveCompanyId() }, "name");
 }
 export function useTeams(): Team[] {
-  return useSupabaseCollection<Team>("teams", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<Team>("teams", { company_id: useActiveCompanyId() }, "name");
 }
 export function useHealthInsurances(): HealthInsurance[] {
-  return useSupabaseCollection<HealthInsurance>("health_insurances", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<HealthInsurance>("health_insurances", { company_id: useActiveCompanyId() }, "name");
 }
 export function useContracts(): Contract[] {
-  return useSupabaseCollection<Contract>("contracts", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<Contract>("contracts", { company_id: useActiveCompanyId() }, "start_date");
 }
 export function usePatients(): Patient[] {
-  return useSupabaseCollection<Patient>("patients", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<Patient>("patients", { company_id: useActiveCompanyId() }, "full_name");
 }
 export function usePatientInsuranceHistory(patientId: string | undefined): PatientInsuranceHistory[] {
   return useSupabaseCollection<PatientInsuranceHistory>("patient_insurance_history", {
@@ -113,19 +113,19 @@ export function useContractUnits(): ContractUnit[] {
   return useSupabaseCollection<ContractUnit>("contract_units", { company_id: useActiveCompanyId() });
 }
 export function usePhysiotherapists(): Physiotherapist[] {
-  return useSupabaseCollection<Physiotherapist>("physiotherapists", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<Physiotherapist>("physiotherapists", { company_id: useActiveCompanyId() }, "full_name");
 }
 export function useBeds(): Bed[] {
-  return useSupabaseCollection<Bed>("beds", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<Bed>("beds", { company_id: useActiveCompanyId() }, "code");
 }
 export function useRooms(): Room[] {
-  return useSupabaseCollection<Room>("rooms", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<Room>("rooms", { company_id: useActiveCompanyId() }, "code");
 }
 export function useAdmissions(): Admission[] {
   return useSupabaseCollection<Admission>("admissions", { company_id: useActiveCompanyId() });
 }
 export function useProcedures(): Procedure[] {
-  return useSupabaseCollection<Procedure>("procedures", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<Procedure>("procedures", { company_id: useActiveCompanyId() }, "code");
 }
 export function useDailyProduction(): DailyProduction[] {
   return useSupabaseCollection<DailyProduction>("daily_production", { company_id: useActiveCompanyId() });
@@ -948,12 +948,14 @@ export const repository = {
       physiotherapistId: string,
       data: string,
       admissionIds: string[],
-      distribuidoPor: string | null
+      distribuidoPor: string | null,
+      procedureId: string | null = null
     ): Promise<void> => {
       const linhas = admissionIds.map((admissionId, i) => ({
         company_id: companyId,
         admission_id: admissionId,
         physiotherapist_id: physiotherapistId,
+        procedure_id: procedureId,
         data,
         sequencia: i + 1,
         status: "pendente" as const,
