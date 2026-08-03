@@ -412,7 +412,7 @@ export const repository = {
 
   physiotherapists: {
     create: async (
-      data: Pick<Physiotherapist, "full_name" | "professional_registry" | "team_id" | "company_id">
+      data: Pick<Physiotherapist, "full_name" | "professional_registry" | "team_id" | "user_id" | "company_id">
     ): Promise<Physiotherapist> => {
       const row = await inserirLinha<Physiotherapist>("physiotherapists", data);
       await registrarAuditoria({ company_id: row.company_id, action: "criado", entity_type: "Fisioterapeuta", entity_label: row.full_name });
@@ -420,7 +420,7 @@ export const repository = {
     },
     update: async (
       id: string,
-      patch: Partial<Pick<Physiotherapist, "full_name" | "professional_registry" | "team_id" | "company_id">>
+      patch: Partial<Pick<Physiotherapist, "full_name" | "professional_registry" | "team_id" | "user_id" | "company_id">>
     ): Promise<void> => atualizarLinha("physiotherapists", id, patch),
     remove: async (id: string): Promise<void> => {
       await bloquearSeTiverDependentes(

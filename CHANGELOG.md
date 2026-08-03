@@ -20,6 +20,18 @@ Antes de subir um deploy:
 
 ---
 
+## v0.14.1 — 02/08/2026
+
+**Vínculo fisioterapeuta × login, agora pela tela** — em
+Fisioterapeutas, campo "Usuário vinculado (login)" busca entre os
+usuários da empresa (nome/e-mail), e a tabela mostra "Vinculado" ou "Sem
+login" por linha. Esse campo (`user_id`) já existia no banco desde o
+começo, mas nunca teve como preencher pela interface — sem ele, **Minha
+Fila** e o **modo tablet** não sabem qual fisioterapeuta é aquele
+usuário logado.
+
+---
+
 ## v0.14.0 — 01/08/2026
 
 **Admin InovareTech pode criar usuário direto** — em Usuários e

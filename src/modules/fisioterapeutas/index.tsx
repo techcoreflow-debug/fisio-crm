@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
@@ -16,9 +17,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Combobox } from "@/components/ui/combobox";
 import { GoniometerGauge } from "@/components/shared/goniometer-gauge";
 import { DeleteButton } from "@/components/shared/delete-button";
-import { usePhysiotherapists, useTeams, repository } from "@/data/repository";
+import { usePhysiotherapists, useTeams, useProfiles, repository } from "@/data/repository";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useAppStore } from "@/store/app-store";
 import type { Physiotherapist } from "@/types/domain";
@@ -31,11 +33,13 @@ function iniciais(nome: string) {
 export default function Fisioterapeutas() {
   const fisioterapeutas = usePhysiotherapists();
   const equipes = useTeams();
+  const perfis = useProfiles();
   const empresaId = useAppStore((s) => s.activeCompanyId);
   const [busca, setBusca] = useState("");
   const [open, setOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [equipeId, setEquipeId] = useState("");
+  const [usuarioId, setUsuarioId] = useState("");
   const [editando, setEditando] = useState<Physiotherapist | null>(null);
 
   const filtrados = useMemo(() => {
@@ -47,12 +51,14 @@ export default function Fisioterapeutas() {
   function abrirNovo() {
     setEditando(null);
     setEquipeId("");
+    setUsuarioId("");
     setOpen(true);
   }
 
   function abrirEdicao(fisio: Physiotherapist) {
     setEditando(fisio);
     setEquipeId(fisio.team_id ?? "");
+    setUsuarioId(fisio.user_id ?? "");
     setOpen(true);
   }
 
@@ -63,6 +69,7 @@ export default function Fisioterapeutas() {
       full_name: String(form.get("full_name") ?? ""),
       professional_registry: String(form.get("professional_registry") ?? "") || null,
       team_id: equipeId || null,
+      user_id: usuarioId || null,
       company_id: empresaId,
     };
     setSalvando(true);
@@ -125,6 +132,23 @@ export default function Fisioterapeutas() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="flex flex-col gap-1.5 rounded-md border border-clinical-300 bg-clinical-50 p-3">
+                    <Label>Usuário vinculado (login)</Label>
+                    <Combobox
+                      value={usuarioId}
+                      onValueChange={setUsuarioId}
+                      options={perfis
+                        .filter((p) => !fisioterapeutas.some((f) => f.user_id === p.id && f.id !== editando?.id))
+                        .map((p) => ({ value: p.id, label: p.full_name, sublabel: p.email ?? undefined }))}
+                      placeholder="Buscar usuário…"
+                      searchPlaceholder="Nome ou e-mail…"
+                      emptyText="Nenhum usuário disponível — crie o login em Usuários e Permissões primeiro."
+                    />
+                    <p className="text-xs text-ink-soft">
+                      É esse vínculo que faz Minha Fila e o modo tablet funcionarem pra essa pessoa. Sem ele, ela
+                      não vê a própria fila ao logar.
+                    </p>
+                  </div>
                 </div>
                 <SheetFooter>
                   <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
@@ -162,6 +186,7 @@ export default function Fisioterapeutas() {
                 <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-soft">
                   <th className="px-4 py-3 font-medium">Fisioterapeuta</th>
                   <th className="px-4 py-3 font-medium">Equipe</th>
+                  <th className="px-4 py-3 font-medium">Login</th>
                   <th className="px-4 py-3 font-medium" />
                 </tr>
               </thead>
@@ -180,6 +205,13 @@ export default function Fisioterapeutas() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-ink-soft">{equipes.find((eq) => eq.id === f.team_id)?.name ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      {f.user_id ? (
+                        <Badge variant="recovery">Vinculado</Badge>
+                      ) : (
+                        <Badge variant="attention">Sem login</Badge>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button variant="ghost" size="icon" aria-label={`Editar ${f.full_name}`} onClick={() => abrirEdicao(f)}>

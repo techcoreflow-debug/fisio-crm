@@ -101,8 +101,11 @@ oposto do fluxo assistencial do dia a dia.
 - **Centros de Custo**: agrupam contratos/financeiro por área.
 - **Equipes**: agrupam fisioterapeutas.
 - **Fisioterapeutas**: cadastro da equipe assistencial. O campo
-  vinculando ao login (`user_id`) é o que faz **Minha Fila** e o modo
-  tablet funcionarem pra aquela pessoa.
+  **"Usuário vinculado (login)"** é o que faz **Minha Fila** e o modo
+  tablet funcionarem pra aquela pessoa — busca por nome ou e-mail entre
+  os usuários já criados; a tabela mostra "Vinculado" ou "Sem login" por
+  linha. Sem esse vínculo, o fisioterapeuta loga mas não vê a própria
+  fila.
 - **Procedimentos**: catálogo de código + nome + categoria (Motora,
   Respiratória, etc.) — a categoria alimenta os relatórios e painéis
   que separam por tipo de atendimento.
