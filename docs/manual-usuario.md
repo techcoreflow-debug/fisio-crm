@@ -92,11 +92,14 @@ oposto do fluxo assistencial do dia a dia.
 - **Hospitais** e **Clínicas**: onde a empresa presta serviço.
 - **Unidades**: alas dentro de um hospital (UTI, Enfermaria, etc.).
 - **Quartos**: agrupam leitos dentro de uma unidade.
-- **Leitos**: status (livre/ocupado/higienização). Sobe pra "ocupado"
-  sozinho quando vinculado a uma internação ativa, e pra "higienização"
-  quando essa internação recebe alta. Sair de "higienização" é manual —
-  não existe jeito automático de saber quando a limpeza física terminou,
-  então tem um botão "Concluir" no próprio leito.
+- **Leitos**: status (livre/ocupado/higienização), sempre calculado ao
+  vivo a partir de quem está de fato internado ali — não confia num
+  campo que possa ficar desatualizado no banco (e se achar um leito
+  ocupado sem internação de verdade, corrige sozinho ao carregar a
+  tela). Sobe pra "higienização" quando a internação recebe alta. Sair
+  de "higienização" é manual — não existe jeito automático de saber
+  quando a limpeza física terminou, então tem um botão "Concluir" no
+  próprio leito.
 - **Convênios**: operadoras (Unimed, Apas, etc.).
 - **Centros de Custo**: agrupam contratos/financeiro por área.
 - **Equipes**: agrupam fisioterapeutas.
@@ -173,14 +176,15 @@ ou **Nr. Atendimento**, e um botão "Só pendentes de hoje".
 
 ## Produção Diária
 
-Lançamento e listagem de procedimentos, com filtro por internação. Os
-campos de busca (internação, fisioterapeuta, procedimento) sempre pedem
-digitação — nenhum vem pré-selecionado, pra evitar lançar sem querer no
-primeiro item da lista. Cada lançamento tem **data e hora**, mostra o
-**Nr. Atendimento** da internação, o **código do procedimento**, e o
-status de conciliação (confirmado/não confirmado pelo Tasy). Editar e
-excluir só funcionam enquanto o lançamento **não foi confirmado** — depois
-disso, é o registro oficial e fica travado.
+Lançamento e listagem de procedimentos, com filtro por internação,
+**período (data de/até), unidade e convênio** — mesmo padrão de
+Pacientes Internados. Os campos de busca (internação, fisioterapeuta,
+procedimento) sempre pedem digitação — nenhum vem pré-selecionado, pra
+evitar lançar sem querer no primeiro item da lista. Cada lançamento tem
+**data e hora**, mostra o **Nr. Atendimento** da internação, o **código
+do procedimento**, e o status de conciliação (confirmado/não confirmado
+pelo Tasy). Editar e excluir só funcionam enquanto o lançamento **não
+foi confirmado** — depois disso, é o registro oficial e fica travado.
 
 ## Evolução Clínica
 

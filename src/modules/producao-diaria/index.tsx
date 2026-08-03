@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Combobox } from "@/components/ui/combobox";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Paginacao, usarPaginacao } from "@/components/shared/paginacao";
 import {
   Sheet,
@@ -27,6 +28,7 @@ import {
   useCompanies,
   useUnits,
   useHospitals,
+  useHealthInsurances,
   repository,
 } from "@/data/repository";
 import { useAppStore } from "@/store/app-store";
@@ -41,9 +43,14 @@ export default function ProducaoDiaria() {
   const procedimentos = useProcedures();
   const unidades = useUnits();
   const hospitais = useHospitals();
+  const convenios = useHealthInsurances();
 
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
+  const [filtroUnidade, setFiltroUnidade] = useState("todas");
+  const [filtroConvenio, setFiltroConvenio] = useState("todos");
+  const [periodoDe, setPeriodoDe] = useState("");
+  const [periodoAte, setPeriodoAte] = useState("");
   const [open, setOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [internacaoId, setInternacaoId] = useState(internacoes.find((i) => i.status === "internado")?.id ?? "");
@@ -162,13 +169,18 @@ export default function ProducaoDiaria() {
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    if (!termo) return producao;
     return producao.filter((p) => {
+      if (periodoDe && p.production_date < periodoDe) return false;
+      if (periodoAte && p.production_date > periodoAte) return false;
+      const internacao = internacoes.find((i) => i.id === p.admission_id);
+      if (filtroUnidade !== "todas" && internacao?.unit_id !== filtroUnidade) return false;
+      if (filtroConvenio !== "todos" && internacao?.health_insurance_id !== filtroConvenio) return false;
+      if (!termo) return true;
       const fisio = fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "";
       return nomePaciente(p.admission_id).toLowerCase().includes(termo) || fisio.toLowerCase().includes(termo);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busca, producao, fisioterapeutas]);
+  }, [busca, producao, fisioterapeutas, internacoes, filtroUnidade, filtroConvenio, periodoDe, periodoAte]);
 
   const { pagina: paginaAtual, totalPaginas, paginaValida } = usarPaginacao(filtrados, 25, pagina);
 
@@ -272,12 +284,45 @@ export default function ProducaoDiaria() {
       />
 
       <Card>
-        <div className="flex flex-col gap-4 border-b border-line p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative max-w-sm flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-            <Input value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} placeholder="Buscar por paciente ou fisioterapeuta…" className="pl-9" />
+        <div className="flex flex-col gap-3 border-b border-line p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+              <div className="relative max-w-sm flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
+                <Input value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} placeholder="Buscar por paciente ou fisioterapeuta…" className="pl-9" />
+              </div>
+              <Select value={filtroUnidade} onValueChange={(v) => { setFiltroUnidade(v); setPagina(1); }}>
+                <SelectTrigger className="sm:w-52"><SelectValue placeholder="Todas as unidades" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas as unidades</SelectItem>
+                  {unidades.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filtroConvenio} onValueChange={(v) => { setFiltroConvenio(v); setPagina(1); }}>
+                <SelectTrigger className="sm:w-48"><SelectValue placeholder="Todos os convênios" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os convênios</SelectItem>
+                  {convenios.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="whitespace-nowrap text-sm text-ink-soft">{filtrados.length} de {producao.length} lançamentos</p>
           </div>
-          <p className="text-sm text-ink-soft">{filtrados.length} de {producao.length} lançamentos</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-ink-soft">Data entre</span>
+            <Input type="date" value={periodoDe} onChange={(e) => { setPeriodoDe(e.target.value); setPagina(1); }} className="w-40" />
+            <span className="text-xs text-ink-soft">e</span>
+            <Input type="date" value={periodoAte} onChange={(e) => { setPeriodoAte(e.target.value); setPagina(1); }} className="w-40" />
+            {(periodoDe || periodoAte) && (
+              <Button variant="ghost" size="sm" onClick={() => { setPeriodoDe(""); setPeriodoAte(""); setPagina(1); }}>
+                Limpar período
+              </Button>
+            )}
+          </div>
         </div>
 
         {filtrados.length === 0 ? (

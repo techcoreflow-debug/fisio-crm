@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Plus, X, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,8 +46,42 @@ export default function Leitos() {
   const [editando, setEditando] = useState<Bed | null>(null);
 
   const totalLeitos = leitos.length;
-  const ocupados = leitos.filter((l) => l.status === "ocupado").length;
+
+  /**
+   * Status VISUAL de um leito — nunca lido direto do banco. Calculado ao
+   * vivo a partir de quem está de fato internado ali agora. Antes, a cor
+   * do card vinha de `leito.status` (gravado no banco) enquanto o texto
+   * "Ocupado" vinha de uma checagem separada contra internações ativas —
+   * as duas podiam ficar dessincronizadas (leito mostrando verde/livre
+   * com texto "Ocupado" em cima, por exemplo). Agora só existe uma fonte
+   * de verdade: se tem internação ativa nesse leito, é "ocupado", ponto.
+   */
+  function statusVisual(leito: Bed): "ocupado" | "higienizacao" | "livre" {
+    const temInternacaoAtiva = internacoes.some((i) => i.bed_id === leito.id && i.status === "internado");
+    if (temInternacaoAtiva) return "ocupado";
+    if (leito.status === "higienizacao") return "higienizacao";
+    return "livre";
+  }
+
+  const ocupados = leitos.filter((l) => statusVisual(l) === "ocupado").length;
   const quartosDaUnidade = quartos.filter((q) => q.unit_id === unidadeId);
+
+  // Autocorreção silenciosa: se o banco ainda diz "ocupado" mas não existe
+  // internação ativa de verdade nesse leito (resíduo de bugs antigos de
+  // sincronia, já corrigidos na origem), corrige sozinho — outras telas
+  // (ex.: seletor de leito livre em Nova Internação) leem esse campo
+  // direto do banco, então não basta corrigir só a exibição aqui.
+  useEffect(() => {
+    for (const leito of leitos) {
+      if (leito.status === "ocupado" && statusVisual(leito) === "livre") {
+        repository.beds.updateStatus(leito.id, "livre").catch(() => {
+          // silencioso de propósito — é uma correção oportunista, não uma
+          // ação que o usuário pediu; se falhar, tenta de novo no próximo render
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leitos, internacoes]);
 
   function abrirNovo(unidadePreselecionada?: string) {
     setEditando(null);
@@ -224,14 +258,15 @@ export default function Leitos() {
                     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
                       {leitosDoQuarto.map((leito) => {
                         const internacaoAtiva = internacoes.find((i) => i.bed_id === leito.id && i.status === "internado");
+                        const status = statusVisual(leito);
                         return (
                           <div
                             key={leito.id}
                             className={cn(
                               "group relative flex flex-col items-center justify-center gap-1 rounded-md border px-2 py-3 text-center",
-                              statusStyles[leito.status] ?? statusStyles.livre
+                              statusStyles[status]
                             )}
-                            title={statusLabel[leito.status] ?? leito.status}
+                            title={statusLabel[status]}
                           >
                             {!internacaoAtiva && (
                               <>
@@ -254,18 +289,15 @@ export default function Leitos() {
                               </>
                             )}
                             <span className="font-mono text-xs font-semibold">{leito.code}</span>
-                            {internacaoAtiva && <span className="truncate text-[11px] leading-tight">Ocupado</span>}
-                            {!internacaoAtiva && leito.status === "higienizacao" && (
-                              <>
-                                <span className="truncate text-[11px] leading-tight">Higienização</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleLiberarLeito(leito.id)}
-                                  className="mt-0.5 rounded-sm bg-attention-400 px-1.5 py-0.5 text-[10px] font-medium text-white hover:bg-attention-600"
-                                >
-                                  Concluir
-                                </button>
-                              </>
+                            <span className="truncate text-[11px] leading-tight">{statusLabel[status]}</span>
+                            {status === "higienizacao" && (
+                              <button
+                                type="button"
+                                onClick={() => handleLiberarLeito(leito.id)}
+                                className="mt-0.5 rounded-sm bg-attention-400 px-1.5 py-0.5 text-[10px] font-medium text-white hover:bg-attention-600"
+                              >
+                                Concluir
+                              </button>
                             )}
                           </div>
                         );

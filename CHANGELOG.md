@@ -20,6 +20,31 @@ Antes de subir um deploy:
 
 ---
 
+## v0.19.0 — 02/08/2026
+
+**Filtros em Produção Diária** — período (data de/até), unidade e
+convênio, no mesmo padrão de Pacientes Internados — além da busca por
+paciente/fisioterapeuta que já existia.
+
+**Leitos: visão corrigida de alocação/desalocação.** A cor do card vinha
+do campo `status` gravado no banco, enquanto o texto ("Ocupado") vinha de
+uma checagem separada contra internações ativas — as duas podiam
+dessincronizar (leito aparecendo verde/livre com texto "Ocupado" em
+cima, ou o oposto). Agora existe uma única fonte de verdade: o status
+visual é sempre calculado ao vivo a partir de quem está de fato internado
+naquele leito. Também adicionada uma **autocorreção silenciosa**: se o
+banco ainda disser "ocupado" pra um leito sem internação ativa de
+verdade (resíduo de bugs antigos já corrigidos na origem), a tela
+conserta sozinha ao carregar — importante porque outras telas (ex.:
+seletor de leito livre em Nova Internação) leem esse campo direto do
+banco.
+
+**Migration 0023** (grant explícito de `service_role` em todas as
+tabelas, corrige "permission denied for table profiles" na Edge Function
+`create-user`) incluída nesta entrega, como combinado.
+
+---
+
 ## v0.18.0 — 02/08/2026
 
 **Três bugs de sessão/login corrigidos:**
