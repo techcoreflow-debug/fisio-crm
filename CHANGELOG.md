@@ -20,6 +20,15 @@ Antes de subir um deploy:
 
 ---
 
+## v0.16.1 — 02/08/2026
+
+**Pacientes Internados mais enxuto pro fisioterapeuta** — o perfil
+fisioterapeuta (lançador) não vê mais a coluna "Código" (`IN-000123`,
+interno) nem o nome do hospital na listagem — só a unidade, que é o que
+importa pra saber pra onde ir. Admin/gestor continuam vendo tudo normal.
+
+---
+
 ## v0.16.0 — 02/08/2026
 
 **Convênio na lista impressa** — Pacientes Internados, "Gerar/imprimir
