@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { UserPlus, Users2 } from "lucide-react";
+import { UserPlus, Users2, Pencil, Trash2, KeyRound } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import {
   Sheet,
@@ -16,6 +17,7 @@ import {
   SheetFooter,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useProfiles, useUnassignedProfiles, useCompanies, useRolePermissions, repository } from "@/data/repository";
 import { useAuth } from "@/auth/auth-provider";
@@ -24,7 +26,7 @@ import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { moduleGroups } from "@/app/modules-registry";
 import { permissaoPadrao, ROLE_LABEL, TODOS_OS_ROLES, type Permissao } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
-import type { UserRole } from "@/types/domain";
+import type { UserRole, Profile } from "@/types/domain";
 
 const papelConfig: Record<UserRole, { label: string; variant: NonNullable<BadgeProps["variant"]> }> = {
   admin: { label: "Admin", variant: "critical" },
@@ -92,11 +94,11 @@ export default function UsuariosPermissoes() {
     setOpenCriarUsuario(true);
   }
 
-  /** Chama a Edge Function pra criar um único usuário — reaproveitada tanto pelo formulário simples quanto pelo lote. */
-  async function criarUsuario(email: string, password: string, fullName: string, companyId: string, role: UserRole) {
+  /** Chama a Edge Function pra qualquer ação (criar/excluir/trocar senha) — sempre a mesma checagem de admin e o mesmo tratamento de erro. */
+  async function chamarGerenciarUsuario(body: Record<string, unknown>) {
     const { data: sessao } = await supabase.auth.getSession();
     const { data, error } = await supabase.functions.invoke("create-user", {
-      body: { email, password, fullName, companyId, role },
+      body,
       headers: { Authorization: `Bearer ${sessao.session?.access_token ?? ""}` },
     });
     if (error) {
@@ -110,6 +112,10 @@ export default function UsuariosPermissoes() {
       throw new Error(mensagem);
     }
     if (data?.error) throw new Error(data.error);
+  }
+
+  async function criarUsuario(email: string, password: string, fullName: string, companyId: string, role: UserRole) {
+    await chamarGerenciarUsuario({ action: "create", email, password, fullName, companyId, role });
   }
 
   async function handleCriarUsuario(e: React.FormEvent<HTMLFormElement>) {
@@ -134,6 +140,72 @@ export default function UsuariosPermissoes() {
     }
   }
 
+  // --- Editar usuário existente ---
+  const [openEditar, setOpenEditar] = useState(false);
+  const [editando, setEditando] = useState<Profile | null>(null);
+  const [nomeEditar, setNomeEditar] = useState("");
+  const [papelEditar, setPapelEditar] = useState<UserRole>("fisioterapeuta");
+  const [empresaEditar, setEmpresaEditar] = useState("");
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+
+  function abrirEditar(p: Profile) {
+    setEditando(p);
+    setNomeEditar(p.full_name);
+    setPapelEditar(p.role);
+    setEmpresaEditar(p.company_id ?? "");
+    setOpenEditar(true);
+  }
+
+  async function handleSalvarEdicao(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editando) return;
+    setSalvandoEdicao(true);
+    try {
+      await repository.profiles.update(editando.id, {
+        full_name: nomeEditar,
+        role: papelEditar,
+        company_id: empresaEditar || undefined,
+      });
+      notificarSucesso("Usuário atualizado.");
+      setOpenEditar(false);
+    } catch (erro) {
+      notificarErro("Não foi possível salvar as alterações", erro);
+    } finally {
+      setSalvandoEdicao(false);
+    }
+  }
+
+  // --- Excluir usuário ---
+  async function handleExcluirUsuario(p: Profile) {
+    if (!window.confirm(`Excluir "${p.full_name}" de vez? A pessoa não vai mais conseguir logar. Não pode ser desfeito.`)) return;
+    try {
+      await chamarGerenciarUsuario({ action: "delete", userId: p.id });
+      notificarSucesso(`"${p.full_name}" excluído.`);
+    } catch (erro) {
+      notificarErro("Não foi possível excluir", erro);
+    }
+  }
+
+  // --- Trocar senha de outro usuário ---
+  const [openTrocarSenha, setOpenTrocarSenha] = useState<Profile | null>(null);
+  const [salvandoSenha, setSalvandoSenha] = useState(false);
+
+  async function handleTrocarSenhaUsuario(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!openTrocarSenha) return;
+    const form = new FormData(e.currentTarget);
+    const novaSenha = String(form.get("nova_senha") ?? "");
+    setSalvandoSenha(true);
+    try {
+      await chamarGerenciarUsuario({ action: "reset-password", userId: openTrocarSenha.id, password: novaSenha });
+      notificarSucesso(`Senha de "${openTrocarSenha.full_name}" trocada.`);
+      setOpenTrocarSenha(null);
+    } catch (erro) {
+      notificarErro("Não foi possível trocar a senha", erro);
+    } finally {
+      setSalvandoSenha(false);
+    }
+  }
   // --- Criação em lote ---
   function normalizarSemAcento(texto: string) {
     return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -406,6 +478,7 @@ export default function UsuariosPermissoes() {
                   <th className="px-4 py-3 font-medium">Usuário</th>
                   <th className="px-4 py-3 font-medium">Papel</th>
                   <th className="px-4 py-3 font-medium">Desde</th>
+                  <th className="px-4 py-3 font-medium" />
                 </tr>
               </thead>
               <tbody>
@@ -441,6 +514,23 @@ export default function UsuariosPermissoes() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-ink-soft">{new Date(p.created_at).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-4 py-3 text-right">
+                      {meuPerfil?.is_platform_admin && !p.is_platform_admin && (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" aria-label={`Editar ${p.full_name}`} onClick={() => abrirEditar(p)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" aria-label={`Trocar senha de ${p.full_name}`} onClick={() => setOpenTrocarSenha(p)}>
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+                          {p.id !== meuPerfil.id && (
+                            <Button variant="ghost" size="icon" aria-label={`Excluir ${p.full_name}`} onClick={() => handleExcluirUsuario(p)}>
+                              <Trash2 className="h-4 w-4 text-critical-400" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -507,6 +597,72 @@ export default function UsuariosPermissoes() {
           </div>
         </CardContent>
       </Card>
+
+      <Sheet open={openEditar} onOpenChange={setOpenEditar}>
+        <SheetContent>
+          <form className="flex h-full flex-col" onSubmit={handleSalvarEdicao}>
+            <SheetHeader>
+              <SheetTitle>Editar usuário</SheetTitle>
+              <SheetDescription>{editando?.email}</SheetDescription>
+            </SheetHeader>
+            <div className="flex flex-1 flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="nome_editar">Nome completo</Label>
+                <Input id="nome_editar" value={nomeEditar} onChange={(e) => setNomeEditar(e.target.value)} required />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Empresa</Label>
+                <Select value={empresaEditar} onValueChange={setEmpresaEditar}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
+                  <SelectContent>
+                    {empresas.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Papel</Label>
+                <Select value={papelEditar} onValueChange={(v) => setPapelEditar(v as UserRole)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {TODOS_OS_ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <SheetFooter>
+              <Button type="button" variant="secondary" onClick={() => setOpenEditar(false)}>Cancelar</Button>
+              <Button type="submit" disabled={salvandoEdicao || !nomeEditar || !empresaEditar}>
+                {salvandoEdicao ? "Salvando…" : "Salvar alterações"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      <Dialog open={openTrocarSenha !== null} onOpenChange={(v) => !v && setOpenTrocarSenha(null)}>
+        <DialogContent>
+          <form onSubmit={handleTrocarSenhaUsuario}>
+            <DialogHeader>
+              <DialogTitle>Trocar senha</DialogTitle>
+              <DialogDescription>{openTrocarSenha?.full_name} — a pessoa passa a usar essa senha no próximo login.</DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-4 py-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="nova_senha">Nova senha</Label>
+                <PasswordInput id="nova_senha" name="nova_senha" required minLength={6} placeholder="Mínimo 6 caracteres" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="secondary" onClick={() => setOpenTrocarSenha(null)}>Cancelar</Button>
+              <Button type="submit" disabled={salvandoSenha}>{salvandoSenha ? "Salvando…" : "Trocar senha"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

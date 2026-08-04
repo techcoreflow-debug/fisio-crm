@@ -20,6 +20,27 @@ Antes de subir um deploy:
 
 ---
 
+## v0.23.0 — 03/08/2026
+
+**Admin InovareTech pode editar, excluir e trocar a senha de outros
+usuários** — em Usuários e Permissões, cada linha (menos a do próprio
+admin InovareTech) ganhou três ações:
+
+- **Editar**: nome, empresa e papel — direto, sem precisar de Edge
+  Function (o admin já tem permissão de banco pra isso).
+- **Trocar senha**: define uma senha nova pra qualquer usuário, sem
+  precisar saber a antiga — usa o mesmo campo com "olhinho" do resto do
+  sistema.
+- **Excluir**: apaga o usuário de vez (login e tudo) — não dá pra
+  excluir a própria conta por aqui, de propósito.
+
+As duas últimas exigiram estender a Edge Function `create-user` (agora
+aceita um campo `action`: `create` / `delete` / `reset-password`) — **é
+preciso publicar essa versão nova da função** (mesmo comando de antes:
+copia o código novo no editor do Supabase e clica em Deploy).
+
+---
+
 ## v0.22.0 — 03/08/2026
 
 **Leitos reorganizado em seções — Ocupados, Em Higienização e Livres**,

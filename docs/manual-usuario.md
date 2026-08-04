@@ -314,6 +314,11 @@ lista de pendentes. **"Criar em lote"** faz o mesmo pra vários de uma
 vez — cola os nomes completos (um por linha), o e-mail é gerado sozinho
 (`primeiro.ultimo@dominio`).
 
+Cada usuário (menos o próprio admin InovareTech) também pode ser
+**editado** (nome, empresa, papel), ter a **senha trocada** por um
+admin (sem precisar da senha antiga) ou ser **excluído** de vez — tudo
+direto na listagem.
+
 Qualquer usuário troca a própria senha depois, pelo menu de usuário
 (ícone de chave, tanto no desktop quanto no modo tablet).
 
