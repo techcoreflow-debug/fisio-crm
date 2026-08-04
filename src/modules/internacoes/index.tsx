@@ -694,98 +694,76 @@ export default function Internacoes() {
             <p className="text-sm text-ink-soft">Ajuste os filtros ou registre uma nova internação.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-soft">
-                  <th className="w-8 px-4 py-3" />
-                  <th className="px-4 py-3 font-medium">Nr. Atendimento</th>
-                  <th className="px-4 py-3 font-medium">Paciente</th>
-                  <th className="px-4 py-3 font-medium">Diagnóstico</th>
-                  <th className="px-4 py-3 font-medium">{podeAdministrarInternacao ? "Hospital / Unidade" : "Unidade"}</th>
-                  <th className="px-4 py-3 font-medium">Leito</th>
-                  <th className="px-4 py-3 font-medium">Convênio</th>
-                  <th className="px-4 py-3 font-medium">Entrada</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Hoje</th>
-                  <th className="px-4 py-3 font-medium" />
-                </tr>
-              </thead>
-              <tbody>
-                {paginaAtual.map((i) => (
-                  <tr key={i.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selecionados.has(i.id)}
-                        onChange={() => toggleSelecionado(i.id)}
-                        className="h-4 w-4 rounded border-line-strong accent-clinical-500"
-                      />
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">{i.external_reference ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-ink">{pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "—"}</p>
-                    </td>
-                    <td className="max-w-[220px] px-4 py-3 text-ink-soft">
-                      <p className="truncate" title={i.diagnostico ?? undefined}>{i.diagnostico || "—"}</p>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-ink-soft">
-                      {podeAdministrarInternacao ? (
-                        <>{hospitais.find((h) => h.id === i.hospital_id)?.name ?? "—"} · {unidades.find((u) => u.id === i.unit_id)?.name ?? "—"}</>
-                      ) : (
-                        unidades.find((u) => u.id === i.unit_id)?.name ?? "—"
-                      )}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-ink-soft">{leitos.find((l) => l.id === i.bed_id)?.code ?? "—"}</td>
-                    <td className="px-4 py-3 text-ink-soft">{convenios.find((c) => c.id === i.health_insurance_id)?.name ?? "—"}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">{formatarData(i.admission_date)} {i.admission_time?.slice(0, 5)}</td>
-                    <td className="px-4 py-3">
+          <div className="divide-y divide-line">
+            {paginaAtual.map((i) => {
+              const paciente = pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "—";
+              const leito = leitos.find((l) => l.id === i.bed_id);
+              const quarto = quartos.find((q) => q.id === leito?.room_id);
+              const unidade = unidades.find((u) => u.id === i.unit_id)?.name ?? "—";
+              const hospital = hospitais.find((h) => h.id === i.hospital_id)?.name ?? "—";
+              const convenio = convenios.find((c) => c.id === i.health_insurance_id)?.name ?? "—";
+              return (
+                <div key={i.id} className="flex items-start gap-3 px-4 py-3.5 hover:bg-surface-sunken/60">
+                  <input
+                    type="checkbox"
+                    checked={selecionados.has(i.id)}
+                    onChange={() => toggleSelecionado(i.id)}
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-line-strong accent-clinical-500"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <p className="font-medium text-ink">{paciente}</p>
                       <Badge variant={statusConfig[i.status as StatusInternacao]?.variant ?? "neutral"}>
                         {statusConfig[i.status as StatusInternacao]?.label ?? i.status}
                       </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      {i.status === "internado" ? (
-                        internacoesComAtendimentoHoje.has(i.id) ? (
+                      {i.status === "internado" &&
+                        (internacoesComAtendimentoHoje.has(i.id) ? (
                           <Badge variant="recovery">Em atendimento</Badge>
                         ) : (
                           <Badge variant="attention">
                             <AlertTriangle className="h-3 w-3" /> Pendente
                           </Badge>
-                        )
-                      ) : (
-                        <span className="text-ink-soft">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {podeAdministrarInternacao && (
-                          <Button variant="ghost" size="icon" aria-label="Editar internação" title="Editar internação" onClick={() => abrirEdicao(i)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {i.status === "internado" && (
-                          <>
-                            <Button variant="ghost" size="sm" onClick={() => abrirLancarProcedimento(i)} title="Lançar procedimento">
-                              <ClipboardPlus className="h-3.5 w-3.5" /> + Procedimento
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => abrirFluxoAlta(i)} title="Dar alta">
-                              <LogOut className="h-3.5 w-3.5" /> Alta
-                            </Button>
-                          </>
-                        )}
-                        {podeExcluirInternacao && (
-                          <DeleteButton
-                            itemLabel={`internação de ${pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "—"}`}
-                            onConfirm={() => repository.admissions.remove(i.id)}
-                          />
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        ))}
+                    </div>
+                    {/* Linha 2: tudo que era coluna separada, compactado — o nome nunca mais disputa espaço com isso */}
+                    <p className="mt-1 truncate text-xs text-ink-soft" title={`${hospital} · ${unidade}`}>
+                      <span className="font-mono">{i.external_reference ?? "—"}</span>
+                      {" · "}
+                      {podeAdministrarInternacao ? `${hospital} · ${unidade}` : unidade}
+                      {quarto && <> · Quarto {quarto.code}</>}
+                      {leito && <> · Leito {leito.code}</>}
+                      {" · "}{convenio}
+                      {" · Entrada "}{formatarData(i.admission_date)} {i.admission_time?.slice(0, 5)}
+                    </p>
+                    {i.diagnostico && (
+                      <p className="mt-0.5 truncate text-xs italic text-ink-soft/80" title={i.diagnostico}>
+                        Dx: {i.diagnostico}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {podeAdministrarInternacao && (
+                      <Button variant="ghost" size="icon" aria-label="Editar internação" title="Editar internação" onClick={() => abrirEdicao(i)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {i.status === "internado" && (
+                      <>
+                        <Button variant="ghost" size="sm" onClick={() => abrirLancarProcedimento(i)} title="Lançar procedimento">
+                          <ClipboardPlus className="h-3.5 w-3.5" /> + Procedimento
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => abrirFluxoAlta(i)} title="Dar alta">
+                          <LogOut className="h-3.5 w-3.5" /> Alta
+                        </Button>
+                      </>
+                    )}
+                    {podeExcluirInternacao && (
+                      <DeleteButton itemLabel={`internação de ${paciente}`} onConfirm={() => repository.admissions.remove(i.id)} />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
         <Paginacao

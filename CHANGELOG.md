@@ -20,6 +20,30 @@ Antes de subir um deploy:
 
 ---
 
+## v0.28.0 — 04/08/2026
+
+**Pacientes Internados redesenhado — de tabela pra lista em cartão.** A
+tabela original tinha colunas demais brigando por espaço: o nome do
+paciente quebrava em 2+ linhas, e mesmo assim faltava espaço pra
+mostrar tudo (Nr. Atendimento, hospital/unidade, leito, convênio,
+entrada, status, diagnóstico). Redesenhado assim:
+
+- **Linha 1**: nome do paciente em destaque + status + "Em atendimento"/"Pendente" do dia
+- **Linha 2** (menor, cinza): Nr. Atendimento · Hospital/Unidade · Quarto
+  · Leito · Convênio · Entrada — tudo numa linha compacta só, sem
+  disputar espaço com o nome
+- **Linha 3** (se tiver): diagnóstico, truncado com o texto completo ao
+  passar o mouse
+
+O nome nunca mais quebra linha por falta de espaço, e nenhuma
+informação foi removida — só reorganizada por prioridade visual. Todas
+as ações (editar, +Procedimento, Alta, excluir) e a seleção por
+checkbox continuam funcionando exatamente igual.
+
+Sem migration — só visual.
+
+---
+
 ## v0.27.0 — 04/08/2026
 
 **Botões mais enxutos em Pacientes Internados** — "Dar alta" virou
