@@ -20,6 +20,20 @@ Antes de subir um deploy:
 
 ---
 
+## v0.28.1 — 04/08/2026
+
+**Recuperação automática de deploy novo.** Depois de eu publicar uma
+versão nova, quem já estava com o app aberto podia ver "Failed to fetch
+dynamically imported module" ao navegar — a página antiga em cache
+tentando carregar um arquivo de tela que não existe mais no servidor
+(o build novo troca os nomes). Agora, quando isso acontece, o app
+recarrega a página sozinho (uma vez só) em vez de mostrar erro — resolve
+sem precisar pedir pra todo mundo dar F5 a cada entrega.
+
+Sem migration — só código.
+
+---
+
 ## v0.28.0 — 04/08/2026
 
 **Pacientes Internados redesenhado — de tabela pra lista em cartão.** A
