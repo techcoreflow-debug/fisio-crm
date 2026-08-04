@@ -20,6 +20,27 @@ Antes de subir um deploy:
 
 ---
 
+## v0.27.0 — 04/08/2026
+
+**Botões mais enxutos em Pacientes Internados** — "Dar alta" virou
+**"Alta"**, "Lançar procedimento" virou **"+ Procedimento"** — mesma
+ação, ícone e comportamento, só o texto mais curto (com tooltip ao
+passar o mouse, pra não perder clareza). Botão de editar também ganhou
+tooltip.
+
+**Fisioterapeuta pode escolher entre layout tablet e PC.** Antes, o
+perfil fisioterapeuta sempre caía no modo tablet (sem sidebar,
+navegação por ícones). Agora tem um botão pra trocar pro layout padrão
+(o mesmo dos outros perfis) — ícone de monitor no cabeçalho do tablet,
+ou "Usar layout tablet" no menu do usuário quando já estiver no padrão.
+A escolha fica salva **por aparelho** (não por conta), então o tablet do
+plantão e o PC do escritório guardam preferências independentes — do
+jeito que faz sentido pra quem usa os dois.
+
+Sem migration — só código.
+
+---
+
 ## v0.26.0 — 04/08/2026
 
 **Bug corrigido — leito não aparecia pra selecionar.** Internações e

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, Search, Bell, ChevronsUpDown, LogOut, Settings, Moon, Sun, ShieldCheck, KeyRound } from "lucide-react";
+import { Menu, Search, Bell, ChevronsUpDown, LogOut, Settings, Moon, Sun, ShieldCheck, KeyRound, Tablet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/store/app-store";
 import { useCompanies } from "@/data/repository";
@@ -35,6 +35,7 @@ export function Topbar() {
   const toggleTheme = useAppStore((s) => s.toggleTheme);
   const companies = useCompanies();
   const { profile, signOut } = useAuth();
+  const setModoExibicaoFisio = useAppStore((s) => s.setModoExibicaoFisio);
   const navigate = useNavigate();
 
   const activeCompany = companies.find((c) => c.id === activeCompanyId) ?? companies[0];
@@ -158,6 +159,11 @@ export function Topbar() {
             <DropdownMenuItem onSelect={() => setOpenTrocarSenha(true)}>
               <KeyRound className="h-4 w-4" /> Trocar senha
             </DropdownMenuItem>
+            {profile?.role === "fisioterapeuta" && !profile.is_platform_admin && (
+              <DropdownMenuItem onSelect={() => setModoExibicaoFisio("tablet")}>
+                <Tablet className="h-4 w-4" /> Usar layout tablet
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onSelect={handleSignOut}>
               <LogOut className="h-4 w-4" /> Sair
             </DropdownMenuItem>

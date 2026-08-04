@@ -35,8 +35,9 @@ export function AppShell() {
   }, [profile, companies, activeCompanyId, setActiveCompanyId]);
 
   const ehFisioterapeuta = profile?.role === "fisioterapeuta" && !profile.is_platform_admin;
+  const modoExibicaoFisio = useAppStore((s) => s.modoExibicaoFisio);
 
-  if (ehFisioterapeuta) {
+  if (ehFisioterapeuta && modoExibicaoFisio === "tablet") {
     return (
       <TabletShell>
         <Outlet />

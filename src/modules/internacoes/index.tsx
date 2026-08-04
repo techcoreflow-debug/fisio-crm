@@ -760,17 +760,17 @@ export default function Internacoes() {
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         {podeAdministrarInternacao && (
-                          <Button variant="ghost" size="icon" aria-label="Editar internação" onClick={() => abrirEdicao(i)}>
+                          <Button variant="ghost" size="icon" aria-label="Editar internação" title="Editar internação" onClick={() => abrirEdicao(i)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
                         )}
                         {i.status === "internado" && (
                           <>
-                            <Button variant="ghost" size="sm" onClick={() => abrirLancarProcedimento(i)}>
-                              <ClipboardPlus className="h-3.5 w-3.5" /> Lançar procedimento
+                            <Button variant="ghost" size="sm" onClick={() => abrirLancarProcedimento(i)} title="Lançar procedimento">
+                              <ClipboardPlus className="h-3.5 w-3.5" /> + Procedimento
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => abrirFluxoAlta(i)}>
-                              <LogOut className="h-3.5 w-3.5" /> Dar alta
+                            <Button variant="ghost" size="sm" onClick={() => abrirFluxoAlta(i)} title="Dar alta">
+                              <LogOut className="h-3.5 w-3.5" /> Alta
                             </Button>
                           </>
                         )}

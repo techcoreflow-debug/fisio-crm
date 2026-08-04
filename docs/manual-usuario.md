@@ -176,9 +176,9 @@ Atendimento.
 - **Excluir internação** (só papel admin, de empresa ou InovareTech):
   bloqueia se já tiver produção, evolução, fila ou faturamento
   lançado — mesma proteção do resto do sistema.
-- **Lançar procedimento**: direto na linha, sem precisar ir em Produção
+- **Lançar procedimento** ("+ Procedimento"): direto na linha, sem precisar ir em Produção
   Diária.
-- **Dar alta**: sempre pede confirmação explícita, mostrando se já tem
+- **Dar alta** ("Alta"): sempre pede confirmação explícita, mostrando se já tem
   procedimento lançado hoje ou não. Pede **data e hora exatas**. Se não
   houver nenhum procedimento lançado na data da alta, **bloqueia** e
   pergunta se houve atendimento antes de sair — obriga lançar na hora ou
@@ -371,3 +371,9 @@ pra usar com o dedo em tablet, na correria do plantão. As abas mostradas
 se ajustam sozinhas conforme as permissões daquele papel — se um admin
 liberar mais acesso, a barra ganha mais abas sem precisar mexer em
 código.
+
+**Dá pra trocar pro layout padrão** (o mesmo dos outros perfis) —
+ícone de monitor no cabeçalho do modo tablet, ou "Usar layout tablet"
+no menu do usuário quando já estiver no padrão. A escolha fica salva
+**por aparelho**, não por conta — o tablet do plantão e o PC do
+escritório guardam preferências independentes.

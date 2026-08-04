@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Activity, LogOut, KeyRound } from "lucide-react";
+import { Activity, LogOut, KeyRound, Monitor } from "lucide-react";
 import { moduleGroups } from "@/app/modules-registry";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/auth/auth-provider";
+import { useAppStore } from "@/store/app-store";
 import { useRolePermissions } from "@/data/repository";
 import { permissaoPadrao } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
@@ -30,6 +31,7 @@ const ROTULO_CURTO: Record<string, string> = {
 
 export function TabletShell({ children }: { children: React.ReactNode }) {
   const { profile, signOut } = useAuth();
+  const setModoExibicaoFisio = useAppStore((s) => s.setModoExibicaoFisio);
   const permissoes = useRolePermissions();
 
   function podeVer(slug: string) {
@@ -78,6 +80,14 @@ export function TabletShell({ children }: { children: React.ReactNode }) {
           <span className="font-display text-base font-semibold tracking-tight text-ink">inovare.fisio</span>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => setModoExibicaoFisio("desktop")}
+            className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-ink-soft hover:bg-surface-sunken"
+            aria-label="Usar layout PC"
+            title="Usar layout PC"
+          >
+            <Monitor className="h-4 w-4" />
+          </button>
           <button
             onClick={() => setOpenTrocarSenha(true)}
             className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-ink-soft hover:bg-surface-sunken"
