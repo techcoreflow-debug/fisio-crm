@@ -20,6 +20,18 @@ Antes de subir um deploy:
 
 ---
 
+## v0.25.0 — 04/08/2026
+
+**Diagnóstico da internação** — campo de texto livre, no formulário de
+internação (Internações e Novo Atendimento), logo abaixo do Nr.
+Atendimento. Aparece em Pacientes Internados **logo após o nome do
+paciente** (truncado, com o texto completo ao passar o mouse), e é uma
+opção a mais na lista impressa. A coluna Hospital/Unidade ficou mais
+compacta (uma linha só, fonte menor) pra abrir espaço pro diagnóstico.
+Migration `0025` (`admissions.diagnostico`).
+
+---
+
 ## v0.24.0 — 04/08/2026
 
 **Ordenação em Pacientes Internados** — por Unidade (padrão agora),

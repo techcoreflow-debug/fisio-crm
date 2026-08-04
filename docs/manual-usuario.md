@@ -170,6 +170,9 @@ Atendimento.
   internação no Tasy, usado como **chave da conciliação** (ver seção
   própria). Uma internação pode ter vários procedimentos em várias datas
   enquanto durar, todos sob o mesmo Nr. Atendimento.
+- **Diagnóstico**: texto livre, também preenchido ao criar a internação —
+  aparece logo após o nome do paciente na listagem, e é uma opção a mais
+  na lista impressa.
 - **Lançar procedimento**: direto na linha, sem precisar ir em Produção
   Diária.
 - **Dar alta**: sempre pede confirmação explícita, mostrando se já tem

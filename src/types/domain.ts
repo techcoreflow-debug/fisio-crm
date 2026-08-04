@@ -174,6 +174,7 @@ export interface Admission {
   confirmou_sem_atendimento_alta: boolean;
   status: string;
   external_reference: string | null;
+  diagnostico: string | null;
   created_at: string;
 }
 

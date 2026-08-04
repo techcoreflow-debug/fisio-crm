@@ -63,6 +63,7 @@ export default function NovoAtendimento() {
   const [quartoInlineId, setQuartoInlineId] = useState("");
   const [convenioInternacaoId, setConvenioInternacaoId] = useState("");
   const [nrAtendimento, setNrAtendimento] = useState("");
+  const [diagnostico, setDiagnostico] = useState("");
   const [internacaoCriada, setInternacaoCriada] = useState<Admission | null>(null);
 
   const [fisioId, setFisioId] = useState("");
@@ -91,6 +92,7 @@ export default function NovoAtendimento() {
     setQuartoInlineId("");
     setConvenioInternacaoId("");
     setNrAtendimento("");
+    setDiagnostico("");
     setInternacaoCriada(null);
     setFisioId("");
     setProcedimentoId("");
@@ -143,6 +145,7 @@ export default function NovoAtendimento() {
         admission_date: String(form.get("admission_date") ?? ""),
         admission_time: String(form.get("admission_time") ?? ""),
         external_reference: nrAtendimento.trim() || null,
+        diagnostico: diagnostico.trim() || null,
         company_id: pacienteAtual.company_id,
       });
       setInternacaoCriada(criada);
@@ -349,6 +352,17 @@ export default function NovoAtendimento() {
                 <p className="text-xs text-ink-soft">
                   ID da internação no Tasy — usado pra confrontar com a importação da produção depois.
                 </p>
+              </div>
+              <div className="flex flex-col gap-1.5 sm:w-96">
+                <Label htmlFor="diagnostico_novo">Diagnóstico</Label>
+                <textarea
+                  id="diagnostico_novo"
+                  value={diagnostico}
+                  onChange={(e) => setDiagnostico(e.target.value)}
+                  rows={2}
+                  placeholder="Ex.: Pós-operatório de artroplastia de quadril"
+                  className="rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm text-ink shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/40"
+                />
               </div>
               <div className="grid gap-3 sm:w-96 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">

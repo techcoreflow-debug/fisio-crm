@@ -85,6 +85,7 @@ export default function Internacoes() {
   const COLUNAS_LISTA = [
     { chave: "nrAtendimento", rotulo: "Nr. Atendimento" },
     { chave: "paciente", rotulo: "Paciente" },
+    { chave: "diagnostico", rotulo: "Diagnóstico" },
     { chave: "procedimento", rotulo: "Procedimento (hoje)" },
     { chave: "quarto", rotulo: "Quarto" },
     { chave: "leito", rotulo: "Leito" },
@@ -130,6 +131,7 @@ export default function Internacoes() {
     leitoId: "",
     convenioId: "",
     nrAtendimento: "",
+    diagnostico: "",
   });
   const open = rascunho.open;
   const editando = rascunho.editandoId ? internacoes.find((i) => i.id === rascunho.editandoId) ?? null : null;
@@ -144,6 +146,8 @@ export default function Internacoes() {
   const setLeitoId = (v: string) => setRascunho({ ...rascunho, leitoId: v });
   const setConvenioId = (v: string) => setRascunho({ ...rascunho, convenioId: v });
   const setNrAtendimento = (v: string) => setRascunho({ ...rascunho, nrAtendimento: v });
+  const diagnostico = rascunho.diagnostico;
+  const setDiagnostico = (v: string) => setRascunho({ ...rascunho, diagnostico: v });
 
   const leitosDaUnidade = leitos.filter(
     (l) => l.unit_id === unidadeId && (l.status === "livre" || l.id === editando?.bed_id)
@@ -197,6 +201,7 @@ export default function Internacoes() {
           switch (c.chave) {
             case "nrAtendimento": return i.external_reference ?? "—";
             case "paciente": return pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "—";
+            case "diagnostico": return i.diagnostico || "—";
             case "procedimento": return nomeProcedimentoHoje(i.id);
             case "quarto": {
               const leito = leitos.find((l) => l.id === i.bed_id);
@@ -336,6 +341,7 @@ export default function Internacoes() {
       leitoId: "",
       convenioId: "",
       nrAtendimento: "",
+      diagnostico: "",
     });
   }
 
@@ -349,6 +355,7 @@ export default function Internacoes() {
       leitoId: internacao.bed_id ?? "",
       convenioId: internacao.health_insurance_id ?? "",
       nrAtendimento: internacao.external_reference ?? "",
+      diagnostico: internacao.diagnostico ?? "",
     });
   }
 
@@ -375,6 +382,7 @@ export default function Internacoes() {
         admission_date: String(form.get("admission_date") ?? ""),
         admission_time: String(form.get("admission_time") ?? "") || "08:00",
         external_reference: nrAtendimento.trim() || null,
+        diagnostico: diagnostico.trim() || null,
         company_id: paciente.company_id,
       };
       if (editando) {
@@ -545,6 +553,17 @@ export default function Internacoes() {
                       produção. Sem ele, essa internação não concilia sozinha.
                     </p>
                   </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="diagnostico">Diagnóstico</Label>
+                    <textarea
+                      id="diagnostico"
+                      value={diagnostico}
+                      onChange={(e) => setDiagnostico(e.target.value)}
+                      rows={2}
+                      placeholder="Ex.: Pós-operatório de artroplastia de quadril"
+                      className="rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm text-ink shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/40"
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="admission_date">Data de entrada</Label>
@@ -675,6 +694,7 @@ export default function Internacoes() {
                   <th className="w-8 px-4 py-3" />
                   <th className="px-4 py-3 font-medium">Nr. Atendimento</th>
                   <th className="px-4 py-3 font-medium">Paciente</th>
+                  <th className="px-4 py-3 font-medium">Diagnóstico</th>
                   <th className="px-4 py-3 font-medium">{podeAdministrarInternacao ? "Hospital / Unidade" : "Unidade"}</th>
                   <th className="px-4 py-3 font-medium">Leito</th>
                   <th className="px-4 py-3 font-medium">Convênio</th>
@@ -699,14 +719,15 @@ export default function Internacoes() {
                     <td className="px-4 py-3">
                       <p className="font-medium text-ink">{pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "—"}</p>
                     </td>
-                    <td className="px-4 py-3 text-ink-soft">
-                      {podeAdministrarInternacao && (
-                        <>
-                          {hospitais.find((h) => h.id === i.hospital_id)?.name ?? "—"}
-                          <span className="block text-xs">{unidades.find((u) => u.id === i.unit_id)?.name ?? "—"}</span>
-                        </>
+                    <td className="max-w-[220px] px-4 py-3 text-ink-soft">
+                      <p className="truncate" title={i.diagnostico ?? undefined}>{i.diagnostico || "—"}</p>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-ink-soft">
+                      {podeAdministrarInternacao ? (
+                        <>{hospitais.find((h) => h.id === i.hospital_id)?.name ?? "—"} · {unidades.find((u) => u.id === i.unit_id)?.name ?? "—"}</>
+                      ) : (
+                        unidades.find((u) => u.id === i.unit_id)?.name ?? "—"
                       )}
-                      {!podeAdministrarInternacao && (unidades.find((u) => u.id === i.unit_id)?.name ?? "—")}
                     </td>
                     <td className="px-4 py-3 font-mono text-ink-soft">{leitos.find((l) => l.id === i.bed_id)?.code ?? "—"}</td>
                     <td className="px-4 py-3 text-ink-soft">{convenios.find((c) => c.id === i.health_insurance_id)?.name ?? "—"}</td>
