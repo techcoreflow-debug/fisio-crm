@@ -142,6 +142,20 @@ export async function contarDependentes(table: TableName, coluna: string, id: st
   return count ?? 0;
 }
 
+/**
+ * Apaga todas as linhas de `table` onde `coluna = valor` — usado pra
+ * exclusão "forçada" (cascata manual), quando um admin decide apagar um
+ * registro mesmo com dependentes. Ao contrário de `excluirLinhaPorEmpresa`,
+ * a coluna pode ser qualquer FK, não só company_id.
+ */
+export async function excluirLinhaPorColuna(table: TableName, coluna: string, valor: string): Promise<number> {
+  const { count, error: errorContar } = await supabase.from(table).select("id", { count: "exact", head: true }).eq(coluna, valor);
+  if (errorContar) throw new Error(`Falha ao contar ${table}: ${errorContar.message}`);
+  const { error } = await supabase.from(table).delete().eq(coluna, valor);
+  if (error) throw new Error(`Falha ao apagar ${table}: ${error.message}`);
+  return count ?? 0;
+}
+
 export async function registrarAuditoria(data: {
   company_id: string;
   action: "criado" | "editado" | "excluido" | "alta" | "importado" | "desfeito";

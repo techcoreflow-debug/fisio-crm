@@ -25,7 +25,7 @@ import { useAppStore } from "@/store/app-store";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { moduleGroups } from "@/app/modules-registry";
 import { permissaoPadrao, ROLE_LABEL, TODOS_OS_ROLES, type Permissao } from "@/lib/permissions";
-import { supabase } from "@/lib/supabase";
+import { chamarEdgeFunction } from "@/lib/edge-function";
 import type { UserRole, Profile } from "@/types/domain";
 
 const papelConfig: Record<UserRole, { label: string; variant: NonNullable<BadgeProps["variant"]> }> = {
@@ -96,22 +96,7 @@ export default function UsuariosPermissoes() {
 
   /** Chama a Edge Function pra qualquer ação (criar/excluir/trocar senha) — sempre a mesma checagem de admin e o mesmo tratamento de erro. */
   async function chamarGerenciarUsuario(body: Record<string, unknown>) {
-    const { data: sessao } = await supabase.auth.getSession();
-    const { data, error } = await supabase.functions.invoke("create-user", {
-      body,
-      headers: { Authorization: `Bearer ${sessao.session?.access_token ?? ""}` },
-    });
-    if (error) {
-      let mensagem = error.message;
-      try {
-        const corpo = await error.context?.json();
-        if (corpo?.error) mensagem = corpo.error;
-      } catch {
-        // resposta não veio em JSON — fica com a mensagem genérica mesmo
-      }
-      throw new Error(mensagem);
-    }
-    if (data?.error) throw new Error(data.error);
+    await chamarEdgeFunction("create-user", body);
   }
 
   async function criarUsuario(email: string, password: string, fullName: string, companyId: string, role: UserRole) {

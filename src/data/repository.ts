@@ -5,6 +5,7 @@ import {
   atualizarLinha,
   excluirLinha,
   excluirLinhaPorEmpresa,
+  excluirLinhaPorColuna,
   contarDependentes,
   registrarAuditoria,
   buscarOuCriarEmLote,
@@ -409,6 +410,31 @@ export const repository = {
       await bloquearSeTiverDependentes(id, [{ table: "admissions", coluna: "patient_id", rotulo: "internação(ões)" }], "este paciente");
       await excluirLinha("patients", id);
     },
+    /**
+     * Exclusão forçada — apaga o paciente e TUDO que depende dele
+     * (evoluções, produção, fila, faturamento, internações), em vez de
+     * bloquear. Uso deliberado e raro (Configurações → Exclusão
+     * avançada), não o botão normal de excluir da tela de Pacientes.
+     */
+    removeForcado: async (id: string): Promise<{ internacoes: number; producao: number; evolucoes: number }> => {
+      const { supabase } = await import("@/lib/supabase");
+      const { data: internacoesDoPaciente, error: errBusca } = await supabase.from("admissions").select("id").eq("patient_id", id);
+      if (errBusca) throw new Error(errBusca.message);
+      const idsInternacoes = (internacoesDoPaciente ?? []).map((a) => a.id as string);
+
+      let producaoApagada = 0;
+      let evolucoesApagadas = 0;
+      for (const admissionId of idsInternacoes) {
+        producaoApagada += await excluirLinhaPorColuna("daily_production", "admission_id", admissionId);
+        evolucoesApagadas += await excluirLinhaPorColuna("clinical_evolutions", "admission_id", admissionId);
+        await excluirLinhaPorColuna("patient_queue", "admission_id", admissionId);
+        await excluirLinhaPorColuna("billing_entries", "admission_id", admissionId);
+      }
+      await excluirLinhaPorColuna("patient_insurance_history", "patient_id", id);
+      await excluirLinhaPorColuna("admissions", "patient_id", id);
+      await excluirLinha("patients", id);
+      return { internacoes: idsInternacoes.length, producao: producaoApagada, evolucoes: evolucoesApagadas };
+    },
   },
 
   physiotherapists: {
@@ -559,6 +585,17 @@ export const repository = {
     remove: async (id: string): Promise<void> => {
       await bloquearSeTiverDependentes(id, [{ table: "daily_production", coluna: "procedure_id", rotulo: "lançamento(s) de produção" }], "este procedimento");
       await excluirLinha("procedures", id);
+    },
+    /**
+     * Exclusão forçada — apaga o procedimento e os lançamentos de
+     * produção que o usam. Apaga histórico de verdade (afeta relatórios
+     * já fechados), por isso fica em Configurações → Exclusão avançada,
+     * não no botão normal da tela de Procedimentos.
+     */
+    removeForcado: async (id: string): Promise<{ producao: number }> => {
+      const producaoApagada = await excluirLinhaPorColuna("daily_production", "procedure_id", id);
+      await excluirLinha("procedures", id);
+      return { producao: producaoApagada };
     },
   },
 

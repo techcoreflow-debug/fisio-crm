@@ -116,6 +116,7 @@ export default function Internacoes() {
   const [filtroEntradaAte, setFiltroEntradaAte] = useState("");
   const [apenasPendentes, setApenasPendentes] = useState(false);
   const [quartoInlineId, setQuartoInlineId] = useState("");
+  const [ordenarPor, setOrdenarPor] = useState<"unidade" | "paciente" | "entrada" | "nrAtendimento">("unidade");
   const [pagina, setPagina] = useState(1);
   const [salvando, setSalvando] = useState(false);
 
@@ -288,7 +289,7 @@ export default function Internacoes() {
 
   const filtradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    return internacoes.filter((i) => {
+    const resultado = internacoes.filter((i) => {
       if (filtroUnidade !== "todas" && i.unit_id !== filtroUnidade) return false;
       if (filtroStatus !== "todos" && i.status !== filtroStatus) return false;
       if (filtroEntradaDe && i.admission_date < filtroEntradaDe) return false;
@@ -302,7 +303,26 @@ export default function Internacoes() {
         (i.external_reference ?? "").toLowerCase().includes(termo)
       );
     });
-  }, [busca, filtroUnidade, filtroStatus, filtroEntradaDe, filtroEntradaAte, apenasPendentes, internacoes, pacientes, internacoesComAtendimentoHoje]);
+
+    const nomeUnidade = (unitId: string | null) => unidades.find((u) => u.id === unitId)?.name ?? "";
+    const nomePacienteDe = (i: (typeof internacoes)[number]) => pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "";
+
+    return [...resultado].sort((a, b) => {
+      switch (ordenarPor) {
+        case "paciente":
+          return nomePacienteDe(a).localeCompare(nomePacienteDe(b));
+        case "entrada":
+          return b.admission_date.localeCompare(a.admission_date);
+        case "nrAtendimento":
+          return (a.external_reference ?? "").localeCompare(b.external_reference ?? "");
+        case "unidade":
+        default: {
+          const cmp = nomeUnidade(a.unit_id).localeCompare(nomeUnidade(b.unit_id));
+          return cmp !== 0 ? cmp : nomePacienteDe(a).localeCompare(nomePacienteDe(b));
+        }
+      }
+    });
+  }, [busca, filtroUnidade, filtroStatus, filtroEntradaDe, filtroEntradaAte, apenasPendentes, internacoes, pacientes, internacoesComAtendimentoHoje, ordenarPor, unidades]);
 
   const { pagina: paginaAtual, totalPaginas, paginaValida } = usarPaginacao(filtradas, 25, pagina);
 
@@ -604,6 +624,16 @@ export default function Internacoes() {
                 Limpar período
               </Button>
             )}
+            <span className="ml-2 text-xs text-ink-soft">Ordenar por</span>
+            <Select value={ordenarPor} onValueChange={(v) => setOrdenarPor(v as typeof ordenarPor)}>
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unidade">Unidade</SelectItem>
+                <SelectItem value="paciente">Paciente (A-Z)</SelectItem>
+                <SelectItem value="entrada">Entrada (mais recente)</SelectItem>
+                <SelectItem value="nrAtendimento">Nr. Atendimento</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

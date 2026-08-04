@@ -162,7 +162,9 @@ ordem cronológica, tudo num só lugar.
 Lista de quem está sendo acompanhado pela equipe — a "lista do que tem a
 ser feito". Filtros por unidade, status (internado/alta/todos — alta
 fica **oculto por padrão**), período de entrada, busca por nome, código
-ou **Nr. Atendimento**, e um botão "Só pendentes de hoje".
+ou **Nr. Atendimento**, e um botão "Só pendentes de hoje". Ordenação por
+Unidade (padrão), Paciente (A-Z), Entrada (mais recente) ou Nr.
+Atendimento.
 
 - **Nr. Atendimento**: campo digitado ao criar a internação — é o ID da
   internação no Tasy, usado como **chave da conciliação** (ver seção
@@ -327,6 +329,12 @@ Qualquer usuário troca a própria senha depois, pelo menu de usuário
 Dados da empresa, preferências de notificação e o parâmetro de glosa —
 tudo salva de verdade no banco assim que você altera, sem botão "salvar"
 escondido que não faz nada.
+
+**Exclusão avançada** (admin de empresa ou admin InovareTech): o botão
+normal de excluir paciente/procedimento bloqueia se houver dados
+dependentes (paciente com internação, procedimento com lançamento) —
+proteção contra perda de dado. Aqui dá pra forçar, apagando junto tudo
+que depende. Sem volta depois de confirmar.
 
 ## Auditoria
 

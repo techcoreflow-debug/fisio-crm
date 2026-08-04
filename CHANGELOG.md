@@ -20,6 +20,30 @@ Antes de subir um deploy:
 
 ---
 
+## v0.24.0 — 04/08/2026
+
+**Ordenação em Pacientes Internados** — por Unidade (padrão agora),
+Paciente (A-Z), Entrada (mais recente) ou Nr. Atendimento.
+
+**Mensagem de erro mais clara ao gerenciar usuários.** O "Failed to
+send a request to the Edge Function" (ou variações genéricas do SDK)
+não dizia nada útil quando a requisição nem chegava na função — agora
+o app explica o motivo mais provável (função não publicada, ou
+problema de rede) em vez de repetir o texto técnico cru. Criado
+`src/lib/edge-function.ts`, um helper único pra chamar Edge Functions
+com essa mensagem melhor — reaproveitável em qualquer função futura.
+
+**Exclusão avançada, em Configurações** (admin de empresa ou admin
+InovareTech): excluir paciente ou procedimento **mesmo com dependências**
+— o botão normal de excluir continua bloqueando por segurança (proteção
+contra perda de dado), mas aqui dá pra forçar, apagando junto tudo que
+depende (internações, evoluções, produção, fila, faturamento — no caso
+do paciente; lançamentos de produção — no caso do procedimento). Ação
+clara e deliberadamente separada do fluxo normal, com confirmação
+explícita mostrando o que vai junto.
+
+---
+
 ## v0.23.0 — 03/08/2026
 
 **Admin InovareTech pode editar, excluir e trocar a senha de outros
