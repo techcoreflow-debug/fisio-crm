@@ -442,7 +442,8 @@ export const repository = {
       inserirLinha<Bed>("beds", data),
     update: async (id: string, patch: Partial<Pick<Bed, "unit_id" | "room_id" | "code" | "company_id">>): Promise<void> =>
       atualizarLinha("beds", id, patch),
-    updateStatus: async (id: string, status: string): Promise<void> => atualizarLinha("beds", id, { status }),
+    updateStatus: async (id: string, status: string): Promise<void> =>
+      atualizarLinha("beds", id, { status, higienizacao_desde: status === "higienizacao" ? new Date().toISOString() : null }),
     remove: async (id: string): Promise<void> => {
       const { supabase } = await import("@/lib/supabase");
       const { count } = await supabase
@@ -538,7 +539,9 @@ export const repository = {
         discharge_at: dischargeAtISO,
         confirmou_sem_atendimento_alta: semAtendimento,
       });
-      if (admissao.bed_id) await atualizarLinha("beds", admissao.bed_id, { status: "higienizacao" });
+      if (admissao.bed_id) {
+        await atualizarLinha("beds", admissao.bed_id, { status: "higienizacao", higienizacao_desde: new Date().toISOString() });
+      }
       await registrarAuditoria({
         company_id: admissao.company_id,
         action: "alta",

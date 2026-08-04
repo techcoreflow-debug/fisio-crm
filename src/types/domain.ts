@@ -154,6 +154,7 @@ export interface Bed {
   room_id: string | null;
   code: string;
   status: string;
+  higienizacao_desde: string | null;
   created_at: string;
 }
 

@@ -20,6 +20,33 @@ Antes de subir um deploy:
 
 ---
 
+## v0.22.0 — 03/08/2026
+
+**Leitos reorganizado em seções — Ocupados, Em Higienização e Livres**,
+cada uma com sua contagem. Filtro por hospital adicionado (além dos que
+já existiam: unidade, status, código, só-sem-quarto).
+
+**Higienização automática de 2h** — dar alta libera o leito pra
+higienização como sempre, mas agora, depois de **2 horas**, ele volta a
+ficar **livre sozinho**, sem precisar de ninguém clicar em nada (o botão
+"Liberar agora" continua existindo, pra quem quiser liberar antes do
+prazo). Enquanto está em higienização, o card mostra quanto tempo falta.
+Migration `0024` (`beds.higienizacao_desde`).
+
+**Pacientes Internados mais enxuto** — removida de vez a coluna
+"Código" (`IN-000123`, interno) pra todo mundo, não só pro fisioterapeuta
+— deixava a linha grande demais. O Nr. Atendimento (a referência que
+importa de verdade) continua.
+
+**Menu lateral recolhível** — botão no rodapé da sidebar (desktop) pra
+encolher pra só ícones, ganhando espaço de tela. Preferência salva no
+navegador, entre sessões.
+
+**Validado**: a pergunta de confirmação ao dar alta é o mesmo código pra
+todo mundo — nenhum papel pula essa etapa.
+
+---
+
 ## v0.21.0 — 03/08/2026
 
 **Quarto definido na hora, sem precisar ir em Leitos antes.** No

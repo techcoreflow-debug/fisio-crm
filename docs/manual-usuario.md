@@ -30,6 +30,9 @@ qualquer combinação de papel×módulo×ação (ver/criar/editar/excluir) na
 tela de **Permissões** (dentro de Usuários e Permissões), sem precisar
 de código novo.
 
+No desktop, o menu lateral tem um botão no rodapé pra recolher só pra
+ícones, ganhando espaço de tela — a preferência fica salva entre sessões.
+
 ## Primeiros passos (uma empresa nova)
 
 Ordem que funciona sem travar em nenhum cadastro-pré-requisito:
@@ -92,22 +95,20 @@ oposto do fluxo assistencial do dia a dia.
 - **Hospitais** e **Clínicas**: onde a empresa presta serviço.
 - **Unidades**: alas dentro de um hospital (UTI, Enfermaria, etc.).
 - **Quartos**: agrupam leitos dentro de uma unidade.
-- **Leitos**: status (livre/ocupado/higienização), sempre calculado ao
-  vivo a partir de quem está de fato internado ali — não confia num
-  campo que possa ficar desatualizado no banco (e se achar um leito
-  ocupado sem internação de verdade, corrige sozinho ao carregar a
-  tela). Sobe pra "higienização" quando a internação recebe alta. Sair
-  de "higienização" é manual — não existe jeito automático de saber
-  quando a limpeza física terminou, então tem um botão "Concluir" no
-  próprio leito. Filtros por código, unidade, status e "só sem quarto
-  vinculado". **O quarto de um paciente vem só do leito** (campo
-  "Quarto" ao cadastrar o leito) — se um leito não tem quarto vinculado,
-  nenhum paciente alocado nele mostra quarto em lugar nenhum do sistema;
-  esses leitos aparecem marcados "sem quarto" no próprio card. Não
-  precisa ir em Leitos pra resolver isso antes de internar alguém: se o
-  leito escolhido na hora da internação (em Internações ou Novo
-  Atendimento) ainda não tem quarto, um campo extra aparece ali mesmo
-  pra definir — e já grava direto no leito.
+- **Leitos**: organizado em três seções — **Ocupados**, **Em
+  Higienização** e **Livres**, cada uma com sua contagem. Status sempre
+  calculado ao vivo a partir de quem está de fato internado ali — não
+  confia num campo que possa ficar desatualizado no banco (e se achar um
+  leito ocupado sem internação de verdade, corrige sozinho ao carregar a
+  tela). Sobe pra "higienização" quando a internação recebe alta, e
+  depois de **2 horas** volta a ficar **livre sozinho** — sem precisar
+  de ninguém clicar em nada (tem um botão "Liberar agora" pra quem
+  quiser liberar antes do prazo, e o card mostra quanto tempo falta).
+  Filtros por código, hospital, unidade, status e "só sem quarto
+  vinculado". Não precisa ir em Leitos pra vincular um quarto antes de
+  internar alguém: se o leito escolhido na hora da internação (em
+  Internações ou Novo Atendimento) ainda não tem quarto, um campo extra
+  aparece ali mesmo pra definir — e já grava direto no leito.
 - **Convênios**: operadoras (Unimed, Apas, etc.).
 - **Centros de Custo**: agrupam contratos/financeiro por área.
 - **Equipes**: agrupam fisioterapeutas.

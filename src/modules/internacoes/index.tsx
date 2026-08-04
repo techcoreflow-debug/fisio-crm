@@ -643,7 +643,6 @@ export default function Internacoes() {
               <thead>
                 <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-soft">
                   <th className="w-8 px-4 py-3" />
-                  {podeAdministrarInternacao && <th className="px-4 py-3 font-medium">Código</th>}
                   <th className="px-4 py-3 font-medium">Nr. Atendimento</th>
                   <th className="px-4 py-3 font-medium">Paciente</th>
                   <th className="px-4 py-3 font-medium">{podeAdministrarInternacao ? "Hospital / Unidade" : "Unidade"}</th>
@@ -666,9 +665,6 @@ export default function Internacoes() {
                         className="h-4 w-4 rounded border-line-strong accent-clinical-500"
                       />
                     </td>
-                    {podeAdministrarInternacao && (
-                      <td className="px-4 py-3 font-mono text-xs text-ink-soft">IN-{String(i.admission_number).padStart(6, "0")}</td>
-                    )}
                     <td className="px-4 py-3 font-mono text-xs text-ink-soft">{i.external_reference ?? "—"}</td>
                     <td className="px-4 py-3">
                       <p className="font-medium text-ink">{pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "—"}</p>
