@@ -142,7 +142,6 @@ export default function Internacoes() {
   const nrAtendimento = rascunho.nrAtendimento;
   const setOpen = (v: boolean) => setRascunho({ ...rascunho, open: v });
   const setPacienteId = (v: string) => setRascunho({ ...rascunho, pacienteId: v });
-  const setUnidadeId = (v: string) => setRascunho({ ...rascunho, unidadeId: v });
   const setLeitoId = (v: string) => setRascunho({ ...rascunho, leitoId: v });
   const setConvenioId = (v: string) => setRascunho({ ...rascunho, convenioId: v });
   const setNrAtendimento = (v: string) => setRascunho({ ...rascunho, nrAtendimento: v });
@@ -488,7 +487,7 @@ export default function Internacoes() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label>Unidade</Label>
-                    <Select value={unidadeId} onValueChange={(v) => { setUnidadeId(v); setLeitoId(""); }}>
+                    <Select value={unidadeId} onValueChange={(v) => setRascunho({ ...rascunho, unidadeId: v, leitoId: "" })}>
                       <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
                       <SelectContent>
                         {unidades.map((u) => (

@@ -20,6 +20,26 @@ Antes de subir um deploy:
 
 ---
 
+## v0.25.1 — 04/08/2026
+
+**Bug crítico corrigido — mudar a Unidade na internação não gravava.**
+No formulário de internação (Internações), trocar a Unidade também
+precisava limpar o Leito selecionado — isso disparava duas atualizações
+seguidas no mesmo estado combinado (rascunho), e a segunda **apagava a
+mudança da primeira** antes de gravar (as duas partiam do mesmo "estado
+antigo", então só a última sobrevivia). Resultado: parecia que a Unidade
+tinha sido trocada na tela, mas ao salvar, voltava pro valor de antes.
+
+Corrigido combinando as duas mudanças numa única atualização. Conferido
+que não existe o mesmo padrão em nenhum outro lugar do sistema (Novo
+Atendimento e Leitos usam estados separados pra cada campo, não têm
+esse risco).
+
+Com isso corrigido, editar uma internação já existente volta a permitir
+trocar Unidade, Leito e Quarto normalmente.
+
+---
+
 ## v0.25.0 — 04/08/2026
 
 **Diagnóstico da internação** — campo de texto livre, no formulário de
