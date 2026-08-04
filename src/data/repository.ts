@@ -495,6 +495,26 @@ export const repository = {
   },
 
   admissions: {
+    /**
+     * Excluir internação — só pro papel admin (empresa ou InovareTech).
+     * Bloqueia se já tiver produção, evolução, fila ou faturamento
+     * lançado, igual o padrão do resto do sistema — evita apagar
+     * histórico por engano. Pra isso, é preciso ir em Configurações →
+     * Exclusão avançada.
+     */
+    remove: async (id: string): Promise<void> => {
+      await bloquearSeTiverDependentes(
+        id,
+        [
+          { table: "daily_production", coluna: "admission_id", rotulo: "lançamento(s) de produção" },
+          { table: "clinical_evolutions", coluna: "admission_id", rotulo: "evolução(ões) clínica(s)" },
+          { table: "patient_queue", coluna: "admission_id", rotulo: "item(ns) de fila" },
+          { table: "billing_entries", coluna: "admission_id", rotulo: "lançamento(s) de faturamento" },
+        ],
+        "esta internação"
+      );
+      await excluirLinha("admissions", id);
+    },
     create: async (
       data: Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "external_reference" | "diagnostico" | "company_id">
     ): Promise<Admission> => {

@@ -20,6 +20,35 @@ Antes de subir um deploy:
 
 ---
 
+## v0.26.0 — 04/08/2026
+
+**Bug corrigido — leito não aparecia pra selecionar.** Internações e
+Novo Atendimento filtravam leitos "livres" pelo campo `status` gravado
+no banco — o mesmo tipo de dessincronia que já corrigimos em Leitos
+podia deixar um leito preso como "ocupado" sem internação real, e ele
+simplesmente sumia da lista de opções. Agora os dois calculam
+disponibilidade ao vivo, igual Leitos já fazia.
+
+**Excluir internação — só pro papel admin** (empresa ou InovareTech).
+Bloqueia se já tiver produção, evolução, fila ou faturamento lançado
+(mesma proteção padrão do resto do sistema).
+
+**Exportar CSV em Produção Diária** — respeitando os filtros aplicados
+na hora (período, unidade, convênio, busca).
+
+**Filtro de período em Relatórios** — um seletor de período geral
+(De/Até) que vale pra Produção, Internações, Evoluções e Contas a
+receber (por competência). Ocupação de Leitos e Contratos a vencer
+continuam sempre "foto de agora", já que não fazem sentido filtrados
+por período passado.
+
+**Ainda pendente**: os dashboards da ONA — precisa dos indicadores
+específicos que a operação acompanha antes de reorganizar os relatórios
+em torno disso, pra não montar algo genérico que não serve pra
+acreditação de verdade.
+
+---
+
 ## v0.25.1 — 04/08/2026
 
 **Bug crítico corrigido — mudar a Unidade na internação não gravava.**

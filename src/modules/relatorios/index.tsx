@@ -39,18 +39,46 @@ function formatarData(iso: string | null) {
 }
 
 export default function Relatorios() {
-  const producao = useDailyProduction();
-  const internacoes = useAdmissions();
+  const producaoBruta = useDailyProduction();
+  const internacoesBruta = useAdmissions();
   const pacientes = usePatients();
   const fisioterapeutas = usePhysiotherapists();
   const procedimentos = useProcedures();
   const unidades = useUnits();
   const hospitais = useHospitals();
   const leitos = useBeds();
-  const evolucoes = useClinicalEvolutions();
+  const evolucoesBruta = useClinicalEvolutions();
   const contratos = useContracts();
   const convenios = useHealthInsurances();
-  const recebiveis = useReceivables();
+  const recebiveisBruta = useReceivables();
+
+  const [filtroPeriodoDe, setFiltroPeriodoDe] = useState("");
+  const [filtroPeriodoAte, setFiltroPeriodoAte] = useState("");
+
+  // Filtro de período — aplicado no dado de origem de cada relatório que
+  // tem uma data natural (produção, internações por entrada, evoluções,
+  // contas a receber por competência). Ocupação de leitos e contratos a
+  // vencer são "foto de agora", não fazem sentido filtrar por período.
+  const producao = useMemo(
+    () => producaoBruta.filter((p) => (!filtroPeriodoDe || p.production_date >= filtroPeriodoDe) && (!filtroPeriodoAte || p.production_date <= filtroPeriodoAte)),
+    [producaoBruta, filtroPeriodoDe, filtroPeriodoAte]
+  );
+  const internacoes = useMemo(
+    () => internacoesBruta.filter((i) => (!filtroPeriodoDe || i.admission_date >= filtroPeriodoDe) && (!filtroPeriodoAte || i.admission_date <= filtroPeriodoAte)),
+    [internacoesBruta, filtroPeriodoDe, filtroPeriodoAte]
+  );
+  const evolucoes = useMemo(
+    () =>
+      evolucoesBruta.filter((e) => {
+        const data = e.created_at.slice(0, 10);
+        return (!filtroPeriodoDe || data >= filtroPeriodoDe) && (!filtroPeriodoAte || data <= filtroPeriodoAte);
+      }),
+    [evolucoesBruta, filtroPeriodoDe, filtroPeriodoAte]
+  );
+  const recebiveis = useMemo(
+    () => recebiveisBruta.filter((r) => (!filtroPeriodoDe || r.competencia >= filtroPeriodoDe) && (!filtroPeriodoAte || r.competencia <= filtroPeriodoAte)),
+    [recebiveisBruta, filtroPeriodoDe, filtroPeriodoAte]
+  );
 
   function nomePaciente(admissionId: string | null) {
     const internacao = internacoes.find((i) => i.id === admissionId);
@@ -224,6 +252,24 @@ export default function Relatorios() {
         title="Relatórios"
         description="Relatórios gerados a partir dos dados reais desta empresa, exportáveis em CSV (abre direto no Excel e no Google Sheets)."
       />
+
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-2 pt-5">
+          <span className="text-sm font-medium text-ink">Período</span>
+          <Input type="date" value={filtroPeriodoDe} onChange={(e) => setFiltroPeriodoDe(e.target.value)} className="w-40" />
+          <span className="text-xs text-ink-soft">até</span>
+          <Input type="date" value={filtroPeriodoAte} onChange={(e) => setFiltroPeriodoAte(e.target.value)} className="w-40" />
+          {(filtroPeriodoDe || filtroPeriodoAte) && (
+            <Button variant="ghost" size="sm" onClick={() => { setFiltroPeriodoDe(""); setFiltroPeriodoAte(""); }}>
+              Limpar período
+            </Button>
+          )}
+          <p className="w-full text-xs text-ink-soft sm:w-auto sm:ml-2">
+            Vale pra Produção, Internações, Evoluções e Contas a receber (por competência). Ocupação de Leitos e
+            Contratos a vencer sempre mostram a foto de agora.
+          </p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { hojeLocalIso } from "@/lib/data-local";
-import { Search, Plus, ClipboardList, TriangleAlert, Pencil, Trash2 } from "lucide-react";
+import { Search, Plus, ClipboardList, TriangleAlert, Pencil, Trash2, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ import {
   repository,
 } from "@/data/repository";
 import { useAppStore } from "@/store/app-store";
+import { exportarCsv, type LinhaRelatorio } from "@/lib/csv";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import type { DailyProduction } from "@/types/domain";
 
@@ -182,6 +183,31 @@ export default function ProducaoDiaria() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busca, producao, fisioterapeutas, internacoes, filtroUnidade, filtroConvenio, periodoDe, periodoAte]);
 
+  function handleExportar() {
+    try {
+      const linhas: LinhaRelatorio[] = filtrados.map((p) => {
+        const internacao = internacoes.find((i) => i.id === p.admission_id);
+        const proc = procedimentos.find((pr) => pr.id === p.procedure_id);
+        return {
+          Data: p.production_date.split("-").reverse().join("/"),
+          Hora: p.production_time?.slice(0, 5) ?? "—",
+          "Nr. Atendimento": internacao?.external_reference ?? "—",
+          Paciente: nomePaciente(p.admission_id),
+          Unidade: unidades.find((u) => u.id === internacao?.unit_id)?.name ?? "—",
+          "Código do procedimento": proc?.code ?? "—",
+          Procedimento: proc?.name ?? "—",
+          Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
+          Status: p.confirmado_tasy ? "Confirmado" : "Não confirmado",
+          Glosado: p.glosado ? `R$ ${(p.valor_glosado ?? 0).toLocaleString("pt-BR")}` : "—",
+        };
+      });
+      exportarCsv("producao-diaria", linhas);
+      notificarSucesso(`Exportado (${linhas.length} linha(s)).`);
+    } catch (erro) {
+      notificarErro("Não foi possível exportar", erro);
+    }
+  }
+
   const { pagina: paginaAtual, totalPaginas, paginaValida } = usarPaginacao(filtrados, 25, pagina);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -311,6 +337,9 @@ export default function ProducaoDiaria() {
               </Select>
             </div>
             <p className="whitespace-nowrap text-sm text-ink-soft">{filtrados.length} de {producao.length} lançamentos</p>
+            <Button variant="secondary" size="sm" onClick={handleExportar} disabled={filtrados.length === 0}>
+              <Download className="h-3.5 w-3.5" /> Exportar CSV
+            </Button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-ink-soft">Data entre</span>

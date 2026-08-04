@@ -13,6 +13,7 @@ import {
   useHealthInsurances,
   useUnits,
   useBeds,
+  useAdmissions,
   useRooms,
   usePhysiotherapists,
   useProcedures,
@@ -46,6 +47,7 @@ export default function NovoAtendimento() {
   const unidades = useUnits();
   const leitos = useBeds();
   const quartos = useRooms();
+  const internacoes = useAdmissions();
   const fisioterapeutas = usePhysiotherapists();
   const procedimentos = useProcedures();
 
@@ -73,7 +75,9 @@ export default function NovoAtendimento() {
 
   const opcoesPacientes = useMemo(() => pacientes.map((p) => ({ value: p.id, label: p.full_name })), [pacientes]);
   const opcoesUnidades = useMemo(() => unidades.map((u) => ({ value: u.id, label: u.name })), [unidades]);
-  const leitosDaUnidade = leitos.filter((l) => l.unit_id === unidadeId && l.status === "livre");
+  const leitosDaUnidade = leitos.filter(
+    (l) => l.unit_id === unidadeId && !internacoes.some((i) => i.bed_id === l.id && i.status === "internado")
+  );
   const opcoesFisioterapeuta = useMemo(() => fisioterapeutas.map((f) => ({ value: f.id, label: f.full_name })), [fisioterapeutas]);
   const opcoesProcedimento = useMemo(
     () => procedimentos.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}`, sublabel: p.category ?? undefined })),

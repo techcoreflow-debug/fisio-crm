@@ -32,12 +32,13 @@ import {
   repository,
 } from "@/data/repository";
 import { Combobox } from "@/components/ui/combobox";
+import { DeleteButton } from "@/components/shared/delete-button";
 import { Paginacao, usarPaginacao } from "@/components/shared/paginacao";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useDraftState } from "@/lib/use-draft-state";
 import { useAuth } from "@/auth/auth-provider";
 import { useAppStore } from "@/store/app-store";
-import type { Admission } from "@/types/domain";
+import type { Admission, Bed } from "@/types/domain";
 
 type StatusInternacao = "internado" | "alta";
 
@@ -103,6 +104,7 @@ export default function Internacoes() {
   // Fisioterapeuta lançador: só lança procedimento e cadastra paciente —
   // não administra internação (criar/editar/dar alta continua restrito).
   const podeAdministrarInternacao = !(profile?.role === "fisioterapeuta" && !profile.is_platform_admin);
+  const podeExcluirInternacao = profile?.role === "admin" || profile?.is_platform_admin;
 
   const hojeIso = hojeLocalIso();
   const internacoesComAtendimentoHoje = useMemo(
@@ -148,9 +150,15 @@ export default function Internacoes() {
   const diagnostico = rascunho.diagnostico;
   const setDiagnostico = (v: string) => setRascunho({ ...rascunho, diagnostico: v });
 
-  const leitosDaUnidade = leitos.filter(
-    (l) => l.unit_id === unidadeId && (l.status === "livre" || l.id === editando?.bed_id)
-  );
+  // Não confia no campo `status` do leito puro — o mesmo tipo de
+  // dessincronia que já corrigimos em Leitos pode deixar um leito preso
+  // como "ocupado" no banco sem internação real, e aí ele nunca
+  // apareceria aqui pra selecionar. Calcula ao vivo, igual lá.
+  function leitoEstaLivre(leito: Bed) {
+    if (leito.id === editando?.bed_id) return true; // o leito que a internação já usa sempre aparece
+    return !internacoes.some((i) => i.bed_id === leito.id && i.status === "internado");
+  }
+  const leitosDaUnidade = leitos.filter((l) => l.unit_id === unidadeId && leitoEstaLivre(l));
 
   // Fluxo de alta — precisa de mais de uma etapa quando não há atendimento
   // lançado no dia, por isso vive num Sheet separado com seu próprio estado.
@@ -765,6 +773,12 @@ export default function Internacoes() {
                               <LogOut className="h-3.5 w-3.5" /> Dar alta
                             </Button>
                           </>
+                        )}
+                        {podeExcluirInternacao && (
+                          <DeleteButton
+                            itemLabel={`internação de ${pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "—"}`}
+                            onConfirm={() => repository.admissions.remove(i.id)}
+                          />
                         )}
                       </div>
                     </td>

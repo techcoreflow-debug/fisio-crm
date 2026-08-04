@@ -173,6 +173,9 @@ Atendimento.
 - **Diagnóstico**: texto livre, também preenchido ao criar a internação —
   aparece logo após o nome do paciente na listagem, e é uma opção a mais
   na lista impressa.
+- **Excluir internação** (só papel admin, de empresa ou InovareTech):
+  bloqueia se já tiver produção, evolução, fila ou faturamento
+  lançado — mesma proteção do resto do sistema.
 - **Lançar procedimento**: direto na linha, sem precisar ir em Produção
   Diária.
 - **Dar alta**: sempre pede confirmação explícita, mostrando se já tem
@@ -199,6 +202,8 @@ evitar lançar sem querer no primeiro item da lista. Cada lançamento tem
 do procedimento**, e o status de conciliação (confirmado/não confirmado
 pelo Tasy). Editar e excluir só funcionam enquanto o lançamento **não
 foi confirmado** — depois disso, é o registro oficial e fica travado.
+Exporta em CSV, respeitando os filtros aplicados na hora (período,
+unidade, convênio, busca).
 
 ## Evolução Clínica
 
@@ -258,8 +263,11 @@ detalhada, exportável em CSV.
 Relatórios prontos (produção, ocupação de leitos, internações sem
 evolução, evoluções, contas a receber, contratos a vencer) e um card
 específico de **produção contabilizada por período**, com contagem por
-categoria (Motora/Respiratória/etc.). Tudo exportável em CSV — abre direto
-no Excel.
+categoria (Motora/Respiratória/etc.). Um filtro de período geral
+(De/Até) vale pra Produção, Internações, Evoluções e Contas a receber —
+Ocupação de Leitos e Contratos a vencer sempre mostram a foto de agora,
+não fazem sentido filtrados por período passado. Tudo exportável em
+CSV — abre direto no Excel.
 
 ---
 
