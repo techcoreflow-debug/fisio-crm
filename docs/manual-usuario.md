@@ -163,8 +163,8 @@ Lista de quem está sendo acompanhado pela equipe — a "lista do que tem a
 ser feito". Filtros por unidade, status (internado/alta/todos — alta
 fica **oculto por padrão**), período de entrada, busca por nome, código
 ou **Nr. Atendimento**, e um botão "Só pendentes de hoje". Ordenação por
-Unidade (padrão), Paciente (A-Z), Entrada (mais recente) ou Nr.
-Atendimento.
+Unidade (padrão — e dentro da unidade, segue a sequência dos leitos),
+Leito, Paciente (A-Z), Entrada (mais recente) ou Nr. Atendimento.
 
 - **Nr. Atendimento**: campo digitado ao criar a internação — é o ID da
   internação no Tasy, usado como **chave da conciliação** (ver seção
@@ -178,11 +178,14 @@ Atendimento.
   lançado — mesma proteção do resto do sistema.
 - **Lançar procedimento** ("+ Procedimento"): direto na linha, sem precisar ir em Produção
   Diária.
-- **Dar alta** ("Alta"): sempre pede confirmação explícita, mostrando se já tem
-  procedimento lançado hoje ou não. Pede **data e hora exatas**. Se não
-  houver nenhum procedimento lançado na data da alta, **bloqueia** e
-  pergunta se houve atendimento antes de sair — obriga lançar na hora ou
-  confirmar explicitamente que não houve.
+- **Dar alta** ("Alta"): sempre mostra quantos procedimentos já foram
+  lançados hoje pra esse paciente, com a lista (horário + nome de cada
+  um). O botão "Lançar mais um procedimento" fica sempre disponível —
+  lança e volta pra essa mesma tela, sem confirmar a alta sozinho. O
+  botão "Sim, confirmar alta" também fica sempre disponível, mesmo sem
+  nenhum procedimento lançado — o aviso já está visível, então quem
+  confirma decide com a informação em mãos. Pede **data e hora exatas**
+  da alta.
 - **Gerar/imprimir lista**: escolhe quais colunas aparecem (sequência
   numerada sempre entra; Nr. Atendimento, paciente, procedimento do dia,
   quarto, leito, hospital e convênio são opcionais, todas ligadas por

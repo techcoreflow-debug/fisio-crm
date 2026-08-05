@@ -18,6 +18,7 @@ import {
   useUnits,
   useHospitals,
   useBeds,
+  useRooms,
   useClinicalEvolutions,
   useContracts,
   useHealthInsurances,
@@ -47,6 +48,7 @@ export default function Relatorios() {
   const unidades = useUnits();
   const hospitais = useHospitals();
   const leitos = useBeds();
+  const quartos = useRooms();
   const evolucoesBruta = useClinicalEvolutions();
   const contratos = useContracts();
   const convenios = useHealthInsurances();
@@ -130,15 +132,25 @@ export default function Relatorios() {
       descricao: "Todos os lançamentos de produção, com paciente, procedimento, profissional e origem.",
       arquivo: "producao-diaria",
       gerar: () =>
-        producao.map((p) => ({
-          Data: formatarData(p.production_date),
-          Hora: p.production_time?.slice(0, 5) ?? "—",
-          Paciente: nomePaciente(p.admission_id),
-          "Código do procedimento": procedimentos.find((pr) => pr.id === p.procedure_id)?.code ?? "—",
-          Procedimento: procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—",
-          Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
-          Conciliação: p.confirmado_tasy ? "Confirmado" : "Não confirmado",
-        })),
+        producao.map((p) => {
+          const internacao = internacoes.find((i) => i.id === p.admission_id);
+          const leito = leitos.find((l) => l.id === internacao?.bed_id);
+          const quarto = quartos.find((q) => q.id === leito?.room_id);
+          return {
+            Data: formatarData(p.production_date),
+            Hora: p.production_time?.slice(0, 5) ?? "—",
+            "Nr. Atendimento": internacao?.external_reference ?? "—",
+            Paciente: nomePaciente(p.admission_id),
+            Unidade: unidades.find((u) => u.id === internacao?.unit_id)?.name ?? "—",
+            Quarto: quarto?.code ?? "—",
+            Leito: leito?.code ?? "—",
+            Diagnóstico: internacao?.diagnostico ?? "—",
+            "Código do procedimento": procedimentos.find((pr) => pr.id === p.procedure_id)?.code ?? "—",
+            Procedimento: procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—",
+            Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
+            Conciliação: p.confirmado_tasy ? "Confirmado" : "Não confirmado",
+          };
+        }),
     },
     {
       nome: "Ocupação de leitos",

@@ -20,6 +20,33 @@ Antes de subir um deploy:
 
 ---
 
+## v0.29.0 — 04/08/2026
+
+**Ordenação por Leito** em Pacientes Internados — novo item no
+seletor, e a ordenação "Unidade" agora também segue a sequência dos
+leitos dentro de cada unidade (útil pra visita física, quarto por
+quarto, não só por nome do paciente).
+
+**Extrações de produção completas** — Produção Diária, Relatórios
+("Produção diária consolidada") e Painel de Procedimentos agora
+exportam também **Nr. Atendimento, Unidade, Quarto, Leito e
+Diagnóstico**, além do que já existia (paciente, procedimento,
+fisioterapeuta, conciliação).
+
+**Fluxo de alta redesenhado.** Antes eram 3 etapas separadas, com um
+beco sem saída se não tivesse procedimento lançado. Agora é uma tela
+só: sempre mostra quantos procedimentos já foram lançados hoje **com a
+lista** (horário + nome de cada um), o botão **"Lançar mais um
+procedimento"** fica sempre disponível (lança e volta pra essa mesma
+tela, não confirma sozinho), e o botão **"Sim, confirmar alta"** também
+fica sempre disponível — mesmo sem nenhum procedimento lançado, já que
+o aviso está sempre visível e quem confirma decide com a informação em
+mãos, sem ficar preso numa validação bloqueante.
+
+Sem migration — só código.
+
+---
+
 ## v0.28.1 — 04/08/2026
 
 **Recuperação automática de deploy novo.** Depois de eu publicar uma

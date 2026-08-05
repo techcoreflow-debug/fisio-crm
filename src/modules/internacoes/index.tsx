@@ -119,7 +119,7 @@ export default function Internacoes() {
   const [filtroEntradaAte, setFiltroEntradaAte] = useState("");
   const [apenasPendentes, setApenasPendentes] = useState(false);
   const [quartoInlineId, setQuartoInlineId] = useState("");
-  const [ordenarPor, setOrdenarPor] = useState<"unidade" | "paciente" | "entrada" | "nrAtendimento">("unidade");
+  const [ordenarPor, setOrdenarPor] = useState<"unidade" | "paciente" | "entrada" | "nrAtendimento" | "leito">("unidade");
   const [pagina, setPagina] = useState(1);
   const [salvando, setSalvando] = useState(false);
 
@@ -163,7 +163,7 @@ export default function Internacoes() {
   // Fluxo de alta — precisa de mais de uma etapa quando não há atendimento
   // lançado no dia, por isso vive num Sheet separado com seu próprio estado.
   const [internacaoParaAlta, setInternacaoParaAlta] = useState<Admission | null>(null);
-  const [etapaAlta, setEtapaAlta] = useState<"data" | "sem-atendimento" | "lancar">("data");
+  const [etapaAlta, setEtapaAlta] = useState<"data" | "lancar">("data");
   const [dataHoraAlta, setDataHoraAlta] = useState(agoraParaInputDatetime());
   const [salvandoAlta, setSalvandoAlta] = useState(false);
   const [fisioAltaId, setFisioAltaId] = useState("");
@@ -317,6 +317,7 @@ export default function Internacoes() {
     });
 
     const nomeUnidade = (unitId: string | null) => unidades.find((u) => u.id === unitId)?.name ?? "";
+    const codigoLeito = (bedId: string | null) => leitos.find((l) => l.id === bedId)?.code ?? "";
     const nomePacienteDe = (i: (typeof internacoes)[number]) => pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "";
 
     return [...resultado].sort((a, b) => {
@@ -327,14 +328,16 @@ export default function Internacoes() {
           return b.admission_date.localeCompare(a.admission_date);
         case "nrAtendimento":
           return (a.external_reference ?? "").localeCompare(b.external_reference ?? "");
+        case "leito":
+          return codigoLeito(a.bed_id).localeCompare(codigoLeito(b.bed_id), undefined, { numeric: true });
         case "unidade":
         default: {
           const cmp = nomeUnidade(a.unit_id).localeCompare(nomeUnidade(b.unit_id));
-          return cmp !== 0 ? cmp : nomePacienteDe(a).localeCompare(nomePacienteDe(b));
+          return cmp !== 0 ? cmp : codigoLeito(a.bed_id).localeCompare(codigoLeito(b.bed_id), undefined, { numeric: true });
         }
       }
     });
-  }, [busca, filtroUnidade, filtroStatus, filtroEntradaDe, filtroEntradaAte, apenasPendentes, internacoes, pacientes, internacoesComAtendimentoHoje, ordenarPor, unidades]);
+  }, [busca, filtroUnidade, filtroStatus, filtroEntradaDe, filtroEntradaAte, apenasPendentes, internacoes, pacientes, internacoesComAtendimentoHoje, ordenarPor, unidades, leitos]);
 
   const { pagina: paginaAtual, totalPaginas, paginaValida } = usarPaginacao(filtradas, 25, pagina);
 
@@ -411,36 +414,36 @@ export default function Internacoes() {
     setInternacaoParaAlta(internacao);
     setEtapaAlta("data");
     setDataHoraAlta(agoraParaInputDatetime());
+    setFisioAltaId("");
+    setProcedimentoAltaId("");
   }
 
-  async function handleConfirmarData(e: FormEvent<HTMLFormElement>) {
+  const procedimentosDeHojeNaAlta = internacaoParaAlta
+    ? producao.filter((p) => p.admission_id === internacaoParaAlta.id && p.production_date === hojeIso)
+    : [];
+
+  async function handleConfirmarAlta(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!internacaoParaAlta) return;
     setSalvandoAlta(true);
     try {
-      await tentarAlta(false);
+      const iso = new Date(dataHoraAlta).toISOString();
+      // Reflete a realidade de verdade — só marca "sem atendimento
+      // confirmado" quando genuinamente não tem nenhum procedimento hoje.
+      // O aviso já fica sempre visível nesta tela (nunca escondido atrás
+      // de uma etapa separada), então quem confirma já viu a informação.
+      const semAtendimento = procedimentosDeHojeNaAlta.length === 0;
+      await repository.admissions.discharge(internacaoParaAlta.id, iso, semAtendimento);
+      notificarSucesso("Alta registrada. O leito foi liberado para higienização.");
+      setInternacaoParaAlta(null);
+    } catch (erro) {
+      notificarErro("Não foi possível registrar a alta", erro);
     } finally {
       setSalvandoAlta(false);
     }
   }
 
-  async function tentarAlta(semAtendimento: boolean) {
-    if (!internacaoParaAlta) return;
-    try {
-      const iso = new Date(dataHoraAlta).toISOString();
-      await repository.admissions.discharge(internacaoParaAlta.id, iso, semAtendimento);
-      notificarSucesso("Alta registrada. O leito foi liberado para higienização.");
-      setInternacaoParaAlta(null);
-    } catch (erro) {
-      if (erro instanceof Error && erro.message === "SEM_ATENDIMENTO_NA_ALTA") {
-        setEtapaAlta("sem-atendimento");
-        return;
-      }
-      notificarErro("Não foi possível registrar a alta", erro);
-    }
-  }
-
-  async function handleLancarELiberar(e: FormEvent<HTMLFormElement>) {
+  async function handleLancarDuranteAlta(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!internacaoParaAlta) return;
     setSalvandoAlta(true);
@@ -454,9 +457,14 @@ export default function Internacoes() {
         source: "manual",
         company_id: internacaoParaAlta.company_id,
       });
-      await tentarAlta(false);
+      notificarSucesso("Procedimento lançado.");
+      // Volta pra tela principal da alta — não confirma sozinho, deixa a
+      // pessoa decidir se lança mais um ou já confirma a alta.
+      setEtapaAlta("data");
+      setFisioAltaId("");
+      setProcedimentoAltaId("");
     } catch (erro) {
-      notificarErro("Não foi possível lançar o atendimento", erro);
+      notificarErro("Não foi possível lançar o procedimento", erro);
     } finally {
       setSalvandoAlta(false);
     }
@@ -654,10 +662,11 @@ export default function Internacoes() {
             <Select value={ordenarPor} onValueChange={(v) => setOrdenarPor(v as typeof ordenarPor)}>
               <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="unidade">Unidade</SelectItem>
+                <SelectItem value="unidade">Unidade (e leito, em sequência)</SelectItem>
                 <SelectItem value="paciente">Paciente (A-Z)</SelectItem>
                 <SelectItem value="entrada">Entrada (mais recente)</SelectItem>
                 <SelectItem value="nrAtendimento">Nr. Atendimento</SelectItem>
+                <SelectItem value="leito">Leito</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -778,7 +787,7 @@ export default function Internacoes() {
       <Sheet open={internacaoParaAlta !== null} onOpenChange={(open) => !open && setInternacaoParaAlta(null)}>
         <SheetContent>
           {etapaAlta === "data" && (
-            <form className="flex h-full flex-col" onSubmit={handleConfirmarData}>
+            <form className="flex h-full flex-col" onSubmit={handleConfirmarAlta}>
               <SheetHeader>
                 <SheetTitle>Tem certeza que quer dar alta?</SheetTitle>
                 <SheetDescription>
@@ -787,20 +796,33 @@ export default function Internacoes() {
               </SheetHeader>
               <div className="flex flex-1 flex-col gap-4">
                 <div
-                  className={`flex items-center gap-2 rounded-md px-3 py-2.5 text-sm ${
-                    internacaoParaAlta && internacoesComAtendimentoHoje.has(internacaoParaAlta.id)
-                      ? "bg-recovery-100 text-recovery-700"
-                      : "bg-attention-100 text-attention-700"
+                  className={`flex flex-col gap-2 rounded-md px-3 py-2.5 text-sm ${
+                    procedimentosDeHojeNaAlta.length > 0 ? "bg-recovery-100 text-recovery-700" : "bg-attention-100 text-attention-700"
                   }`}
                 >
-                  {internacaoParaAlta && internacoesComAtendimentoHoje.has(internacaoParaAlta.id) ? (
-                    <>Este paciente já tem procedimento lançado hoje.</>
-                  ) : (
-                    <>
-                      <AlertTriangle className="h-4 w-4 shrink-0" /> Nenhum procedimento lançado hoje para este paciente ainda.
-                    </>
+                  <div className="flex items-center gap-2">
+                    {procedimentosDeHojeNaAlta.length > 0 ? (
+                      <>{procedimentosDeHojeNaAlta.length} procedimento(s) lançado(s) hoje pra este paciente.</>
+                    ) : (
+                      <>
+                        <AlertTriangle className="h-4 w-4 shrink-0" /> Nenhum procedimento lançado hoje para este paciente ainda.
+                      </>
+                    )}
+                  </div>
+                  {procedimentosDeHojeNaAlta.length > 0 && (
+                    <ul className="flex flex-col gap-1 pl-1 text-xs">
+                      {procedimentosDeHojeNaAlta.map((p) => (
+                        <li key={p.id} className="flex items-center gap-1.5">
+                          <span className="font-mono">{p.production_time?.slice(0, 5)}</span>
+                          {procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—"}
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
+                <Button type="button" variant="secondary" size="sm" onClick={() => setEtapaAlta("lancar")}>
+                  <ClipboardPlus className="h-3.5 w-3.5" /> Lançar mais um procedimento
+                </Button>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="discharge_at">Data e hora da alta</Label>
                   <Input
@@ -814,42 +836,19 @@ export default function Internacoes() {
               </div>
               <SheetFooter>
                 <Button type="button" variant="secondary" onClick={() => setInternacaoParaAlta(null)}>Cancelar</Button>
-                <Button type="submit" disabled={salvandoAlta}>{salvandoAlta ? "Verificando…" : "Sim, confirmar alta"}</Button>
+                <Button type="submit" disabled={salvandoAlta}>{salvandoAlta ? "Salvando…" : "Sim, confirmar alta"}</Button>
               </SheetFooter>
             </form>
           )}
 
-          {etapaAlta === "sem-atendimento" && (
-            <div className="flex h-full flex-col">
-              <SheetHeader>
-                <SheetTitle>Nenhum atendimento lançado hoje</SheetTitle>
-                <SheetDescription>
-                  Não há procedimento lançado para este paciente na data da alta ({dataHoraAlta.slice(0, 10).split("-").reverse().join("/")}).
-                </SheetDescription>
-              </SheetHeader>
-              <div className="flex flex-1 flex-col gap-4">
-                <div className="flex items-start gap-2.5 rounded-md bg-attention-100 p-3 text-sm text-attention-600">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  Recebeu atendimento antes da alta? Lance agora, ou confirme que não houve atendimento.
-                </div>
-              </div>
-              <SheetFooter className="flex-col gap-2 sm:flex-col">
-                <Button type="button" onClick={() => setEtapaAlta("lancar")} disabled={salvandoAlta}>
-                  Lançar atendimento agora
-                </Button>
-                <Button type="button" variant="secondary" onClick={() => tentarAlta(true)} disabled={salvandoAlta}>
-                  {salvandoAlta ? "Salvando…" : "Confirmar que não houve atendimento"}
-                </Button>
-                <Button type="button" variant="ghost" onClick={() => setEtapaAlta("data")}>Voltar</Button>
-              </SheetFooter>
-            </div>
-          )}
-
           {etapaAlta === "lancar" && (
-            <form className="flex h-full flex-col" onSubmit={handleLancarELiberar}>
+            <form className="flex h-full flex-col" onSubmit={handleLancarDuranteAlta}>
               <SheetHeader>
-                <SheetTitle>Lançar atendimento antes da alta</SheetTitle>
-                <SheetDescription>Registra o procedimento e, em seguida, confirma a alta automaticamente.</SheetDescription>
+                <SheetTitle>Lançar procedimento</SheetTitle>
+                <SheetDescription>
+                  {internacaoParaAlta && (pacientes.find((p) => p.id === internacaoParaAlta.patient_id)?.full_name ?? "—")} — volta
+                  pra tela de alta em seguida, sem confirmar sozinho.
+                </SheetDescription>
               </SheetHeader>
               <div className="flex flex-1 flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
@@ -876,9 +875,9 @@ export default function Internacoes() {
                 </div>
               </div>
               <SheetFooter>
-                <Button type="button" variant="secondary" onClick={() => setEtapaAlta("sem-atendimento")}>Voltar</Button>
+                <Button type="button" variant="secondary" onClick={() => setEtapaAlta("data")}>Voltar</Button>
                 <Button type="submit" disabled={salvandoAlta || !fisioAltaId || !procedimentoAltaId}>
-                  {salvandoAlta ? "Salvando…" : "Lançar e confirmar alta"}
+                  {salvandoAlta ? "Salvando…" : "Lançar procedimento"}
                 </Button>
               </SheetFooter>
             </form>

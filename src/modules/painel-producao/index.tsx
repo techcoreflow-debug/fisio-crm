@@ -29,6 +29,8 @@ import {
   usePatients,
   useHospitals,
   useUnits,
+  useBeds,
+  useRooms,
   useHealthInsurances,
   usePhysiotherapists,
   useProcedures,
@@ -49,6 +51,8 @@ export default function PainelProducao() {
   const pacientes = usePatients();
   const hospitais = useHospitals();
   const unidades = useUnits();
+  const leitos = useBeds();
+  const quartos = useRooms();
   const convenios = useHealthInsurances();
   const fisioterapeutas = usePhysiotherapists();
   const procedimentos = useProcedures();
@@ -141,12 +145,18 @@ export default function PainelProducao() {
     try {
       const linhas: LinhaRelatorio[] = filtrados.map((p) => {
         const ctx = contexto(p);
+        const leito = leitos.find((l) => l.id === ctx.internacao?.bed_id);
+        const quarto = quartos.find((q) => q.id === leito?.room_id);
         return {
           Data: p.production_date.split("-").reverse().join("/"),
           Hora: p.production_time?.slice(0, 5) ?? "—",
+          "Nr. Atendimento": ctx.internacao?.external_reference ?? "—",
           Hospital: hospitais.find((h) => h.id === ctx.hospitalId)?.name ?? "—",
           Unidade: unidades.find((u) => u.id === ctx.unidadeId)?.name ?? "—",
+          Quarto: quarto?.code ?? "—",
+          Leito: leito?.code ?? "—",
           Paciente: ctx.paciente?.full_name ?? "—",
+          Diagnóstico: ctx.internacao?.diagnostico ?? "—",
           Convênio: convenios.find((c) => c.id === ctx.convenioId)?.name ?? "—",
           Categoria: ctx.procedimento?.category ?? "—",
           "Código do procedimento": ctx.procedimento?.code ?? "—",

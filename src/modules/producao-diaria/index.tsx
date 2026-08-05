@@ -27,6 +27,8 @@ import {
   useProcedures,
   useCompanies,
   useUnits,
+  useBeds,
+  useRooms,
   useHospitals,
   useHealthInsurances,
   repository,
@@ -43,6 +45,8 @@ export default function ProducaoDiaria() {
   const fisioterapeutas = usePhysiotherapists();
   const procedimentos = useProcedures();
   const unidades = useUnits();
+  const leitos = useBeds();
+  const quartos = useRooms();
   const hospitais = useHospitals();
   const convenios = useHealthInsurances();
 
@@ -188,12 +192,17 @@ export default function ProducaoDiaria() {
       const linhas: LinhaRelatorio[] = filtrados.map((p) => {
         const internacao = internacoes.find((i) => i.id === p.admission_id);
         const proc = procedimentos.find((pr) => pr.id === p.procedure_id);
+        const leito = leitos.find((l) => l.id === internacao?.bed_id);
+        const quarto = quartos.find((q) => q.id === leito?.room_id);
         return {
           Data: p.production_date.split("-").reverse().join("/"),
           Hora: p.production_time?.slice(0, 5) ?? "—",
           "Nr. Atendimento": internacao?.external_reference ?? "—",
           Paciente: nomePaciente(p.admission_id),
           Unidade: unidades.find((u) => u.id === internacao?.unit_id)?.name ?? "—",
+          Quarto: quarto?.code ?? "—",
+          Leito: leito?.code ?? "—",
+          Diagnóstico: internacao?.diagnostico ?? "—",
           "Código do procedimento": proc?.code ?? "—",
           Procedimento: proc?.name ?? "—",
           Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
