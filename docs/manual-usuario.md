@@ -67,6 +67,16 @@ precisa ser colocado na fila de algum fisioterapeuta, com atalho direto.
 No final, atalhos visuais pra Fechamento, Faturamento, Financeiro e
 Painel de Procedimentos, cada um já mostrando um número relevante.
 
+## Impacto Assistencial
+
+Indicadores clínicos — o que a equipe está entregando de cuidado, não
+só números operacionais/financeiros: tempo médio até o 1º atendimento
+pós-internação, cobertura diária (% dos internados de hoje já
+atendidos), intensidade terapêutica (procedimentos por paciente-dia),
+mix de categoria evoluindo semana a semana, comparativo entre
+hospitais, e os números do período (pacientes atendidos, procedimentos,
+dias de internação acompanhados). Filtro de período e hospital.
+
 ## Dashboard Executivo
 
 Indicadores estratégicos consolidados — visão de todas as empresas,

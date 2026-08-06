@@ -16,6 +16,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 const pageComponents: Record<string, ComponentType> = {
   "dashboard-executivo": lazy(() => import("@/modules/dashboard-executivo")),
   "painel-gestor": lazy(() => import("@/modules/painel-gestor")),
+  "impacto-assistencial": lazy(() => import("@/modules/impacto-assistencial")),
   "dashboard-operacional": lazy(() => import("@/modules/dashboard-operacional")),
   "dashboard-financeiro": lazy(() => import("@/modules/dashboard-financeiro")),
   faturamento: lazy(() => import("@/modules/faturamento")),

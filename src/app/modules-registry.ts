@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   Activity,
+  HeartPulse,
   Wallet,
   Building2,
   Hospital,
@@ -71,6 +72,14 @@ export const moduleGroups: ModuleGroup[] = [
         label: "Painel do Gestor",
         icon: Users,
         description: "Acompanhamento em tempo real do dia: equipe, distribuição, confirmação e atalhos financeiros.",
+        status: "pronto",
+      },
+      {
+        slug: "impacto-assistencial",
+        path: "/impacto-assistencial",
+        label: "Impacto Assistencial",
+        icon: HeartPulse,
+        description: "Indicadores clínicos: tempo até o 1º atendimento, cobertura diária, intensidade terapêutica e mix de casos.",
         status: "pronto",
       },
       {

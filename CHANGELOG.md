@@ -20,6 +20,30 @@ Antes de subir um deploy:
 
 ---
 
+## v0.32.0 — 06/08/2026
+
+**Novo painel "Impacto Assistencial"** — indicadores clínicos, não só
+operacionais/financeiros. Usa só dado que já existia, sem coleta nova:
+
+- **Tempo médio até o 1º atendimento** pós-internação (goniômetro, em
+  horas) — indicador real de resposta da equipe.
+- **Cobertura diária** — % dos internados de hoje que já foram
+  atendidos hoje.
+- **Intensidade terapêutica** — procedimentos por paciente-dia
+  atendido, mostra profundidade do cuidado.
+- **Mix de categoria ao longo do tempo** — área empilhada por semana
+  (Motora × Respiratória × etc.), mostra a complexidade dos casos
+  evoluindo, não só uma foto do momento.
+- **Comparativo entre hospitais** — cobertura e confirmação lado a
+  lado (aparece só quando há mais de um hospital ativo).
+- **Números de impacto** — pacientes atendidos, procedimentos
+  realizados e dias de internação acompanhados no período.
+
+Filtro de período e hospital, igual o padrão dos outros painéis. Sem
+migration — usa só tabelas que já existiam.
+
+---
+
 ## v0.31.1 — 05/08/2026
 
 **Filtro por Hospital em Pacientes Internados** — ao lado do filtro de
