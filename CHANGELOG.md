@@ -20,6 +20,101 @@ Antes de subir um deploy:
 
 ---
 
+## v0.31.1 — 05/08/2026
+
+**Filtro por Hospital em Pacientes Internados** — ao lado do filtro de
+unidade (que agora se ajusta sozinho, só mostrando unidades daquele
+hospital quando um é escolhido).
+
+**Anotado pra revisão calma depois**: usuário reportou um dashboard
+mostrando lançamentos vinculados à UNIMED sem entender a origem do
+vínculo — investigar quando houver tempo pra olhar com calma (não é
+uma correção que dá pra fazer às cegas, precisa entender o dado real
+primeiro).
+
+Sem migration — só código.
+
+---
+
+## v0.31.0 — 05/08/2026
+
+**Varredura de UX/consistência** — resultado de auditar todo o sistema
+em busca de padrões aplicados num lugar e esquecidos em outro:
+
+- **"Já lançados hoje"** (o aviso com lista de horário+procedimento, que
+  já existia na Alta, no lançamento avulso e em Minha Fila) agora
+  também aparece em **Novo Atendimento** (ao adicionar mais
+  procedimentos pro mesmo atendimento) e em **Produção Diária** (ao
+  escolher a internação no lançamento manual).
+- **Permissão de "Excluir" conectada de verdade** em Pacientes,
+  Internações e Procedimentos — antes a coluna "Excluir" na tela de
+  Permissões não tinha efeito nenhum em lugar nenhum (14 botões de
+  excluir espalhados pelo sistema, nenhum checava a permissão). Os
+  outros 11 ainda não checam — ficou combinado focar nesses três por
+  agora.
+
+Campos de Data/Hora nos lançamentos de procedimento foram conferidos em
+todos os formulários (Internações, Alta, Minha Fila, Novo Atendimento,
+Produção Diária) — todos já têm o campo corretamente.
+
+Sem migration — só código.
+
+---
+
+## v0.30.2 — 05/08/2026
+
+**Faltava Data e Hora no "Lançar mais um procedimento" da tela de
+Alta.** Esse formulário só tinha Fisioterapeuta e Procedimento — a
+data/hora do lançamento era copiada em silêncio da data/hora da própria
+alta, sem opção de ajustar. Agora tem campos próprios de Data e Hora,
+igual a tela avulsa de lançar procedimento — importante pra registrar
+um procedimento feito num horário diferente do momento da alta.
+
+Sem migration — só código.
+
+---
+
+## v0.30.1 — 05/08/2026
+
+**Lançar procedimento avulso não fecha mais sozinho.** Em Pacientes
+Internados, a tela de "+ Procedimento" fechava depois de um único
+lançamento — agora continua aberta: limpa só o campo de procedimento
+(mantém o fisioterapeuta selecionado, já que costuma ser a mesma pessoa
+lançando vários seguidos), atualiza a lista de "já lançados hoje" na
+hora, e deixa lançar quantos precisar. Botão "Fechar" pra sair quando
+terminar.
+
+Sem migration — só código.
+
+---
+
+## v0.30.0 — 05/08/2026
+
+**Categoria de procedimento virou lista de verdade, não texto livre.**
+Antes cada um digitava do seu jeito (Respiratória, respiratoria,
+RESPIRATÓRIA...), quebrando os agrupamentos por categoria nos
+relatórios. Agora é um combo box — escolhe entre as categorias já
+cadastradas, ou cria uma nova na hora (botão "+" ao lado). Migration
+`0026` (`procedure_categories`) já entra populada com as categorias que
+já estavam em uso, ninguém perde nada do que já tinha digitado.
+
+**Código do procedimento na lista impressa** — a coluna "Procedimento
+(hoje)" agora mostra código + descrição juntos na mesma célula (ex.:
+"20103441 - Fisio Respiratória..."), não só a descrição.
+
+**"Já lançados hoje" também no lançamento avulso** — o mesmo aviso que
+já existia na tela de Alta (lista com horário + nome de cada
+procedimento já lançado) agora também aparece ao lançar procedimento
+direto (em Pacientes Internados e em Minha Fila) — evita lançar a mais
+por engano.
+
+**Investigado**: usuários "superusuário" (Monika, Carlos) sem conseguir
+editar outros usuários — não é bug de código, é configuração: só o
+e-mail do Kleber está na lista de admins InovareTech no banco. Passei
+o SQL pra adicionar os dois — pendente de confirmação de teste.
+
+---
+
 ## v0.29.0 — 04/08/2026
 
 **Ordenação por Leito** em Pacientes Internados — novo item no

@@ -120,7 +120,9 @@ oposto do fluxo assistencial do dia a dia.
   fila.
 - **Procedimentos**: catálogo de código + nome + categoria (Motora,
   Respiratória, etc.) — a categoria alimenta os relatórios e painéis
-  que separam por tipo de atendimento.
+  que separam por tipo de atendimento. Escolhida por combo box (não é
+  mais texto livre) — cria uma nova categoria na hora, se precisar,
+  pelo botão "+" ao lado do campo.
 - **Contratos**: vincula hospital + convênio (ou fica "direto com o
   hospital", sem convênio específico, via checkbox) + valor mensal +
   escopo (todas as unidades do hospital, ou só alas específicas).
@@ -160,7 +162,8 @@ ordem cronológica, tudo num só lugar.
 ## Pacientes Internados
 
 Lista de quem está sendo acompanhado pela equipe — a "lista do que tem a
-ser feito". Filtros por unidade, status (internado/alta/todos — alta
+ser feito". Filtros por hospital, unidade (se ajusta sozinha conforme o
+hospital escolhido), status (internado/alta/todos — alta
 fica **oculto por padrão**), período de entrada, busca por nome, código
 ou **Nr. Atendimento**, e um botão "Só pendentes de hoje". Ordenação por
 Unidade (padrão — e dentro da unidade, segue a sequência dos leitos),

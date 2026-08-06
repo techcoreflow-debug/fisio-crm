@@ -14,6 +14,7 @@ import {
   useUnits,
   useBeds,
   useAdmissions,
+  useDailyProduction,
   useRooms,
   usePhysiotherapists,
   useProcedures,
@@ -48,6 +49,7 @@ export default function NovoAtendimento() {
   const leitos = useBeds();
   const quartos = useRooms();
   const internacoes = useAdmissions();
+  const producao = useDailyProduction();
   const fisioterapeutas = usePhysiotherapists();
   const procedimentos = useProcedures();
 
@@ -398,6 +400,23 @@ export default function NovoAtendimento() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmitProcedimento} className="flex flex-col gap-4">
+              {(() => {
+                const jaLancados = producao.filter((p) => p.admission_id === internacaoCriada.id && p.production_date === hojeLocalIso());
+                if (jaLancados.length === 0) return null;
+                return (
+                  <div className="flex flex-col gap-2 rounded-md bg-clinical-50 px-3 py-2.5 text-sm text-clinical-700 sm:w-96">
+                    <span>{jaLancados.length} procedimento(s) já lançado(s) hoje pra este atendimento:</span>
+                    <ul className="flex flex-col gap-1 pl-1 text-xs">
+                      {jaLancados.map((p) => (
+                        <li key={p.id} className="flex items-center gap-1.5">
+                          <span className="font-mono">{p.production_time?.slice(0, 5)}</span>
+                          {procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—"}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
               <div className="flex flex-col gap-1.5 sm:w-96">
                 <Label>Fisioterapeuta</Label>
                 <Combobox

@@ -113,6 +113,7 @@ export default function Internacoes() {
   );
 
   const [busca, setBusca] = useState("");
+  const [filtroHospital, setFiltroHospital] = useState<string>("todos");
   const [filtroUnidade, setFiltroUnidade] = useState<string>("todas");
   const [filtroStatus, setFiltroStatus] = useState<"todos" | "internado" | "alta">("internado");
   const [filtroEntradaDe, setFiltroEntradaDe] = useState("");
@@ -168,6 +169,8 @@ export default function Internacoes() {
   const [salvandoAlta, setSalvandoAlta] = useState(false);
   const [fisioAltaId, setFisioAltaId] = useState("");
   const [procedimentoAltaId, setProcedimentoAltaId] = useState("");
+  const [dataLancarAlta, setDataLancarAlta] = useState(hojeIso);
+  const [horaLancarAlta, setHoraLancarAlta] = useState(new Date().toTimeString().slice(0, 5));
 
   // Lançar procedimento direto da lista — não precisa sair daqui e ir
   // procurar o paciente de novo em Produção Diária.
@@ -191,7 +194,10 @@ export default function Internacoes() {
     const lancamentos = producao.filter((p) => p.admission_id === admissionId && p.production_date === hoje);
     if (lancamentos.length === 0) return "—";
     return lancamentos
-      .map((p) => procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—")
+      .map((p) => {
+        const proc = procedimentos.find((pr) => pr.id === p.procedure_id);
+        return proc ? `${proc.code} - ${proc.name}` : "—";
+      })
       .join(", ");
   }
 
@@ -291,7 +297,12 @@ export default function Internacoes() {
         company_id: internacaoParaLancar.company_id,
       });
       notificarSucesso("Procedimento lançado.");
-      setInternacaoParaLancar(null);
+      // Não fecha sozinho — limpa só o procedimento (mantém o
+      // fisioterapeuta, já que costuma ser a mesma pessoa lançando vários
+      // seguidos) e deixa a tela aberta, com a lista de "já lançados"
+      // atualizada, pra continuar lançando sem precisar reabrir.
+      setProcedimentoLancarId("");
+      setHoraLancar(new Date().toTimeString().slice(0, 5));
     } catch (erro) {
       notificarErro("Não foi possível lançar o procedimento", erro);
     } finally {
@@ -302,6 +313,7 @@ export default function Internacoes() {
   const filtradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     const resultado = internacoes.filter((i) => {
+      if (filtroHospital !== "todos" && i.hospital_id !== filtroHospital) return false;
       if (filtroUnidade !== "todas" && i.unit_id !== filtroUnidade) return false;
       if (filtroStatus !== "todos" && i.status !== filtroStatus) return false;
       if (filtroEntradaDe && i.admission_date < filtroEntradaDe) return false;
@@ -337,7 +349,7 @@ export default function Internacoes() {
         }
       }
     });
-  }, [busca, filtroUnidade, filtroStatus, filtroEntradaDe, filtroEntradaAte, apenasPendentes, internacoes, pacientes, internacoesComAtendimentoHoje, ordenarPor, unidades, leitos]);
+  }, [busca, filtroHospital, filtroUnidade, filtroStatus, filtroEntradaDe, filtroEntradaAte, apenasPendentes, internacoes, pacientes, internacoesComAtendimentoHoje, ordenarPor, unidades, leitos]);
 
   const { pagina: paginaAtual, totalPaginas, paginaValida } = usarPaginacao(filtradas, 25, pagina);
 
@@ -416,6 +428,8 @@ export default function Internacoes() {
     setDataHoraAlta(agoraParaInputDatetime());
     setFisioAltaId("");
     setProcedimentoAltaId("");
+    setDataLancarAlta(hojeIso);
+    setHoraLancarAlta(new Date().toTimeString().slice(0, 5));
   }
 
   const procedimentosDeHojeNaAlta = internacaoParaAlta
@@ -452,8 +466,8 @@ export default function Internacoes() {
         admission_id: internacaoParaAlta.id,
         physiotherapist_id: fisioAltaId,
         procedure_id: procedimentoAltaId,
-        production_date: dataHoraAlta.slice(0, 10),
-        production_time: dataHoraAlta.slice(11, 16),
+        production_date: dataLancarAlta,
+        production_time: horaLancarAlta,
         source: "manual",
         company_id: internacaoParaAlta.company_id,
       });
@@ -463,6 +477,8 @@ export default function Internacoes() {
       setEtapaAlta("data");
       setFisioAltaId("");
       setProcedimentoAltaId("");
+      setDataLancarAlta(hojeIso);
+      setHoraLancarAlta(new Date().toTimeString().slice(0, 5));
     } catch (erro) {
       notificarErro("Não foi possível lançar o procedimento", erro);
     } finally {
@@ -611,11 +627,22 @@ export default function Internacoes() {
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
                 <Input value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} placeholder="Buscar por paciente, código ou Nr. Atendimento…" className="pl-9" />
               </div>
+              <Select value={filtroHospital} onValueChange={(v) => { setFiltroHospital(v); setFiltroUnidade("todas"); setPagina(1); }}>
+                <SelectTrigger className="sm:w-48"><SelectValue placeholder="Todos os hospitais" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os hospitais</SelectItem>
+                  {hospitais.map((h) => (
+                    <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={filtroUnidade} onValueChange={(v) => { setFiltroUnidade(v); setPagina(1); }}>
                 <SelectTrigger className="sm:w-56"><SelectValue placeholder="Todas as unidades" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todas">Todas as unidades</SelectItem>
-                  {unidades.map((u) => (
+                  {unidades
+                    .filter((u) => filtroHospital === "todos" || u.hospital_id === filtroHospital)
+                    .map((u) => (
                     <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -767,7 +794,7 @@ export default function Internacoes() {
                       </>
                     )}
                     {podeExcluirInternacao && (
-                      <DeleteButton itemLabel={`internação de ${paciente}`} onConfirm={() => repository.admissions.remove(i.id)} />
+                      <DeleteButton itemLabel={`internação de ${paciente}`} onConfirm={() => repository.admissions.remove(i.id)} moduleSlug="internacoes" />
                     )}
                   </div>
                 </div>
@@ -873,6 +900,16 @@ export default function Internacoes() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="data_lancar_alta">Data</Label>
+                    <Input id="data_lancar_alta" type="date" required value={dataLancarAlta} onChange={(e) => setDataLancarAlta(e.target.value)} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="hora_lancar_alta">Horário</Label>
+                    <Input id="hora_lancar_alta" type="time" required value={horaLancarAlta} onChange={(e) => setHoraLancarAlta(e.target.value)} />
+                  </div>
+                </div>
               </div>
               <SheetFooter>
                 <Button type="button" variant="secondary" onClick={() => setEtapaAlta("data")}>Voltar</Button>
@@ -895,6 +932,23 @@ export default function Internacoes() {
               </SheetDescription>
             </SheetHeader>
             <div className="flex flex-1 flex-col gap-4">
+              {internacaoParaLancar && (() => {
+                const jaLancados = producao.filter((p) => p.admission_id === internacaoParaLancar.id && p.production_date === hojeIso);
+                if (jaLancados.length === 0) return null;
+                return (
+                  <div className="flex flex-col gap-2 rounded-md bg-clinical-50 px-3 py-2.5 text-sm text-clinical-700">
+                    <span>{jaLancados.length} procedimento(s) já lançado(s) hoje pra este paciente:</span>
+                    <ul className="flex flex-col gap-1 pl-1 text-xs">
+                      {jaLancados.map((p) => (
+                        <li key={p.id} className="flex items-center gap-1.5">
+                          <span className="font-mono">{p.production_time?.slice(0, 5)}</span>
+                          {procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—"}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
               <div className="flex flex-col gap-1.5">
                 <Label>Fisioterapeuta</Label>
                 <Combobox
@@ -927,9 +981,9 @@ export default function Internacoes() {
               </div>
             </div>
             <SheetFooter>
-              <Button type="button" variant="secondary" onClick={() => setInternacaoParaLancar(null)}>Cancelar</Button>
+              <Button type="button" variant="secondary" onClick={() => setInternacaoParaLancar(null)}>Fechar</Button>
               <Button type="submit" disabled={salvandoLancamento || !fisioLancarId || !procedimentoLancarId}>
-                {salvandoLancamento ? "Salvando…" : "Lançar procedimento"}
+                {salvandoLancamento ? "Salvando…" : "Lançar (e continuar lançando)"}
               </Button>
             </SheetFooter>
           </form>

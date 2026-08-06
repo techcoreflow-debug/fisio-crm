@@ -237,6 +237,23 @@ export default function MinhaFila() {
                 <SheetDescription>{itemLancando && (pacienteDoItem(itemLancando.admission_id)?.full_name ?? "—")}</SheetDescription>
               </SheetHeader>
               <div className="flex flex-1 flex-col gap-4">
+                {itemLancando && (() => {
+                  const jaLancados = producao.filter((p) => p.admission_id === itemLancando.admission_id && p.production_date === hojeIso());
+                  if (jaLancados.length === 0) return null;
+                  return (
+                    <div className="flex flex-col gap-2 rounded-md bg-clinical-50 px-3 py-2.5 text-sm text-clinical-700">
+                      <span>{jaLancados.length} procedimento(s) já lançado(s) hoje pra este paciente:</span>
+                      <ul className="flex flex-col gap-1 pl-1 text-xs">
+                        {jaLancados.map((p) => (
+                          <li key={p.id} className="flex items-center gap-1.5">
+                            <span className="font-mono">{p.production_time?.slice(0, 5)}</span>
+                            {procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—"}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
                 <div className="flex flex-col gap-1.5">
                   <Label>Procedimento</Label>
                   <Combobox

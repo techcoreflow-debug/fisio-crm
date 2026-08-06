@@ -42,6 +42,7 @@ import type {
   RolePermission,
   BillingEntry,
   PatientQueueItem,
+  ProcedureCategory,
   ActivityLog,
   Receivable,
 } from "@/types/domain";
@@ -152,6 +153,9 @@ export function useBillingEntries(): BillingEntry[] {
 }
 export function usePatientQueue(): PatientQueueItem[] {
   return useSupabaseCollection<PatientQueueItem>("patient_queue", { company_id: useActiveCompanyId() });
+}
+export function useProcedureCategories(): ProcedureCategory[] {
+  return useSupabaseCollection<ProcedureCategory>("procedure_categories", { company_id: useActiveCompanyId() }, "name");
 }
 
 /**
@@ -595,6 +599,21 @@ export const repository = {
         entity_label: `Internação ${id.slice(0, 8)}`,
       });
     },
+  },
+
+  procedureCategories: {
+    /** Cria se não existir ainda (evita duplicar quando a mesma categoria é "criada" de novo pelo combo box). */
+    criarSeNaoExistir: async (companyId: string, nome: string): Promise<ProcedureCategory> => {
+      const { data: existente } = await supabase
+        .from("procedure_categories")
+        .select("*")
+        .eq("company_id", companyId)
+        .ilike("name", nome.trim())
+        .maybeSingle();
+      if (existente) return existente as ProcedureCategory;
+      return inserirLinha<ProcedureCategory>("procedure_categories", { company_id: companyId, name: nome.trim() });
+    },
+    remove: async (id: string): Promise<void> => excluirLinha("procedure_categories", id),
   },
 
   procedures: {

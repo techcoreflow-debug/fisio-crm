@@ -312,6 +312,13 @@ export interface BillingEntry {
   created_at: string;
 }
 
+export interface ProcedureCategory {
+  id: string;
+  company_id: string;
+  name: string;
+  created_at: string;
+}
+
 export interface PatientQueueItem {
   id: string;
   company_id: string;

@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Combobox } from "@/components/ui/combobox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   Sheet,
   SheetContent,
@@ -16,18 +18,24 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DeleteButton } from "@/components/shared/delete-button";
-import { useProcedures, repository } from "@/data/repository";
+import { useProcedures, useProcedureCategories, repository } from "@/data/repository";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useAppStore } from "@/store/app-store";
 import type { Procedure } from "@/types/domain";
 
 export default function Procedimentos() {
   const procedimentos = useProcedures();
+  const categorias = useProcedureCategories();
   const [busca, setBusca] = useState("");
   const [open, setOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const empresaId = useAppStore((s) => s.activeCompanyId);
   const [editando, setEditando] = useState<Procedure | null>(null);
+  const [categoriaNome, setCategoriaNome] = useState("");
+
+  const [openNovaCategoria, setOpenNovaCategoria] = useState(false);
+  const [nomeNovaCategoria, setNomeNovaCategoria] = useState("");
+  const [salvandoCategoria, setSalvandoCategoria] = useState(false);
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -37,11 +45,13 @@ export default function Procedimentos() {
 
   function abrirNovo() {
     setEditando(null);
+    setCategoriaNome("");
     setOpen(true);
   }
 
   function abrirEdicao(procedimento: Procedure) {
     setEditando(procedimento);
+    setCategoriaNome(procedimento.category ?? "");
     setOpen(true);
   }
 
@@ -51,7 +61,7 @@ export default function Procedimentos() {
     const dados = {
       name: String(form.get("name") ?? ""),
       code: String(form.get("code") ?? "") || null,
-      category: String(form.get("category") ?? "") || null,
+      category: categoriaNome.trim() || null,
       company_id: empresaId,
     };
     setSalvando(true);
@@ -69,6 +79,21 @@ export default function Procedimentos() {
       notificarErro(editando ? "Não foi possível salvar as alterações" : "Não foi possível criar", erro);
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function handleCriarCategoria() {
+    if (!nomeNovaCategoria.trim() || !empresaId) return;
+    setSalvandoCategoria(true);
+    try {
+      const criada = await repository.procedureCategories.criarSeNaoExistir(empresaId, nomeNovaCategoria);
+      setCategoriaNome(criada.name);
+      notificarSucesso("Categoria criada.");
+      setOpenNovaCategoria(false);
+    } catch (erro) {
+      notificarErro("Não foi possível criar a categoria", erro);
+    } finally {
+      setSalvandoCategoria(false);
     }
   }
 
@@ -100,8 +125,22 @@ export default function Procedimentos() {
                     <Input id="code" name="code" placeholder="Ex.: 20101015" defaultValue={editando?.code ?? ""} />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="category">Categoria</Label>
-                    <Input id="category" name="category" placeholder="Ex.: Respiratória, Motora…" defaultValue={editando?.category ?? ""} />
+                    <Label>Categoria</Label>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Combobox
+                          value={categoriaNome}
+                          onValueChange={setCategoriaNome}
+                          options={categorias.map((c) => ({ value: c.name, label: c.name }))}
+                          placeholder="Selecione a categoria"
+                          searchPlaceholder="Buscar categoria…"
+                          emptyText="Nenhuma categoria ainda — crie uma ao lado."
+                        />
+                      </div>
+                      <Button type="button" variant="secondary" onClick={() => { setNomeNovaCategoria(""); setOpenNovaCategoria(true); }}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <SheetFooter>
@@ -154,7 +193,7 @@ export default function Procedimentos() {
                         <Button variant="ghost" size="icon" aria-label={`Editar ${p.name}`} onClick={() => abrirEdicao(p)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <DeleteButton itemLabel={p.name} onConfirm={() => repository.procedures.remove(p.id)} />
+                        <DeleteButton itemLabel={p.name} onConfirm={() => repository.procedures.remove(p.id)} moduleSlug="procedimentos" />
                       </div>
                     </td>
                   </tr>
@@ -164,6 +203,27 @@ export default function Procedimentos() {
           </div>
         )}
       </Card>
+
+      <Dialog open={openNovaCategoria} onOpenChange={setOpenNovaCategoria}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova categoria</DialogTitle>
+            <DialogDescription>Ex.: Respiratória, Motora, Neurológica…</DialogDescription>
+          </DialogHeader>
+          <Input
+            value={nomeNovaCategoria}
+            onChange={(e) => setNomeNovaCategoria(e.target.value)}
+            placeholder="Nome da categoria"
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setOpenNovaCategoria(false)}>Cancelar</Button>
+            <Button onClick={handleCriarCategoria} disabled={salvandoCategoria || !nomeNovaCategoria.trim()}>
+              {salvandoCategoria ? "Criando…" : "Criar categoria"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

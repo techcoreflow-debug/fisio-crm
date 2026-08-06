@@ -229,7 +229,7 @@ export default function Pacientes() {
                         <Button variant="ghost" size="icon" aria-label={`Editar ${paciente.full_name}`} onClick={() => abrirEdicao(paciente)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <DeleteButton itemLabel={paciente.full_name} onConfirm={() => repository.patients.remove(paciente.id)} />
+                        <DeleteButton itemLabel={paciente.full_name} onConfirm={() => repository.patients.remove(paciente.id)} moduleSlug="pacientes" />
                       </div>
                     </td>
                   </tr>

@@ -23,6 +23,7 @@ import type {
   RolePermission,
   BillingEntry,
   PatientQueueItem,
+  ProcedureCategory,
   Shift,
   ActivityLog,
   Receivable,
@@ -77,6 +78,7 @@ export interface Database {
       role_permissions: TableDef<RolePermission>;
       billing_entries: TableDef<BillingEntry>;
       patient_queue: TableDef<PatientQueueItem>;
+      procedure_categories: TableDef<ProcedureCategory>;
       shifts: TableDef<Shift>;
       activity_log: TableDef<ActivityLog>;
       receivables: TableDef<Receivable>;
