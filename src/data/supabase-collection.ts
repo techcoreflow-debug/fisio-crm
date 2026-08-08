@@ -85,9 +85,26 @@ export function useSupabaseCollection<T>(
       .on("postgres_changes", { event: "*", schema: "public", table }, agendarRecarga)
       .subscribe();
 
+    // Rede de segurança — o Realtime pode cair silenciosamente (comum em
+    // wifi de hospital) e nunca mais reconectar sozinho, sem avisar
+    // ninguém: a tela fica com dado desatualizado, achando que está tudo
+    // certo. Já causou lançamento sumindo de tela (não do banco — só da
+    // exibição). Duas redes independentes do Realtime:
+    //   1) recarrega ao voltar o foco da aba (ex.: trocou de aplicativo e voltou)
+    //   2) recarrega a cada 2 minutos, mesmo sem trocar de aba
+    function recarregarAoFocar() {
+      if (document.visibilityState === "visible") carregar();
+    }
+    document.addEventListener("visibilitychange", recarregarAoFocar);
+    window.addEventListener("focus", recarregarAoFocar);
+    const intervalo = setInterval(carregar, 120_000);
+
     return () => {
       ativo = false;
       if (timeoutDebounce) clearTimeout(timeoutDebounce);
+      document.removeEventListener("visibilitychange", recarregarAoFocar);
+      window.removeEventListener("focus", recarregarAoFocar);
+      clearInterval(intervalo);
       supabase.removeChannel(canal);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

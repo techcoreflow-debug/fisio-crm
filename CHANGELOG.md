@@ -20,6 +20,33 @@ Antes de subir um deploy:
 
 ---
 
+## v0.33.0 — 08/08/2026
+
+**Correção sistêmica — "lançamento sumindo de tela" em qualquer lugar
+do sistema, não só na Alta.** Confirmado com o usuário: o dado sempre
+esteve seguro no banco (validado por SQL direto) — o problema era
+mesmo de exibição, e afetava potencialmente **qualquer tela**, não só
+a de Alta que corrigi na v0.32.1. Causa raiz: toda tela depende do
+Supabase Realtime pra se manter atualizada, e o Realtime pode cair
+silenciosamente (comum em wifi de hospital) sem nunca mais reconectar
+sozinho — sem avisar ninguém que isso aconteceu.
+
+Corrigido na raiz, no hook compartilhado que toda tela do sistema usa
+(`useSupabaseCollection`) — duas redes de segurança novas, independentes
+do Realtime:
+
+1. **Recarrega ao voltar o foco da aba** (trocou de aplicativo/aba e
+   voltou).
+2. **Recarrega sozinho a cada 2 minutos**, mesmo sem trocar de aba.
+
+Como é no hook compartilhado, essa correção vale pra **todas as telas**
+do sistema de uma vez — Pacientes Internados, Minha Fila, Produção
+Diária, Painel do Gestor, etc. — não precisou mexer tela por tela.
+
+Sem migration — só código.
+
+---
+
 ## v0.32.1 — 08/08/2026
 
 **Bug real corrigido — "já lançados hoje" podia mostrar desatualizado
