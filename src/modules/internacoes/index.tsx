@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { hojeLocalIso } from "@/lib/data-local";
+import { supabase } from "@/lib/supabase";
 import { Search, Plus, Pencil, BedDouble, LogOut, AlertTriangle, ClipboardPlus, Printer, Users, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
@@ -38,7 +39,7 @@ import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useDraftState } from "@/lib/use-draft-state";
 import { useAuth } from "@/auth/auth-provider";
 import { useAppStore } from "@/store/app-store";
-import type { Admission, Bed } from "@/types/domain";
+import type { Admission, Bed, DailyProduction } from "@/types/domain";
 
 type StatusInternacao = "internado" | "alta";
 
@@ -422,7 +423,36 @@ export default function Internacoes() {
     }
   }
 
-  function abrirFluxoAlta(internacao: Admission) {
+  // Confiar só no `producao` reativo (Realtime) é arriscado justamente
+  // aqui: se a conexão em tempo real da pessoa cair silenciosamente (comum
+  // em wifi de hospital) sem reconectar, a lista fica desatualizada sem
+  // nenhum aviso — e é exatamente na hora da alta que isso não pode
+  // acontecer. Por isso, ao abrir a tela, busca direto no banco.
+  const [procedimentosDeHojeConferidos, setProcedimentosDeHojeConferidos] = useState<DailyProduction[] | null>(null);
+  const [conferindoProcedimentos, setConferindoProcedimentos] = useState(false);
+
+  async function conferirProcedimentosDeHoje(admissionId: string) {
+    setConferindoProcedimentos(true);
+    try {
+      const { data, error } = await supabase
+        .from("daily_production")
+        .select("*")
+        .eq("admission_id", admissionId)
+        .eq("production_date", hojeLocalIso())
+        .order("production_time", { ascending: true });
+      if (error) throw error;
+      setProcedimentosDeHojeConferidos((data ?? []) as DailyProduction[]);
+    } catch {
+      // Se a busca direta falhar (ex.: sem internet momentaneamente), cai
+      // pro dado reativo em vez de travar a tela — melhor mostrar algo
+      // possivelmente desatualizado do que nada.
+      setProcedimentosDeHojeConferidos(null);
+    } finally {
+      setConferindoProcedimentos(false);
+    }
+  }
+
+  async function abrirFluxoAlta(internacao: Admission) {
     setInternacaoParaAlta(internacao);
     setEtapaAlta("data");
     setDataHoraAlta(agoraParaInputDatetime());
@@ -430,11 +460,16 @@ export default function Internacoes() {
     setProcedimentoAltaId("");
     setDataLancarAlta(hojeIso);
     setHoraLancarAlta(new Date().toTimeString().slice(0, 5));
+    setProcedimentosDeHojeConferidos(null);
+    await conferirProcedimentosDeHoje(internacao.id);
   }
 
-  const procedimentosDeHojeNaAlta = internacaoParaAlta
-    ? producao.filter((p) => p.admission_id === internacaoParaAlta.id && p.production_date === hojeIso)
-    : [];
+  const procedimentosDeHojeNaAlta =
+    procedimentosDeHojeConferidos !== null
+      ? procedimentosDeHojeConferidos
+      : internacaoParaAlta
+        ? producao.filter((p) => p.admission_id === internacaoParaAlta.id && p.production_date === hojeIso)
+        : [];
 
   async function handleConfirmarAlta(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -479,6 +514,7 @@ export default function Internacoes() {
       setProcedimentoAltaId("");
       setDataLancarAlta(hojeIso);
       setHoraLancarAlta(new Date().toTimeString().slice(0, 5));
+      await conferirProcedimentosDeHoje(internacaoParaAlta.id);
     } catch (erro) {
       notificarErro("Não foi possível lançar o procedimento", erro);
     } finally {
@@ -822,6 +858,11 @@ export default function Internacoes() {
                 </SheetDescription>
               </SheetHeader>
               <div className="flex flex-1 flex-col gap-4">
+                {conferindoProcedimentos ? (
+                  <div className="flex items-center gap-2 rounded-md bg-surface-sunken px-3 py-2.5 text-sm text-ink-soft">
+                    Conferindo o que já foi lançado hoje…
+                  </div>
+                ) : (
                 <div
                   className={`flex flex-col gap-2 rounded-md px-3 py-2.5 text-sm ${
                     procedimentosDeHojeNaAlta.length > 0 ? "bg-recovery-100 text-recovery-700" : "bg-attention-100 text-attention-700"
@@ -847,6 +888,7 @@ export default function Internacoes() {
                     </ul>
                   )}
                 </div>
+                )}
                 <Button type="button" variant="secondary" size="sm" onClick={() => setEtapaAlta("lancar")}>
                   <ClipboardPlus className="h-3.5 w-3.5" /> Lançar mais um procedimento
                 </Button>

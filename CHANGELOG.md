@@ -20,6 +20,26 @@ Antes de subir um deploy:
 
 ---
 
+## v0.32.1 — 08/08/2026
+
+**Bug real corrigido — "já lançados hoje" podia mostrar desatualizado
+na tela de Alta.** Investigado um caso relatado: paciente com 2
+procedimentos lançados que não apareceram ao abrir "Dar alta". Os dados
+batiam certinho no banco (mesma internação, data de hoje) — a causa era
+a tela confiar inteiramente no dado em tempo real (Realtime), que pode
+ficar parado se a conexão da pessoa cair silenciosamente sem reconectar
+(comum em wifi de hospital), sem nenhum aviso disso acontecer.
+
+Agora, ao abrir a tela de Alta, ela **busca direto no banco** (não só
+confia no dado já carregado) — mostra "Conferindo o que já foi lançado
+hoje…" por um instante e traz o dado real, garantido. A mesma
+conferência roda de novo depois de lançar mais um procedimento ali
+dentro.
+
+Sem migration — só código.
+
+---
+
 ## v0.32.0 — 06/08/2026
 
 **Novo painel "Impacto Assistencial"** — indicadores clínicos, não só

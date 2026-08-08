@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Activity, X, ChevronDown, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Activity, X, ChevronDown } from "lucide-react";
 import { moduleGroups } from "@/app/modules-registry";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/app-store";
@@ -8,10 +8,8 @@ import { useAuth } from "@/auth/auth-provider";
 import { useRolePermissions } from "@/data/repository";
 import { permissaoPadrao } from "@/lib/permissions";
 
-function SidebarContent({ recolhida = false }: { recolhida?: boolean }) {
+function SidebarContent() {
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
-  const sidebarRecolhida = useAppStore((s) => s.sidebarRecolhida);
-  const toggleSidebarRecolhida = useAppStore((s) => s.toggleSidebarRecolhida);
   const { profile } = useAuth();
   const location = useLocation();
   const permissoes = useRolePermissions();
@@ -42,12 +40,12 @@ function SidebarContent({ recolhida = false }: { recolhida?: boolean }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className={cn("flex items-center px-5 py-5", recolhida ? "justify-center" : "justify-between")}>
+      <div className="flex items-center justify-between px-5 py-5">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-clinical-500 text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-clinical-500 text-white">
             <Activity className="h-4.5 w-4.5" />
           </div>
-          {!recolhida && <span className="font-display text-lg font-semibold tracking-tight text-ink">inovare.fisio</span>}
+          <span className="font-display text-lg font-semibold tracking-tight text-ink">inovare.fisio</span>
         </div>
         <button
           className="rounded-md p-1.5 text-ink-soft hover:bg-surface-sunken lg:hidden"
@@ -67,16 +65,14 @@ function SidebarContent({ recolhida = false }: { recolhida?: boolean }) {
 
           return (
             <div key={group.id} className="mb-4">
-              {!recolhida && (
-                <button
-                  onClick={() => toggleGrupo(group.id)}
-                  className="flex w-full items-center justify-between px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-soft/70 hover:text-ink-soft"
-                >
-                  {group.label}
-                  <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !expandido && "-rotate-90")} />
-                </button>
-              )}
-              {(recolhida || expandido) && (
+              <button
+                onClick={() => toggleGrupo(group.id)}
+                className="flex w-full items-center justify-between px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-soft/70 hover:text-ink-soft"
+              >
+                {group.label}
+                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !expandido && "-rotate-90")} />
+              </button>
+              {expandido && (
                 <div className="flex flex-col gap-0.5">
                   {group.modules.map((mod) => (
                     <NavLink
@@ -84,11 +80,9 @@ function SidebarContent({ recolhida = false }: { recolhida?: boolean }) {
                       to={mod.path}
                       end={mod.path === "/"}
                       onClick={() => setSidebarOpen(false)}
-                      title={recolhida ? mod.label : undefined}
                       className={({ isActive }) =>
                         cn(
                           "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
-                          recolhida && "justify-center",
                           isActive
                             ? "bg-clinical-50 text-clinical-700"
                             : "text-ink-soft hover:bg-surface-sunken hover:text-ink"
@@ -96,7 +90,7 @@ function SidebarContent({ recolhida = false }: { recolhida?: boolean }) {
                       }
                     >
                       <mod.icon className="h-4 w-4 shrink-0" />
-                      {!recolhida && <span className="truncate">{mod.label}</span>}
+                      <span className="truncate">{mod.label}</span>
                     </NavLink>
                   ))}
                 </div>
@@ -105,13 +99,6 @@ function SidebarContent({ recolhida = false }: { recolhida?: boolean }) {
           );
         })}
       </nav>
-
-      <button
-        onClick={toggleSidebarRecolhida}
-        className="hidden items-center justify-center gap-2 border-t border-line py-3 text-xs font-medium text-ink-soft hover:bg-surface-sunken hover:text-ink lg:flex"
-      >
-        {sidebarRecolhida ? <ChevronsRight className="h-4 w-4" /> : <><ChevronsLeft className="h-4 w-4" /> Recolher menu</>}
-      </button>
     </div>
   );
 }
@@ -119,13 +106,12 @@ function SidebarContent({ recolhida = false }: { recolhida?: boolean }) {
 export function Sidebar() {
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
-  const sidebarRecolhida = useAppStore((s) => s.sidebarRecolhida);
 
   return (
     <>
       {/* Desktop */}
-      <aside className={cn("hidden shrink-0 border-r border-line bg-surface-raised transition-all lg:block", sidebarRecolhida ? "w-16" : "w-64")}>
-        <SidebarContent recolhida={sidebarRecolhida} />
+      <aside className="hidden w-64 shrink-0 border-r border-line bg-surface-raised lg:block">
+        <SidebarContent />
       </aside>
 
       {/* Mobile */}

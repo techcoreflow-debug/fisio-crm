@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { hojeLocalIso } from "@/lib/data-local";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { PageHeader } from "@/components/shared/page-header";
 import { GoniometerGauge } from "@/components/shared/goniometer-gauge";
@@ -26,7 +25,7 @@ export default function DashboardOperacional() {
 
   const ocupacaoGeral = leitos.length > 0 ? Math.round((leitos.filter((l) => l.status === "ocupado").length / leitos.length) * 100) : 0;
 
-  const hojeIso = hojeLocalIso();
+  const hojeIso = new Date().toISOString().slice(0, 10);
   const turnosHoje = turnos.filter((t) => t.shift_date === hojeIso);
   const coberturaEscala = fisioterapeutas.length > 0 ? Math.round((turnosHoje.length / fisioterapeutas.length) * 100) : 0;
 

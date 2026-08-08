@@ -1,5 +1,4 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { dataParaIsoLocal } from "@/lib/data-local";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
@@ -185,7 +184,7 @@ export default function Escalas() {
                     <p className="font-medium text-ink">{f.full_name}</p>
                   </td>
                   {dias.map((d) => {
-                    const dataIso = dataParaIsoLocal(d);
+                    const dataIso = d.toISOString().slice(0, 10);
                     const turnoDoDia = turnos.find((t) => t.physiotherapist_id === f.id && t.shift_date === dataIso);
                     return (
                       <td key={dataIso} className="px-2 py-3 text-center">

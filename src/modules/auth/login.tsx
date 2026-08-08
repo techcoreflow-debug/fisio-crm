@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/auth/auth-provider";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { APP_NAME, APP_VERSION } from "@/lib/version";
@@ -98,7 +97,7 @@ export default function Login() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="password">Senha</Label>
-                    <PasswordInput id="password" name="password" required minLength={6} placeholder="Mínimo 6 caracteres" />
+                    <Input id="password" name="password" type="password" required minLength={6} placeholder="Mínimo 6 caracteres" />
                   </div>
                   <Button type="submit" disabled={carregando} className="mt-1">
                     {carregando ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

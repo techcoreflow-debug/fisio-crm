@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { UserPlus, Users2, Pencil, Trash2, KeyRound } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import {
   Sheet,
@@ -17,7 +16,6 @@ import {
   SheetFooter,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useProfiles, useUnassignedProfiles, useCompanies, useRolePermissions, repository } from "@/data/repository";
 import { useAuth } from "@/auth/auth-provider";
@@ -25,8 +23,8 @@ import { useAppStore } from "@/store/app-store";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { moduleGroups } from "@/app/modules-registry";
 import { permissaoPadrao, ROLE_LABEL, TODOS_OS_ROLES, type Permissao } from "@/lib/permissions";
-import { chamarEdgeFunction } from "@/lib/edge-function";
-import type { UserRole, Profile } from "@/types/domain";
+import { supabase } from "@/lib/supabase";
+import type { UserRole } from "@/types/domain";
 
 const papelConfig: Record<UserRole, { label: string; variant: NonNullable<BadgeProps["variant"]> }> = {
   admin: { label: "Admin", variant: "critical" },
@@ -94,27 +92,24 @@ export default function UsuariosPermissoes() {
     setOpenCriarUsuario(true);
   }
 
-  /** Chama a Edge Function pra qualquer ação (criar/excluir/trocar senha) — sempre a mesma checagem de admin e o mesmo tratamento de erro. */
-  async function chamarGerenciarUsuario(body: Record<string, unknown>) {
-    await chamarEdgeFunction("create-user", body);
-  }
-
-  async function criarUsuario(email: string, password: string, fullName: string, companyId: string, role: UserRole) {
-    await chamarGerenciarUsuario({ action: "create", email, password, fullName, companyId, role });
-  }
-
   async function handleCriarUsuario(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     setSalvandoUsuario(true);
     try {
-      await criarUsuario(
-        String(form.get("email") ?? ""),
-        String(form.get("password") ?? ""),
-        String(form.get("full_name") ?? ""),
-        empresaNovoUsuario,
-        papelNovoUsuario
-      );
+      const { data: sessao } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("create-user", {
+        body: {
+          email: String(form.get("email") ?? ""),
+          password: String(form.get("password") ?? ""),
+          fullName: String(form.get("full_name") ?? ""),
+          companyId: empresaNovoUsuario,
+          role: papelNovoUsuario,
+        },
+        headers: { Authorization: `Bearer ${sessao.session?.access_token ?? ""}` },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
       notificarSucesso("Usuário criado e vinculado — já pode logar direto, sem confirmar e-mail.");
       setOpenCriarUsuario(false);
       e.currentTarget.reset();
@@ -125,126 +120,6 @@ export default function UsuariosPermissoes() {
     }
   }
 
-  // --- Editar usuário existente ---
-  const [openEditar, setOpenEditar] = useState(false);
-  const [editando, setEditando] = useState<Profile | null>(null);
-  const [nomeEditar, setNomeEditar] = useState("");
-  const [papelEditar, setPapelEditar] = useState<UserRole>("fisioterapeuta");
-  const [empresaEditar, setEmpresaEditar] = useState("");
-  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
-
-  function abrirEditar(p: Profile) {
-    setEditando(p);
-    setNomeEditar(p.full_name);
-    setPapelEditar(p.role);
-    setEmpresaEditar(p.company_id ?? "");
-    setOpenEditar(true);
-  }
-
-  async function handleSalvarEdicao(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!editando) return;
-    setSalvandoEdicao(true);
-    try {
-      await repository.profiles.update(editando.id, {
-        full_name: nomeEditar,
-        role: papelEditar,
-        company_id: empresaEditar || undefined,
-      });
-      notificarSucesso("Usuário atualizado.");
-      setOpenEditar(false);
-    } catch (erro) {
-      notificarErro("Não foi possível salvar as alterações", erro);
-    } finally {
-      setSalvandoEdicao(false);
-    }
-  }
-
-  // --- Excluir usuário ---
-  async function handleExcluirUsuario(p: Profile) {
-    if (!window.confirm(`Excluir "${p.full_name}" de vez? A pessoa não vai mais conseguir logar. Não pode ser desfeito.`)) return;
-    try {
-      await chamarGerenciarUsuario({ action: "delete", userId: p.id });
-      notificarSucesso(`"${p.full_name}" excluído.`);
-    } catch (erro) {
-      notificarErro("Não foi possível excluir", erro);
-    }
-  }
-
-  // --- Trocar senha de outro usuário ---
-  const [openTrocarSenha, setOpenTrocarSenha] = useState<Profile | null>(null);
-  const [salvandoSenha, setSalvandoSenha] = useState(false);
-
-  async function handleTrocarSenhaUsuario(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!openTrocarSenha) return;
-    const form = new FormData(e.currentTarget);
-    const novaSenha = String(form.get("nova_senha") ?? "");
-    setSalvandoSenha(true);
-    try {
-      await chamarGerenciarUsuario({ action: "reset-password", userId: openTrocarSenha.id, password: novaSenha });
-      notificarSucesso(`Senha de "${openTrocarSenha.full_name}" trocada.`);
-      setOpenTrocarSenha(null);
-    } catch (erro) {
-      notificarErro("Não foi possível trocar a senha", erro);
-    } finally {
-      setSalvandoSenha(false);
-    }
-  }
-  // --- Criação em lote ---
-  function normalizarSemAcento(texto: string) {
-    return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  }
-  function gerarEmail(nomeCompleto: string, dominio: string) {
-    const partes = normalizarSemAcento(nomeCompleto.trim()).toLowerCase().split(/\s+/).filter(Boolean);
-    const primeiro = partes[0] ?? "";
-    const ultimo = partes.length > 1 ? partes[partes.length - 1] : "";
-    return `${primeiro}${ultimo ? "." + ultimo : ""}@${dominio}`;
-  }
-
-  const [openLote, setOpenLote] = useState(false);
-  const [nomesLote, setNomesLote] = useState("");
-  const [dominioLote, setDominioLote] = useState("inovarefisio.com.br");
-  const [senhaLote, setSenhaLote] = useState("");
-  const [empresaLote, setEmpresaLote] = useState("");
-  const [papelLote, setPapelLote] = useState<UserRole>("fisioterapeuta");
-  const [processandoLote, setProcessandoLote] = useState(false);
-  const [resultadoLote, setResultadoLote] = useState<{ nome: string; email: string; ok: boolean; erro?: string }[]>([]);
-
-  function abrirLote() {
-    setNomesLote("");
-    setSenhaLote("");
-    setEmpresaLote(empresaId || empresas[0]?.id || "");
-    setPapelLote("fisioterapeuta");
-    setResultadoLote([]);
-    setOpenLote(true);
-  }
-
-  const previaLote = nomesLote
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((nome) => ({ nome, email: gerarEmail(nome, dominioLote) }));
-
-  async function handleCriarLote() {
-    if (!empresaLote || !senhaLote || previaLote.length === 0) return;
-    setProcessandoLote(true);
-    const resultados: typeof resultadoLote = [];
-    for (const item of previaLote) {
-      try {
-        await criarUsuario(item.email, senhaLote, item.nome, empresaLote, papelLote);
-        resultados.push({ ...item, ok: true });
-      } catch (erro) {
-        resultados.push({ ...item, ok: false, erro: erro instanceof Error ? erro.message : "Erro desconhecido" });
-      }
-      setResultadoLote([...resultados]);
-    }
-    setProcessandoLote(false);
-    const sucesso = resultados.filter((r) => r.ok).length;
-    if (sucesso > 0) notificarSucesso(`${sucesso} de ${resultados.length} usuário(s) criado(s).`);
-    if (sucesso < resultados.length) notificarErro("Alguns usuários não foram criados", "Veja o detalhe de cada um na lista.");
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -252,7 +127,6 @@ export default function UsuariosPermissoes() {
         description="Usuários com acesso a esta empresa e seus papéis."
         actions={
           meuPerfil?.is_platform_admin ? (
-            <div className="flex gap-2">
             <Sheet open={openCriarUsuario} onOpenChange={setOpenCriarUsuario}>
               <SheetTrigger asChild>
                 <Button size="sm" onClick={abrirCriarUsuario}>
@@ -313,102 +187,6 @@ export default function UsuariosPermissoes() {
                 </form>
               </SheetContent>
             </Sheet>
-
-            <Sheet open={openLote} onOpenChange={setOpenLote}>
-              <SheetTrigger asChild>
-                <Button size="sm" variant="secondary" onClick={abrirLote}>
-                  <Users2 className="h-4 w-4" /> Criar em lote
-                </Button>
-              </SheetTrigger>
-              <SheetContent className="sm:max-w-lg">
-                <SheetHeader>
-                  <SheetTitle>Criar usuários em lote</SheetTitle>
-                  <SheetDescription>
-                    Um nome completo por linha — o e-mail é gerado sozinho (primeiro.último@domínio).
-                  </SheetDescription>
-                </SheetHeader>
-                <div className="flex flex-1 flex-col gap-4 overflow-y-auto">
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="nomes_lote">Nomes completos (um por linha)</Label>
-                    <textarea
-                      id="nomes_lote"
-                      rows={6}
-                      value={nomesLote}
-                      onChange={(e) => setNomesLote(e.target.value)}
-                      placeholder={"Thais de Oliveira Souza\nBeatriz Moura Silva\n..."}
-                      className="rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm text-ink shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/40"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="dominio_lote">Domínio do e-mail</Label>
-                    <Input id="dominio_lote" value={dominioLote} onChange={(e) => setDominioLote(e.target.value)} placeholder="inovarefisio.com.br" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="senha_lote">Senha provisória (igual pra todos)</Label>
-                    <Input id="senha_lote" value={senhaLote} onChange={(e) => setSenhaLote(e.target.value)} minLength={6} placeholder="Mínimo 6 caracteres" />
-                    <p className="text-xs text-ink-soft">Cada pessoa pode trocar a própria senha depois, no menu do usuário (canto superior direito).</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <Label>Empresa</Label>
-                      <Select value={empresaLote} onValueChange={setEmpresaLote}>
-                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                        <SelectContent>
-                          {empresas.map((e) => (
-                            <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <Label>Papel</Label>
-                      <Select value={papelLote} onValueChange={(v) => setPapelLote(v as UserRole)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {TODOS_OS_ROLES.map((r) => (
-                            <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {previaLote.length > 0 && (
-                    <div className="flex flex-col gap-1.5 rounded-md border border-line p-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">
-                        Prévia ({previaLote.length})
-                      </p>
-                      {previaLote.map((item) => {
-                        const resultado = resultadoLote.find((r) => r.nome === item.nome);
-                        return (
-                          <div key={item.nome} className="flex items-center justify-between text-sm">
-                            <div>
-                              <span className="text-ink">{item.nome}</span>
-                              <span className="ml-2 font-mono text-xs text-ink-soft">{item.email}</span>
-                            </div>
-                            {resultado && (
-                              <Badge variant={resultado.ok ? "recovery" : "critical"}>
-                                {resultado.ok ? "Criado" : resultado.erro ?? "Falhou"}
-                              </Badge>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-                <SheetFooter>
-                  <Button type="button" variant="secondary" onClick={() => setOpenLote(false)}>Fechar</Button>
-                  <Button
-                    onClick={handleCriarLote}
-                    disabled={processandoLote || previaLote.length === 0 || !senhaLote || !empresaLote}
-                  >
-                    {processandoLote ? "Criando…" : `Criar ${previaLote.length} usuário(s)`}
-                  </Button>
-                </SheetFooter>
-              </SheetContent>
-            </Sheet>
-            </div>
           ) : undefined
         }
       />
@@ -463,7 +241,6 @@ export default function UsuariosPermissoes() {
                   <th className="px-4 py-3 font-medium">Usuário</th>
                   <th className="px-4 py-3 font-medium">Papel</th>
                   <th className="px-4 py-3 font-medium">Desde</th>
-                  <th className="px-4 py-3 font-medium" />
                 </tr>
               </thead>
               <tbody>
@@ -499,23 +276,6 @@ export default function UsuariosPermissoes() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-ink-soft">{new Date(p.created_at).toLocaleDateString("pt-BR")}</td>
-                    <td className="px-4 py-3 text-right">
-                      {meuPerfil?.is_platform_admin && !p.is_platform_admin && (
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" aria-label={`Editar ${p.full_name}`} onClick={() => abrirEditar(p)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" aria-label={`Trocar senha de ${p.full_name}`} onClick={() => setOpenTrocarSenha(p)}>
-                            <KeyRound className="h-4 w-4" />
-                          </Button>
-                          {p.id !== meuPerfil.id && (
-                            <Button variant="ghost" size="icon" aria-label={`Excluir ${p.full_name}`} onClick={() => handleExcluirUsuario(p)}>
-                              <Trash2 className="h-4 w-4 text-critical-400" />
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -582,72 +342,6 @@ export default function UsuariosPermissoes() {
           </div>
         </CardContent>
       </Card>
-
-      <Sheet open={openEditar} onOpenChange={setOpenEditar}>
-        <SheetContent>
-          <form className="flex h-full flex-col" onSubmit={handleSalvarEdicao}>
-            <SheetHeader>
-              <SheetTitle>Editar usuário</SheetTitle>
-              <SheetDescription>{editando?.email}</SheetDescription>
-            </SheetHeader>
-            <div className="flex flex-1 flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="nome_editar">Nome completo</Label>
-                <Input id="nome_editar" value={nomeEditar} onChange={(e) => setNomeEditar(e.target.value)} required />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Empresa</Label>
-                <Select value={empresaEditar} onValueChange={setEmpresaEditar}>
-                  <SelectTrigger><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
-                  <SelectContent>
-                    {empresas.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Papel</Label>
-                <Select value={papelEditar} onValueChange={(v) => setPapelEditar(v as UserRole)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {TODOS_OS_ROLES.map((r) => (
-                      <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <SheetFooter>
-              <Button type="button" variant="secondary" onClick={() => setOpenEditar(false)}>Cancelar</Button>
-              <Button type="submit" disabled={salvandoEdicao || !nomeEditar || !empresaEditar}>
-                {salvandoEdicao ? "Salvando…" : "Salvar alterações"}
-              </Button>
-            </SheetFooter>
-          </form>
-        </SheetContent>
-      </Sheet>
-
-      <Dialog open={openTrocarSenha !== null} onOpenChange={(v) => !v && setOpenTrocarSenha(null)}>
-        <DialogContent>
-          <form onSubmit={handleTrocarSenhaUsuario}>
-            <DialogHeader>
-              <DialogTitle>Trocar senha</DialogTitle>
-              <DialogDescription>{openTrocarSenha?.full_name} — a pessoa passa a usar essa senha no próximo login.</DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col gap-4 py-2">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="nova_senha">Nova senha</Label>
-                <PasswordInput id="nova_senha" name="nova_senha" required minLength={6} placeholder="Mínimo 6 caracteres" />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="secondary" onClick={() => setOpenTrocarSenha(null)}>Cancelar</Button>
-              <Button type="submit" disabled={salvandoSenha}>{salvandoSenha ? "Salvando…" : "Trocar senha"}</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
@@ -18,6 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Combobox } from "@/components/ui/combobox";
+import { Badge } from "@/components/ui/badge";
 import { GoniometerGauge } from "@/components/shared/goniometer-gauge";
 import { DeleteButton } from "@/components/shared/delete-button";
 import { usePhysiotherapists, useTeams, useProfiles, repository } from "@/data/repository";

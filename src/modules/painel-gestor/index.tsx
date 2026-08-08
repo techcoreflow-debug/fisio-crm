@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { hojeLocalIso } from "@/lib/data-local";
 import { Link } from "react-router-dom";
 import {
   Users,
@@ -28,7 +27,7 @@ import {
 } from "@/data/repository";
 
 function hojeIso() {
-  return hojeLocalIso();
+  return new Date().toISOString().slice(0, 10);
 }
 
 export default function PainelGestor() {

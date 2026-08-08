@@ -1,15 +1,14 @@
 import { useState, type FormEvent } from "react";
-import { AlertTriangle, UserX, ListX } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Combobox } from "@/components/ui/combobox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useAppStore } from "@/store/app-store";
-import { useCompanies, usePatients, useProcedures, repository } from "@/data/repository";
+import { useCompanies, repository } from "@/data/repository";
 import { useAuth } from "@/auth/auth-provider";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { APP_NAME, APP_VERSION } from "@/lib/version";
@@ -47,54 +46,6 @@ export default function Configuracoes() {
   const [gruposSelecionados, setGruposSelecionados] = useState<string[]>([]);
   const [confirmandoLimpeza, setConfirmandoLimpeza] = useState(false);
   const [limpando, setLimpando] = useState(false);
-
-  // --- Exclusão avançada: paciente ou procedimento, ignorando o bloqueio normal de dependências ---
-  const pacientes = usePatients();
-  const procedimentos = useProcedures();
-  const podeExclusaoAvancada = profile?.role === "admin" || profile?.is_platform_admin;
-
-  const [pacienteExcluirId, setPacienteExcluirId] = useState("");
-  const [confirmandoPaciente, setConfirmandoPaciente] = useState(false);
-  const [excluindoPaciente, setExcluindoPaciente] = useState(false);
-
-  const [procedimentoExcluirId, setProcedimentoExcluirId] = useState("");
-  const [confirmandoProcedimento, setConfirmandoProcedimento] = useState(false);
-  const [excluindoProcedimento, setExcluindoProcedimento] = useState(false);
-
-  async function handleExcluirPacienteForcado() {
-    if (!pacienteExcluirId) return;
-    setExcluindoPaciente(true);
-    try {
-      const paciente = pacientes.find((p) => p.id === pacienteExcluirId);
-      const resultado = await repository.patients.removeForcado(pacienteExcluirId);
-      notificarSucesso(
-        `"${paciente?.full_name}" excluído`,
-        `Junto: ${resultado.internacoes} internação(ões), ${resultado.producao} lançamento(s) de produção, ${resultado.evolucoes} evolução(ões).`
-      );
-      setConfirmandoPaciente(false);
-      setPacienteExcluirId("");
-    } catch (erro) {
-      notificarErro("Não foi possível excluir o paciente", erro);
-    } finally {
-      setExcluindoPaciente(false);
-    }
-  }
-
-  async function handleExcluirProcedimentoForcado() {
-    if (!procedimentoExcluirId) return;
-    setExcluindoProcedimento(true);
-    try {
-      const procedimento = procedimentos.find((p) => p.id === procedimentoExcluirId);
-      const resultado = await repository.procedures.removeForcado(procedimentoExcluirId);
-      notificarSucesso(`"${procedimento?.name}" excluído`, `Junto: ${resultado.producao} lançamento(s) de produção.`);
-      setConfirmandoProcedimento(false);
-      setProcedimentoExcluirId("");
-    } catch (erro) {
-      notificarErro("Não foi possível excluir o procedimento", erro);
-    } finally {
-      setExcluindoProcedimento(false);
-    }
-  }
 
   function toggleGrupo(chave: string, marcado: boolean) {
     setGruposSelecionados((atual) => (marcado ? [...atual, chave] : atual.filter((g) => g !== chave)));
@@ -245,58 +196,6 @@ export default function Configuracoes() {
         </CardContent>
       </Card>
 
-      {podeExclusaoAvancada && (
-        <Card className="border-attention-400/40">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-attention-700">
-              <AlertTriangle className="h-4.5 w-4.5" /> Exclusão avançada
-            </CardTitle>
-            <p className="text-sm text-ink-soft mt-0.5">
-              O botão normal de excluir bloqueia se houver dados dependentes (paciente com internação, procedimento
-              com lançamento) — é uma proteção contra perda de dado. Aqui dá pra forçar mesmo assim, apagando junto
-              tudo que depende. Sem volta depois de confirmar.
-            </p>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-5">
-            <div className="flex flex-col gap-1.5">
-              <Label className="flex items-center gap-1.5"><UserX className="h-3.5 w-3.5" /> Excluir paciente (e tudo relacionado)</Label>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Combobox
-                    value={pacienteExcluirId}
-                    onValueChange={setPacienteExcluirId}
-                    options={pacientes.map((p) => ({ value: p.id, label: p.full_name }))}
-                    placeholder="Buscar paciente…"
-                    searchPlaceholder="Nome do paciente…"
-                  />
-                </div>
-                <Button variant="destructive" size="sm" disabled={!pacienteExcluirId} onClick={() => setConfirmandoPaciente(true)}>
-                  Excluir
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label className="flex items-center gap-1.5"><ListX className="h-3.5 w-3.5" /> Excluir procedimento (e a produção lançada com ele)</Label>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Combobox
-                    value={procedimentoExcluirId}
-                    onValueChange={setProcedimentoExcluirId}
-                    options={procedimentos.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}` }))}
-                    placeholder="Buscar procedimento…"
-                    searchPlaceholder="Nome, código ou categoria…"
-                  />
-                </div>
-                <Button variant="destructive" size="sm" disabled={!procedimentoExcluirId} onClick={() => setConfirmandoProcedimento(true)}>
-                  Excluir
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {profile?.is_platform_admin && (
         <Card className="border-critical-400/40">
           <CardHeader>
@@ -359,44 +258,6 @@ export default function Configuracoes() {
             </Button>
             <Button variant="destructive" onClick={handleConfirmarLimpeza} disabled={limpando}>
               {limpando ? "Apagando…" : "Sim, apagar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={confirmandoPaciente} onOpenChange={setConfirmandoPaciente}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Tem certeza?</DialogTitle>
-            <DialogDescription>
-              Isso apaga <strong>{pacientes.find((p) => p.id === pacienteExcluirId)?.full_name}</strong> e tudo
-              relacionado: internações, evoluções clínicas, produção lançada, fila de distribuição e faturamento
-              dele. Não pode ser desfeito.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="secondary" onClick={() => setConfirmandoPaciente(false)} disabled={excluindoPaciente}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleExcluirPacienteForcado} disabled={excluindoPaciente}>
-              {excluindoPaciente ? "Apagando…" : "Sim, apagar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={confirmandoProcedimento} onOpenChange={setConfirmandoProcedimento}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Tem certeza?</DialogTitle>
-            <DialogDescription>
-              Isso apaga o procedimento <strong>{procedimentos.find((p) => p.id === procedimentoExcluirId)?.name}</strong>{" "}
-              e todos os lançamentos de produção feitos com ele — inclusive de meses já fechados. Não pode ser
-              desfeito.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="secondary" onClick={() => setConfirmandoProcedimento(false)} disabled={excluindoProcedimento}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleExcluirProcedimentoForcado} disabled={excluindoProcedimento}>
-              {excluindoProcedimento ? "Apagando…" : "Sim, apagar"}
             </Button>
           </DialogFooter>
         </DialogContent>

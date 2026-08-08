@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Plus, X, Pencil, BedDouble } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { Plus, X, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,9 +32,6 @@ const legenda = ["livre", "ocupado", "higienizacao"];
 
 const SEM_QUARTO = "__sem_quarto__";
 
-/** Padrão da casa: 2h em higienização antes de poder ser considerado livre de novo. */
-const HORAS_HIGIENIZACAO = 2;
-
 export default function Leitos() {
   const leitos = useBeds();
   const unidades = useUnits();
@@ -48,50 +45,9 @@ export default function Leitos() {
   const [quartoId, setQuartoId] = useState(SEM_QUARTO);
   const [editando, setEditando] = useState<Bed | null>(null);
 
-  const [busca, setBusca] = useState("");
-  const [filtroHospital, setFiltroHospital] = useState("todos");
-  const [filtroUnidade, setFiltroUnidade] = useState("todas");
-  const [filtroSemQuarto, setFiltroSemQuarto] = useState(false);
-
   const totalLeitos = leitos.length;
-
-  function statusVisual(leito: Bed): "ocupado" | "higienizacao" | "livre" {
-    const temInternacaoAtiva = internacoes.some((i) => i.bed_id === leito.id && i.status === "internado");
-    if (temInternacaoAtiva) return "ocupado";
-    if (leito.status === "higienizacao") {
-      if (leito.higienizacao_desde) {
-        const decorridoMs = Date.now() - new Date(leito.higienizacao_desde).getTime();
-        if (decorridoMs >= HORAS_HIGIENIZACAO * 60 * 60 * 1000) return "livre";
-      }
-      return "higienizacao";
-    }
-    return "livre";
-  }
-
-  function minutosRestantes(leito: Bed): number | null {
-    if (!leito.higienizacao_desde) return null;
-    const decorridoMs = Date.now() - new Date(leito.higienizacao_desde).getTime();
-    const restanteMs = HORAS_HIGIENIZACAO * 60 * 60 * 1000 - decorridoMs;
-    return restanteMs > 0 ? Math.ceil(restanteMs / 60000) : 0;
-  }
-
+  const ocupados = leitos.filter((l) => l.status === "ocupado").length;
   const quartosDaUnidade = quartos.filter((q) => q.unit_id === unidadeId);
-
-  useEffect(() => {
-    for (const leito of leitos) {
-      const visual = statusVisual(leito);
-      if (leito.status !== visual && visual === "livre") {
-        repository.beds.updateStatus(leito.id, "livre").catch(() => {});
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leitos, internacoes]);
-
-  const [, forcarAtualizacao] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => forcarAtualizacao((v) => v + 1), 60_000);
-    return () => clearInterval(id);
-  }, []);
 
   function abrirNovo(unidadePreselecionada?: string) {
     setEditando(null);
@@ -117,6 +73,9 @@ export default function Leitos() {
     }
   }
 
+  // Sem critério automático pra saber quando a limpeza física terminou —
+  // por isso é uma ação manual: alguém confirma que o leito já foi
+  // higienizado e está pronto para uma nova internação.
   async function handleLiberarLeito(id: string) {
     try {
       await repository.beds.updateStatus(id, "livre");
@@ -163,84 +122,11 @@ export default function Leitos() {
     }
   }
 
-  const leitosFiltrados = leitos.filter((l) => {
-    const unidade = unidades.find((u) => u.id === l.unit_id);
-    if (filtroHospital !== "todos" && unidade?.hospital_id !== filtroHospital) return false;
-    if (filtroUnidade !== "todas" && l.unit_id !== filtroUnidade) return false;
-    if (filtroSemQuarto && l.room_id !== null) return false;
-    if (busca.trim() && !l.code.toLowerCase().includes(busca.trim().toLowerCase())) return false;
-    return true;
-  });
-
-  const ocupados = leitosFiltrados.filter((l) => statusVisual(l) === "ocupado");
-  const emHigienizacao = leitosFiltrados.filter((l) => statusVisual(l) === "higienizacao");
-  const livres = leitosFiltrados.filter((l) => statusVisual(l) === "livre");
-
-  function contexto(leito: Bed) {
-    const unidade = unidades.find((u) => u.id === leito.unit_id);
-    const hospital = hospitais.find((h) => h.id === unidade?.hospital_id);
-    const quarto = quartos.find((q) => q.id === leito.room_id);
-    return { unidade, hospital, quarto };
-  }
-
-  function CardLeito({ leito }: { leito: Bed }) {
-    const internacaoAtiva = internacoes.find((i) => i.bed_id === leito.id && i.status === "internado");
-    const status = statusVisual(leito);
-    const { unidade, hospital, quarto } = contexto(leito);
-    const restante = status === "higienizacao" ? minutosRestantes(leito) : null;
-    return (
-      <div
-        className={cn(
-          "group relative flex flex-col items-center justify-center gap-0.5 rounded-md border px-2 py-3 text-center",
-          statusStyles[status]
-        )}
-        title={`${hospital?.name ?? "—"} · ${unidade?.name ?? "—"}`}
-      >
-        {!internacaoAtiva && (
-          <>
-            <button
-              type="button"
-              onClick={() => handleExcluir(leito.id, leito.code)}
-              aria-label={`Excluir leito ${leito.code}`}
-              className="absolute -right-1.5 -top-1.5 hidden h-4 w-4 items-center justify-center rounded-full bg-critical-400 text-white group-hover:flex"
-            >
-              <X className="h-2.5 w-2.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => abrirEdicao(leito)}
-              aria-label={`Editar leito ${leito.code}`}
-              className="absolute -left-1.5 -top-1.5 hidden h-4 w-4 items-center justify-center rounded-full bg-clinical-500 text-white group-hover:flex"
-            >
-              <Pencil className="h-2.5 w-2.5" />
-            </button>
-          </>
-        )}
-        <span className="font-mono text-xs font-semibold">{leito.code}</span>
-        <span className="truncate text-[10px] text-ink-soft/80">{quarto ? quarto.code : "sem quarto"}</span>
-        {status === "higienizacao" && (
-          <>
-            {restante !== null && restante > 0 && (
-              <span className="text-[10px] text-attention-700">~{restante} min</span>
-            )}
-            <button
-              type="button"
-              onClick={() => handleLiberarLeito(leito.id)}
-              className="mt-0.5 rounded-sm bg-attention-400 px-1.5 py-0.5 text-[10px] font-medium text-white hover:bg-attention-600"
-            >
-              Liberar agora
-            </button>
-          </>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Leitos"
-        description="Mapa de leitos com ocupação em tempo real. Dar alta libera o leito pra higienização — depois de 2h, ele volta a ficar livre sozinho (ou libera na hora, se quiser)."
+        description="Mapa de leitos por ala e quarto, com ocupação em tempo real. Dar alta em uma internação libera o leito para higienização automaticamente."
         actions={
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
@@ -297,7 +183,7 @@ export default function Leitos() {
 
       <div className="flex flex-wrap items-center gap-4">
         <p className="text-sm text-ink-soft">
-          <span className="font-display font-semibold text-ink">{ocupados.length}</span> de {totalLeitos} leitos ocupados
+          <span className="font-display font-semibold text-ink">{ocupados}</span> de {totalLeitos} leitos ocupados
         </p>
         <div className="flex items-center gap-3">
           {legenda.map((s) => (
@@ -309,105 +195,89 @@ export default function Leitos() {
         </div>
       </div>
 
-      <Card>
-        <CardContent className="flex flex-wrap items-center gap-2 pt-5">
-          <Input
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar por código do leito…"
-            className="max-w-xs"
-          />
-          <Select value={filtroHospital} onValueChange={(v) => { setFiltroHospital(v); setFiltroUnidade("todas"); }}>
-            <SelectTrigger className="w-52"><SelectValue placeholder="Todos os hospitais" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os hospitais</SelectItem>
-              {hospitais.map((h) => (
-                <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filtroUnidade} onValueChange={setFiltroUnidade}>
-            <SelectTrigger className="w-52"><SelectValue placeholder="Todas as unidades" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todas as unidades</SelectItem>
-              {unidades
-                .filter((u) => filtroHospital === "todos" || u.hospital_id === filtroHospital)
-                .map((u) => (
-                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-          <Button
-            size="sm"
-            variant={filtroSemQuarto ? "primary" : "secondary"}
-            onClick={() => setFiltroSemQuarto((v) => !v)}
-          >
-            Só sem quarto vinculado
-          </Button>
-        </CardContent>
-      </Card>
+      {unidades.map((unidade) => {
+        const leitosDaUnidade = leitos.filter((l) => l.unit_id === unidade.id);
+        if (leitosDaUnidade.length === 0) return null;
+        const hospital = hospitais.find((h) => h.id === unidade.hospital_id);
 
-      {leitosFiltrados.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
-            <BedDouble className="h-8 w-8 text-ink-soft" />
-            <p className="font-medium text-ink">Nenhum leito encontrado</p>
-            <p className="text-sm text-ink-soft">Ajuste os filtros ou cadastre um novo leito.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <Card>
+        // Agrupa por quarto — reflete a hierarquia real: ala → quarto → leito
+        const porQuarto = new Map<string, Bed[]>();
+        for (const leito of leitosDaUnidade) {
+          const chave = leito.room_id ?? SEM_QUARTO;
+          porQuarto.set(chave, [...(porQuarto.get(chave) ?? []), leito]);
+        }
+
+        return (
+          <Card key={unidade.id}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                Ocupados <span className="font-mono text-sm font-normal text-ink-soft">({ocupados.length})</span>
-              </CardTitle>
+              <CardTitle>{unidade.name}</CardTitle>
+              <p className="text-sm text-ink-soft mt-0.5">{hospital?.name ?? "—"}</p>
             </CardHeader>
-            <CardContent>
-              {ocupados.length === 0 ? (
-                <p className="py-4 text-center text-sm text-ink-soft">Nenhum leito ocupado no filtro atual.</p>
-              ) : (
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
-                  {ocupados.map((leito) => <CardLeito key={leito.id} leito={leito} />)}
-                </div>
-              )}
+            <CardContent className="flex flex-col gap-4">
+              {Array.from(porQuarto.entries()).map(([chaveQuarto, leitosDoQuarto]) => {
+                const quarto = chaveQuarto === SEM_QUARTO ? null : quartos.find((q) => q.id === chaveQuarto);
+                return (
+                  <div key={chaveQuarto}>
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                      {quarto ? quarto.code : "Sem quarto definido"}
+                    </p>
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+                      {leitosDoQuarto.map((leito) => {
+                        const internacaoAtiva = internacoes.find((i) => i.bed_id === leito.id && i.status === "internado");
+                        return (
+                          <div
+                            key={leito.id}
+                            className={cn(
+                              "group relative flex flex-col items-center justify-center gap-1 rounded-md border px-2 py-3 text-center",
+                              statusStyles[leito.status] ?? statusStyles.livre
+                            )}
+                            title={statusLabel[leito.status] ?? leito.status}
+                          >
+                            {!internacaoAtiva && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleExcluir(leito.id, leito.code)}
+                                  aria-label={`Excluir leito ${leito.code}`}
+                                  className="absolute -right-1.5 -top-1.5 hidden h-4 w-4 items-center justify-center rounded-full bg-critical-400 text-white group-hover:flex"
+                                >
+                                  <X className="h-2.5 w-2.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => abrirEdicao(leito)}
+                                  aria-label={`Editar leito ${leito.code}`}
+                                  className="absolute -left-1.5 -top-1.5 hidden h-4 w-4 items-center justify-center rounded-full bg-clinical-500 text-white group-hover:flex"
+                                >
+                                  <Pencil className="h-2.5 w-2.5" />
+                                </button>
+                              </>
+                            )}
+                            <span className="font-mono text-xs font-semibold">{leito.code}</span>
+                            {internacaoAtiva && <span className="truncate text-[11px] leading-tight">Ocupado</span>}
+                            {!internacaoAtiva && leito.status === "higienizacao" && (
+                              <>
+                                <span className="truncate text-[11px] leading-tight">Higienização</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleLiberarLeito(leito.id)}
+                                  className="mt-0.5 rounded-sm bg-attention-400 px-1.5 py-0.5 text-[10px] font-medium text-white hover:bg-attention-600"
+                                >
+                                  Concluir
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
-
-          {emHigienizacao.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  Em higienização <span className="font-mono text-sm font-normal text-ink-soft">({emHigienizacao.length})</span>
-                </CardTitle>
-                <p className="text-sm text-ink-soft mt-0.5">Volta a ficar livre sozinho depois de {HORAS_HIGIENIZACAO}h da alta.</p>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
-                  {emHigienizacao.map((leito) => <CardLeito key={leito.id} leito={leito} />)}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                Livres <span className="font-mono text-sm font-normal text-ink-soft">({livres.length})</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {livres.length === 0 ? (
-                <p className="py-4 text-center text-sm text-ink-soft">Nenhum leito livre no filtro atual.</p>
-              ) : (
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
-                  {livres.map((leito) => <CardLeito key={leito.id} leito={leito} />)}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </>
-      )}
+        );
+      })}
     </div>
   );
 }

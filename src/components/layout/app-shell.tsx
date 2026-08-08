@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { TabletShell } from "@/components/layout/tablet-shell";
+import { Toaster } from "@/components/shared/toaster";
 import { OfflineBanner } from "@/components/shared/offline-banner";
 import { useAuth } from "@/auth/auth-provider";
 import { useAppStore } from "@/store/app-store";
@@ -35,12 +36,12 @@ export function AppShell() {
   }, [profile, companies, activeCompanyId, setActiveCompanyId]);
 
   const ehFisioterapeuta = profile?.role === "fisioterapeuta" && !profile.is_platform_admin;
-  const modoExibicaoFisio = useAppStore((s) => s.modoExibicaoFisio);
 
-  if (ehFisioterapeuta && modoExibicaoFisio === "tablet") {
+  if (ehFisioterapeuta) {
     return (
       <TabletShell>
         <Outlet />
+        <Toaster />
       </TabletShell>
     );
   }
@@ -57,6 +58,7 @@ export function AppShell() {
           </div>
         </main>
       </div>
+      <Toaster />
     </div>
   );
 }
