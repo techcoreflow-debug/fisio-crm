@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { notificarErro } from "@/store/toast-store";
@@ -23,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
+  const usuarioAnteriorRef = useRef<string | null>(null);
 
   async function loadProfile(userId: string, primeiraVez: boolean) {
     // Só mostra a tela cheia de carregamento na PRIMEIRA vez que buscamos o
@@ -53,7 +54,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      if (data.session) loadProfile(data.session.user.id, true);
+      if (data.session) {
+        usuarioAnteriorRef.current = data.session.user.id;
+        loadProfile(data.session.user.id, true);
+      }
       setLoading(false);
     });
 
@@ -61,13 +65,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(newSession);
       if (!newSession) {
         setProfile(null);
+        usuarioAnteriorRef.current = null;
+        // Sem isso, a URL fica presa na última tela que a pessoa anterior
+        // estava — quando alguém novo loga nessa mesma aba, o roteador
+        // tenta abrir de novo essa mesma rota antes de checar se o
+        // usuário novo pode vê-la.
+        if (window.location.pathname !== "/") {
+          window.history.replaceState(null, "", "/");
+        }
         return;
       }
       // TOKEN_REFRESHED dispara sozinho ao voltar o foco da aba — o perfil
       // não muda nesse evento, então não precisa (e não deve) recarregar
       // como se fosse um novo login.
       if (event === "TOKEN_REFRESHED") return;
-      loadProfile(newSession.user.id, event === "SIGNED_IN" || event === "INITIAL_SESSION");
+      // Alguns navegadores também disparam SIGNED_IN de novo ao voltar o
+      // foco da aba, revalidando a MESMA sessão — sem essa checagem, isso
+      // acionava a tela cheia de carregamento (profileLoading) e
+      // desmontava a tela que a pessoa estava usando (inclusive filtros
+      // aplicados), sem ela ter feito login de novo de verdade. Foi
+      // corrigido antes (v0.18.0) e se perdeu numa reconstrução do
+      // projeto — atenção especial pra não regredir de novo.
+      const mudouDeUsuario = usuarioAnteriorRef.current !== newSession.user.id;
+      usuarioAnteriorRef.current = newSession.user.id;
+      if (event === "SIGNED_IN" && !mudouDeUsuario) return;
+      loadProfile(newSession.user.id, mudouDeUsuario || event === "INITIAL_SESSION");
     });
 
     return () => listener.subscription.unsubscribe();

@@ -31,6 +31,7 @@ const papelConfig: Record<UserRole, { label: string; variant: NonNullable<BadgeP
   gestor: { label: "Gestor", variant: "clinical" },
   financeiro: { label: "Financeiro", variant: "attention" },
   fisioterapeuta: { label: "Fisioterapeuta", variant: "recovery" },
+  supervisor: { label: "Supervisor", variant: "clinical" },
   auditor: { label: "Auditor", variant: "neutral" },
 };
 

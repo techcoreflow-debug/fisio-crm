@@ -520,7 +520,7 @@ export const repository = {
       await excluirLinha("admissions", id);
     },
     create: async (
-      data: Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "external_reference" | "diagnostico" | "company_id">
+      data: Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "external_reference" | "diagnostico" | "pre_lancamento_procedure_id" | "company_id">
     ): Promise<Admission> => {
       try {
         const row = await inserirLinha<Admission>("admissions", { ...data, status: "internado" });
@@ -536,7 +536,7 @@ export const repository = {
     },
     update: async (
       id: string,
-      patch: Partial<Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "external_reference" | "diagnostico" | "company_id">>
+      patch: Partial<Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "external_reference" | "diagnostico" | "pre_lancamento_procedure_id" | "company_id">>
     ): Promise<void> => {
       try {
         await atualizarLinha("admissions", id, patch);

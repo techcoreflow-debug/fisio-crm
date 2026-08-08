@@ -68,6 +68,7 @@ export default function NovoAtendimento() {
   const [convenioInternacaoId, setConvenioInternacaoId] = useState("");
   const [nrAtendimento, setNrAtendimento] = useState("");
   const [diagnostico, setDiagnostico] = useState("");
+  const [preLancamentoProcedureId, setPreLancamentoProcedureId] = useState("");
   const [internacaoCriada, setInternacaoCriada] = useState<Admission | null>(null);
 
   const [fisioId, setFisioId] = useState("");
@@ -99,6 +100,7 @@ export default function NovoAtendimento() {
     setConvenioInternacaoId("");
     setNrAtendimento("");
     setDiagnostico("");
+    setPreLancamentoProcedureId("");
     setInternacaoCriada(null);
     setFisioId("");
     setProcedimentoId("");
@@ -152,6 +154,7 @@ export default function NovoAtendimento() {
         admission_time: String(form.get("admission_time") ?? ""),
         external_reference: nrAtendimento.trim() || null,
         diagnostico: diagnostico.trim() || null,
+        pre_lancamento_procedure_id: preLancamentoProcedureId || null,
         company_id: pacienteAtual.company_id,
       });
       setInternacaoCriada(criada);
@@ -370,6 +373,19 @@ export default function NovoAtendimento() {
                   className="rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm text-ink shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/40"
                 />
               </div>
+              <div className="flex flex-col gap-1.5 rounded-md border border-recovery-400/40 bg-recovery-100 p-3 sm:w-96">
+                <Label>Pré-lançamento (opcional)</Label>
+                <Combobox
+                  value={preLancamentoProcedureId}
+                  onValueChange={setPreLancamentoProcedureId}
+                  options={procedimentos.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}`, sublabel: p.category ?? undefined }))}
+                  placeholder="Sem código sugerido"
+                  searchPlaceholder="Nome, código ou categoria…"
+                />
+                <p className="text-xs text-recovery-700">
+                  O código certo pra usar depois, na hora de lançar de verdade — evita confusão de codificação.
+                </p>
+              </div>
               <div className="grid gap-3 sm:w-96 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="admission_date">Data de entrada</Label>
@@ -410,7 +426,10 @@ export default function NovoAtendimento() {
                       {jaLancados.map((p) => (
                         <li key={p.id} className="flex items-center gap-1.5">
                           <span className="font-mono">{p.production_time?.slice(0, 5)}</span>
-                          {procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—"}
+                          {(() => {
+                            const proc = procedimentos.find((pr) => pr.id === p.procedure_id);
+                            return proc ? <><span className="font-mono">{proc.code}</span> {proc.name}</> : "—";
+                          })()}
                         </li>
                       ))}
                     </ul>

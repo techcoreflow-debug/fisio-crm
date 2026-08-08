@@ -20,6 +20,48 @@ Antes de subir um deploy:
 
 ---
 
+## v0.34.0 — 08/08/2026
+
+**Regressão corrigida — filtros zerando no ALT+TAB.** A correção do
+v0.18.0 (ignorar `SIGNED_IN` repetido pro mesmo usuário, que evitava a
+tela recarregar sozinha ao voltar o foco da aba) tinha se perdido numa
+reconstrução do projeto depois de um reset de ambiente. Reaplicada —
+sem afetar a busca direta que já existe na tela de Alta.
+
+**Item 1 — Monika/Carlos sem acesso de superusuário**: código
+verificado, sem bug — reforçado o SQL de diagnóstico com o lembrete de
+**deslogar e logar de novo** depois de ajustar `is_platform_admin`.
+
+**Item 2 — Novo papel "Supervisor"**: mesmo acesso do fisioterapeuta
+lançador, mais visão e controle dos painéis operacionais (Painel do
+Gestor, Dashboard Operacional, Impacto Assistencial, Leitos, Escalas,
+Evolução Clínica, Fisioterapeutas, Procedimentos, Relatórios) — sem
+ser admin, e **sem nenhum acesso a faturamento**. Migration `0027`
+(precisa rodar sozinha, é alteração de enum).
+
+**Item 3 — Código do procedimento** nas listas de "já lançados hoje",
+em todas as 5 telas que mostram isso (Internações, Alta, Minha Fila,
+Novo Atendimento, Produção Diária).
+
+**Item 4 — Alterar lançamento**, restrito a Admin e Supervisor em
+Produção Diária.
+
+**Item 5 — Fisio lançador pode editar internação** (trocar quarto, por
+exemplo) — só editar, nunca criar internação nova nem excluir.
+
+**Item 6 — Pré-lançamento**: campo na internação (Internações e Novo
+Atendimento) pra já indicar o código certo do procedimento na triagem,
+reduzindo erro de codificação depois. Aparece como selo na listagem
+(só o código) e como coluna opcional na lista impressa. Migration
+`0028`.
+
+**Item 7 — Paciente novo em negrito** na lista impressa — critério:
+ainda não tem nenhum procedimento lançado nessa internação.
+
+**Item 8 — Filtro de Hospital** em Produção Diária.
+
+---
+
 ## v0.33.0 — 08/08/2026
 
 **Correção sistêmica — "lançamento sumindo de tela" em qualquer lugar

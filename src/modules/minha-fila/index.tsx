@@ -247,7 +247,10 @@ export default function MinhaFila() {
                         {jaLancados.map((p) => (
                           <li key={p.id} className="flex items-center gap-1.5">
                             <span className="font-mono">{p.production_time?.slice(0, 5)}</span>
-                            {procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—"}
+                            {(() => {
+                            const proc = procedimentos.find((pr) => pr.id === p.procedure_id);
+                            return proc ? <><span className="font-mono">{proc.code}</span> {proc.name}</> : "—";
+                          })()}
                           </li>
                         ))}
                       </ul>

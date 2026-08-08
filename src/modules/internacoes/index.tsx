@@ -88,6 +88,7 @@ export default function Internacoes() {
     { chave: "nrAtendimento", rotulo: "Nr. Atendimento" },
     { chave: "paciente", rotulo: "Paciente" },
     { chave: "diagnostico", rotulo: "Diagnóstico" },
+    { chave: "preLancamento", rotulo: "Pré-lançamento" },
     { chave: "procedimento", rotulo: "Procedimento (hoje)" },
     { chave: "quarto", rotulo: "Quarto" },
     { chave: "leito", rotulo: "Leito" },
@@ -105,6 +106,10 @@ export default function Internacoes() {
   // Fisioterapeuta lançador: só lança procedimento e cadastra paciente —
   // não administra internação (criar/editar/dar alta continua restrito).
   const podeAdministrarInternacao = !(profile?.role === "fisioterapeuta" && !profile.is_platform_admin);
+  // Fisio lançador precisa poder EDITAR (trocar quarto, por exemplo — é
+  // rotina, o paciente muda de quarto com frequência), mas nunca criar
+  // internação nova nem excluir — só esses dois continuam restritos.
+  const podeEditarInternacao = podeAdministrarInternacao || profile?.role === "fisioterapeuta";
   const podeExcluirInternacao = profile?.role === "admin" || profile?.is_platform_admin;
 
   const hojeIso = hojeLocalIso();
@@ -136,6 +141,7 @@ export default function Internacoes() {
     convenioId: "",
     nrAtendimento: "",
     diagnostico: "",
+    preLancamentoProcedureId: "",
   });
   const open = rascunho.open;
   const editando = rascunho.editandoId ? internacoes.find((i) => i.id === rascunho.editandoId) ?? null : null;
@@ -151,6 +157,8 @@ export default function Internacoes() {
   const setNrAtendimento = (v: string) => setRascunho({ ...rascunho, nrAtendimento: v });
   const diagnostico = rascunho.diagnostico;
   const setDiagnostico = (v: string) => setRascunho({ ...rascunho, diagnostico: v });
+  const preLancamentoProcedureId = rascunho.preLancamentoProcedureId;
+  const setPreLancamentoProcedureId = (v: string) => setRascunho({ ...rascunho, preLancamentoProcedureId: v });
 
   // Não confia no campo `status` do leito puro — o mesmo tipo de
   // dessincronia que já corrigimos em Leitos pode deixar um leito preso
@@ -211,11 +219,17 @@ export default function Internacoes() {
     const colunasAtivas = COLUNAS_LISTA.filter((c) => colunasLista.has(c.chave));
     const linhasHtml = linhas
       .map((i, idx) => {
+        // "Novo" = ainda não tem NENHUM procedimento lançado nessa
+        // internação (não só hoje) — é o critério que a equipe usa pra
+        // saber quem acabou de entrar na triagem. Assim que lança o
+        // primeiro procedimento, deixa de aparecer em negrito.
+        const ehNovo = !producao.some((p) => p.admission_id === i.id);
         const celulas = colunasAtivas.map((c) => {
           switch (c.chave) {
             case "nrAtendimento": return i.external_reference ?? "—";
             case "paciente": return pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "—";
             case "diagnostico": return i.diagnostico || "—";
+            case "preLancamento": return procedimentos.find((p) => p.id === i.pre_lancamento_procedure_id)?.code ?? "—";
             case "procedimento": return nomeProcedimentoHoje(i.id);
             case "quarto": {
               const leito = leitos.find((l) => l.id === i.bed_id);
@@ -227,7 +241,7 @@ export default function Internacoes() {
             default: return "—";
           }
         });
-        return `<tr><td>${idx + 1}</td>${celulas.map((v) => `<td>${v}</td>`).join("")}</tr>`;
+        return `<tr class="${ehNovo ? "novo" : ""}"><td>${idx + 1}</td>${celulas.map((v) => `<td>${v}</td>`).join("")}</tr>`;
       })
       .join("");
     const cabecalho = `<tr><th>#</th>${colunasAtivas.map((c) => `<th>${c.rotulo}</th>`).join("")}</tr>`;
@@ -247,11 +261,12 @@ export default function Internacoes() {
             table { width: 100%; border-collapse: collapse; margin-top: 16px; }
             th, td { border: 1px solid #dbe2ea; padding: 6px 10px; font-size: 12px; text-align: left; }
             th { background: #f4f6fa; text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px; }
+            tr.novo td { font-weight: 700; }
           </style>
         </head>
         <body>
           <h1>Lista de atendimento</h1>
-          <p>${new Date().toLocaleDateString("pt-BR")} · ${linhas.length} paciente(s)</p>
+          <p>${new Date().toLocaleDateString("pt-BR")} · ${linhas.length} paciente(s) · <strong>negrito</strong> = paciente novo, ainda sem procedimento lançado</p>
           <table>${cabecalho}${linhasHtml}</table>
           <script>window.onload = () => window.print();</script>
         </body>
@@ -365,6 +380,7 @@ export default function Internacoes() {
       convenioId: "",
       nrAtendimento: "",
       diagnostico: "",
+    preLancamentoProcedureId: "",
     });
   }
 
@@ -379,6 +395,7 @@ export default function Internacoes() {
       convenioId: internacao.health_insurance_id ?? "",
       nrAtendimento: internacao.external_reference ?? "",
       diagnostico: internacao.diagnostico ?? "",
+      preLancamentoProcedureId: internacao.pre_lancamento_procedure_id ?? "",
     });
   }
 
@@ -406,6 +423,7 @@ export default function Internacoes() {
         admission_time: String(form.get("admission_time") ?? "") || "08:00",
         external_reference: nrAtendimento.trim() || null,
         diagnostico: diagnostico.trim() || null,
+        pre_lancamento_procedure_id: preLancamentoProcedureId || null,
         company_id: paciente.company_id,
       };
       if (editando) {
@@ -631,6 +649,20 @@ export default function Internacoes() {
                       className="rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm text-ink shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/40"
                     />
                   </div>
+                  <div className="flex flex-col gap-1.5 rounded-md border border-recovery-400/40 bg-recovery-100 p-3">
+                    <Label>Pré-lançamento (opcional)</Label>
+                    <Combobox
+                      value={preLancamentoProcedureId}
+                      onValueChange={setPreLancamentoProcedureId}
+                      options={procedimentos.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}`, sublabel: p.category ?? undefined }))}
+                      placeholder="Sem código sugerido"
+                      searchPlaceholder="Nome, código ou categoria…"
+                    />
+                    <p className="text-xs text-recovery-700">
+                      O código certo pra usar depois, na hora de lançar de verdade — evita confusão de codificação.
+                      Não lança nada sozinho.
+                    </p>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="admission_date">Data de entrada</Label>
@@ -812,9 +844,14 @@ export default function Internacoes() {
                         Dx: {i.diagnostico}
                       </p>
                     )}
+                    {i.pre_lancamento_procedure_id && (
+                      <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-recovery-100 px-2 py-0.5 font-mono text-[10px] font-medium text-recovery-700">
+                        Pré-lançamento: {procedimentos.find((p) => p.id === i.pre_lancamento_procedure_id)?.code ?? "—"}
+                      </span>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    {podeAdministrarInternacao && (
+                    {podeEditarInternacao && (
                       <Button variant="ghost" size="icon" aria-label="Editar internação" title="Editar internação" onClick={() => abrirEdicao(i)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -882,7 +919,10 @@ export default function Internacoes() {
                       {procedimentosDeHojeNaAlta.map((p) => (
                         <li key={p.id} className="flex items-center gap-1.5">
                           <span className="font-mono">{p.production_time?.slice(0, 5)}</span>
-                          {procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—"}
+                          {(() => {
+                            const proc = procedimentos.find((pr) => pr.id === p.procedure_id);
+                            return proc ? <><span className="font-mono">{proc.code}</span> {proc.name}</> : "—";
+                          })()}
                         </li>
                       ))}
                     </ul>
@@ -984,7 +1024,10 @@ export default function Internacoes() {
                       {jaLancados.map((p) => (
                         <li key={p.id} className="flex items-center gap-1.5">
                           <span className="font-mono">{p.production_time?.slice(0, 5)}</span>
-                          {procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—"}
+                          {(() => {
+                            const proc = procedimentos.find((pr) => pr.id === p.procedure_id);
+                            return proc ? <><span className="font-mono">{proc.code}</span> {proc.name}</> : "—";
+                          })()}
                         </li>
                       ))}
                     </ul>

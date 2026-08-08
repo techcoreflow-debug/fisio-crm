@@ -21,6 +21,7 @@ Tasy.
 | **Admin InovareTech** | Acesso total, em todas as empresas do grupo. Só ele vê o seletor de empresa no topo, pode vincular um usuário novo a uma empresa, e é o único que enxerga a Zona de risco. |
 | **Admin de empresa** | Acesso completo, travado na própria empresa. |
 | **Gestor** | Acesso completo por padrão — ajustável em Permissões. |
+| **Supervisor** | Mesmo acesso do fisioterapeuta (lançador) nos módulos do dia a dia, mais visão e controle dos painéis operacionais (Painel do Gestor, Dashboard Operacional, Impacto Assistencial, Leitos, Escalas, Evolução Clínica, Fisioterapeutas, Procedimentos, Relatórios) — sem ser admin, e sem acesso a faturamento. |
 | **Financeiro** | Acesso completo aos módulos financeiros (Financeiro, Faturamento, Fechamento, Painel de Procedimentos, Relatórios, Contratos); só visualização no resto. |
 | **Auditor** | Só visualização, em todos os módulos. |
 | **Fisioterapeuta (lançador)** | Acesso restrito a Minha Fila, Novo Atendimento, Pacientes, Pacientes Internados e Produção Diária — o essencial pro dia a dia dele. Usa o **modo tablet** (ver seção própria). |
@@ -186,9 +187,17 @@ Leito, Paciente (A-Z), Entrada (mais recente) ou Nr. Atendimento.
 - **Diagnóstico**: texto livre, também preenchido ao criar a internação —
   aparece logo após o nome do paciente na listagem, e é uma opção a mais
   na lista impressa.
+- **Pré-lançamento**: código de procedimento sugerido na triagem, pra
+  reduzir erro de codificação na hora de lançar de verdade depois —
+  aparece como selo (só o código) na listagem e é uma opção a mais na
+  lista impressa. Não lança nada sozinho, é só referência.
 - **Excluir internação** (só papel admin, de empresa ou InovareTech):
   bloqueia se já tiver produção, evolução, fila ou faturamento
   lançado — mesma proteção do resto do sistema.
+
+O fisioterapeuta lançador pode **editar** uma internação já existente
+(trocar unidade, leito, quarto — útil porque paciente muda de quarto com
+frequência), mas nunca criar internação nova nem excluir.
 - **Lançar procedimento** ("+ Procedimento"): direto na linha, sem precisar ir em Produção
   Diária.
 - **Dar alta** ("Alta"): sempre mostra quantos procedimentos já foram

@@ -6,7 +6,7 @@
  * do mock pelo Supabase real (ver src/data/repository.ts).
  */
 
-export type UserRole = "admin" | "gestor" | "financeiro" | "fisioterapeuta" | "auditor";
+export type UserRole = "admin" | "gestor" | "financeiro" | "fisioterapeuta" | "auditor" | "supervisor";
 
 export interface Profile {
   id: string;
@@ -175,6 +175,7 @@ export interface Admission {
   status: string;
   external_reference: string | null;
   diagnostico: string | null;
+  pre_lancamento_procedure_id: string | null;
   created_at: string;
 }
 
