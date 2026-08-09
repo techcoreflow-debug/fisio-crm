@@ -125,16 +125,21 @@ export function useRooms(): Room[] {
   return useSupabaseCollection<Room>("rooms", { company_id: useActiveCompanyId() }, "code");
 }
 export function useAdmissions(): Admission[] {
-  return useSupabaseCollection<Admission>("admissions", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<Admission>("admissions", { company_id: useActiveCompanyId() }, "created_at", true);
 }
 export function useProcedures(): Procedure[] {
   return useSupabaseCollection<Procedure>("procedures", { company_id: useActiveCompanyId() }, "code");
 }
 export function useDailyProduction(): DailyProduction[] {
-  return useSupabaseCollection<DailyProduction>("daily_production", { company_id: useActiveCompanyId() });
+  // Ordenado por mais recente primeiro (created_at) — importante: o
+  // Supabase corta buscas sem paginação em ~1000 linhas por padrão. Sem
+  // essa ordenação, o corte podia remover justamente os lançamentos mais
+  // novos (os de hoje), já causou "lançamento sumindo de tela" mesmo
+  // com o dado gravado certinho no banco.
+  return useSupabaseCollection<DailyProduction>("daily_production", { company_id: useActiveCompanyId() }, "created_at", true);
 }
 export function useClinicalEvolutions(): ClinicalEvolution[] {
-  return useSupabaseCollection<ClinicalEvolution>("clinical_evolutions", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<ClinicalEvolution>("clinical_evolutions", { company_id: useActiveCompanyId() }, "created_at", true);
 }
 export function useShifts(): Shift[] {
   return useSupabaseCollection<Shift>("shifts", { company_id: useActiveCompanyId() });
@@ -173,10 +178,10 @@ export function usePermission(moduleSlug: string): Permissao {
   return permissaoPadrao(profile.role, moduleSlug);
 }
 export function useActivityLog(): ActivityLog[] {
-  return useSupabaseCollection<ActivityLog>("activity_log", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<ActivityLog>("activity_log", { company_id: useActiveCompanyId() }, "created_at", true);
 }
 export function useReceivables(): Receivable[] {
-  return useSupabaseCollection<Receivable>("receivables", { company_id: useActiveCompanyId() });
+  return useSupabaseCollection<Receivable>("receivables", { company_id: useActiveCompanyId() }, "created_at", true);
 }
 export function useProfiles(): Profile[] {
   return useSupabaseCollection<Profile>("profiles", { company_id: useActiveCompanyId() });

@@ -28,7 +28,8 @@ let proximoIdDeCanal = 0;
 export function useSupabaseCollection<T>(
   table: TableName,
   filtros: Record<string, string | null | undefined>,
-  ordenarPor?: string
+  ordenarPor?: string,
+  ordemDecrescente = false
 ): T[] {
   const [linhas, setLinhas] = useState<T[]>([]);
   const chaveFiltro = JSON.stringify(filtros);
@@ -57,7 +58,7 @@ export function useSupabaseCollection<T>(
         }
       }
       if (ordenarPor) {
-        query = query.order(ordenarPor, { ascending: true });
+        query = query.order(ordenarPor, { ascending: !ordemDecrescente });
       }
       const { data, error } = await query;
       if (!ativo) return;
@@ -112,7 +113,7 @@ export function useSupabaseCollection<T>(
       supabase.removeChannel(canal);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table, chaveFiltro, filtroIncompleto, ordenarPor]);
+  }, [table, chaveFiltro, filtroIncompleto, ordenarPor, ordemDecrescente]);
 
   return linhas;
 }

@@ -20,6 +20,34 @@ Antes de subir um deploy:
 
 ---
 
+## v0.37.0 — 09/08/2026
+
+**Causa raiz real do "lançamento sumindo" — achada e corrigida.** Depois
+de investigar a fundo (contagem no banco batendo 80 contra 54 na tela),
+confirmamos: não era mais staleness de Realtime — era o **limite padrão
+de 1.000 linhas por busca do Supabase**. A tabela de produção diária já
+tinha passado de 1.000 linhas no total (histórico completo, não só
+hoje), e a busca sem paginação nem ordenação garantida podia cortar
+justamente os lançamentos mais recentes.
+
+Duas partes na correção:
+
+1. **No Supabase** (ajustado direto no painel, fora do código): limite
+   de linhas por busca aumentado de 1.000 pra 10.000.
+2. **No código**: as tabelas que só crescem (produção diária,
+   internações, evoluções clínicas, auditoria, contas a receber) agora
+   sempre buscam **mais recente primeiro**. Mesmo se o limite for
+   atingido de novo no futuro, quem fica de fora é o histórico antigo —
+   nunca mais o lançamento de hoje.
+
+As correções anteriores (v0.32.1, v0.33.0, v0.36.0) continuam válidas e
+se somam a essa — a diferença é que agora endereçamos a causa de fundo,
+não só os sintomas.
+
+Sem migration — código + configuração do projeto no Supabase.
+
+---
+
 ## v0.36.0 — 08/08/2026
 
 **Item 1 — Lançamento avulso confiável.** O "Lançar procedimento" em
