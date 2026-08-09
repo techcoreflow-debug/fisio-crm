@@ -110,6 +110,10 @@ export default function Internacoes() {
   // rotina, o paciente muda de quarto com frequência), mas nunca criar
   // internação nova nem excluir — só esses dois continuam restritos.
   const podeEditarInternacao = podeAdministrarInternacao || profile?.role === "fisioterapeuta";
+  // Só admin e supervisor podem MEXER no código sugerido — é justamente
+  // pra ninguém confuso na codificação alterar o código que deveria
+  // orientar (a razão de existir o pré-lançamento).
+  const podeAlterarPreLancamento = profile?.role === "admin" || profile?.role === "supervisor" || profile?.is_platform_admin;
   const podeExcluirInternacao = profile?.role === "admin" || profile?.is_platform_admin;
 
   const hojeIso = hojeLocalIso();
@@ -141,7 +145,8 @@ export default function Internacoes() {
     convenioId: "",
     nrAtendimento: "",
     diagnostico: "",
-    preLancamentoProcedureId: "",
+    preLancamentoMotoraId: "",
+    preLancamentoRespiratoriaId: "",
   });
   const open = rascunho.open;
   const editando = rascunho.editandoId ? internacoes.find((i) => i.id === rascunho.editandoId) ?? null : null;
@@ -157,8 +162,10 @@ export default function Internacoes() {
   const setNrAtendimento = (v: string) => setRascunho({ ...rascunho, nrAtendimento: v });
   const diagnostico = rascunho.diagnostico;
   const setDiagnostico = (v: string) => setRascunho({ ...rascunho, diagnostico: v });
-  const preLancamentoProcedureId = rascunho.preLancamentoProcedureId;
-  const setPreLancamentoProcedureId = (v: string) => setRascunho({ ...rascunho, preLancamentoProcedureId: v });
+  const preLancamentoMotoraId = rascunho.preLancamentoMotoraId;
+  const setPreLancamentoMotoraId = (v: string) => setRascunho({ ...rascunho, preLancamentoMotoraId: v });
+  const preLancamentoRespiratoriaId = rascunho.preLancamentoRespiratoriaId;
+  const setPreLancamentoRespiratoriaId = (v: string) => setRascunho({ ...rascunho, preLancamentoRespiratoriaId: v });
 
   // Não confia no campo `status` do leito puro — o mesmo tipo de
   // dessincronia que já corrigimos em Leitos pode deixar um leito preso
@@ -190,12 +197,14 @@ export default function Internacoes() {
   const [horaLancar, setHoraLancar] = useState(new Date().toTimeString().slice(0, 5));
   const [salvandoLancamento, setSalvandoLancamento] = useState(false);
 
-  function abrirLancarProcedimento(internacao: Admission) {
+  async function abrirLancarProcedimento(internacao: Admission) {
     setInternacaoParaLancar(internacao);
     setFisioLancarId("");
     setProcedimentoLancarId("");
     setDataLancar(hojeIso);
     setHoraLancar(new Date().toTimeString().slice(0, 5));
+    setProcedimentosDeHojeConferidos(null);
+    await conferirProcedimentosDeHoje(internacao.id);
   }
 
   function nomeProcedimentoHoje(admissionId: string) {
@@ -229,7 +238,11 @@ export default function Internacoes() {
             case "nrAtendimento": return i.external_reference ?? "—";
             case "paciente": return pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "—";
             case "diagnostico": return i.diagnostico || "—";
-            case "preLancamento": return procedimentos.find((p) => p.id === i.pre_lancamento_procedure_id)?.code ?? "—";
+            case "preLancamento": {
+              const motora = procedimentos.find((p) => p.id === i.pre_lancamento_motora_id)?.code;
+              const respiratoria = procedimentos.find((p) => p.id === i.pre_lancamento_respiratoria_id)?.code;
+              return motora || respiratoria ? `${motora ?? "—"} · ${respiratoria ?? "—"}` : "—";
+            }
             case "procedimento": return nomeProcedimentoHoje(i.id);
             case "quarto": {
               const leito = leitos.find((l) => l.id === i.bed_id);
@@ -319,6 +332,7 @@ export default function Internacoes() {
       // atualizada, pra continuar lançando sem precisar reabrir.
       setProcedimentoLancarId("");
       setHoraLancar(new Date().toTimeString().slice(0, 5));
+      await conferirProcedimentosDeHoje(internacaoParaLancar.id);
     } catch (erro) {
       notificarErro("Não foi possível lançar o procedimento", erro);
     } finally {
@@ -380,7 +394,8 @@ export default function Internacoes() {
       convenioId: "",
       nrAtendimento: "",
       diagnostico: "",
-    preLancamentoProcedureId: "",
+    preLancamentoMotoraId: "",
+    preLancamentoRespiratoriaId: "",
     });
   }
 
@@ -395,7 +410,8 @@ export default function Internacoes() {
       convenioId: internacao.health_insurance_id ?? "",
       nrAtendimento: internacao.external_reference ?? "",
       diagnostico: internacao.diagnostico ?? "",
-      preLancamentoProcedureId: internacao.pre_lancamento_procedure_id ?? "",
+      preLancamentoMotoraId: internacao.pre_lancamento_motora_id ?? "",
+      preLancamentoRespiratoriaId: internacao.pre_lancamento_respiratoria_id ?? "",
     });
   }
 
@@ -405,6 +421,13 @@ export default function Internacoes() {
     const paciente = pacientes.find((p) => p.id === pacienteId);
     const unidade = unidades.find((u) => u.id === unidadeId);
     if (!paciente || !unidade) return;
+    if (!!preLancamentoMotoraId !== !!preLancamentoRespiratoriaId) {
+      notificarErro(
+        "Pré-lançamento incompleto",
+        "Se for preencher o pré-lançamento, precisa dos dois: Motora e Respiratória — não faz sentido só um."
+      );
+      return;
+    }
     setSalvando(true);
     try {
       if (leitoId && quartoInlineId) {
@@ -423,7 +446,8 @@ export default function Internacoes() {
         admission_time: String(form.get("admission_time") ?? "") || "08:00",
         external_reference: nrAtendimento.trim() || null,
         diagnostico: diagnostico.trim() || null,
-        pre_lancamento_procedure_id: preLancamentoProcedureId || null,
+        pre_lancamento_motora_id: preLancamentoMotoraId || null,
+        pre_lancamento_respiratoria_id: preLancamentoRespiratoriaId || null,
         company_id: paciente.company_id,
       };
       if (editando) {
@@ -649,19 +673,47 @@ export default function Internacoes() {
                       className="rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm text-ink shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/40"
                     />
                   </div>
-                  <div className="flex flex-col gap-1.5 rounded-md border border-recovery-400/40 bg-recovery-100 p-3">
-                    <Label>Pré-lançamento (opcional)</Label>
-                    <Combobox
-                      value={preLancamentoProcedureId}
-                      onValueChange={setPreLancamentoProcedureId}
-                      options={procedimentos.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}`, sublabel: p.category ?? undefined }))}
-                      placeholder="Sem código sugerido"
-                      searchPlaceholder="Nome, código ou categoria…"
-                    />
-                    <p className="text-xs text-recovery-700">
-                      O código certo pra usar depois, na hora de lançar de verdade — evita confusão de codificação.
-                      Não lança nada sozinho.
-                    </p>
+                  <div className="flex flex-col gap-2 rounded-md border border-recovery-400/40 bg-recovery-100 p-3">
+                    <Label>Pré-lançamento (opcional — Motora e Respiratória juntas)</Label>
+                    {podeAlterarPreLancamento ? (
+                      <>
+                        <Combobox
+                          value={preLancamentoMotoraId}
+                          onValueChange={setPreLancamentoMotoraId}
+                          options={procedimentos
+                            .filter((p) => !p.category || p.category.toLowerCase().includes("motora"))
+                            .map((p) => ({ value: p.id, label: `${p.code} · ${p.name}` }))}
+                          placeholder="Código sugerido — Motora"
+                          searchPlaceholder="Nome ou código…"
+                        />
+                        <Combobox
+                          value={preLancamentoRespiratoriaId}
+                          onValueChange={setPreLancamentoRespiratoriaId}
+                          options={procedimentos
+                            .filter((p) => !p.category || p.category.toLowerCase().includes("respirat"))
+                            .map((p) => ({ value: p.id, label: `${p.code} · ${p.name}` }))}
+                          placeholder="Código sugerido — Respiratória"
+                          searchPlaceholder="Nome ou código…"
+                        />
+                        <p className="text-xs text-recovery-700">
+                          O código certo pra usar depois, na hora de lançar de verdade — evita confusão de
+                          codificação. Preenche os dois juntos, ou nenhum. Não lança nada sozinho.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-recovery-700">
+                        {preLancamentoMotoraId || preLancamentoRespiratoriaId ? (
+                          <>
+                            Motora: <span className="font-mono">{procedimentos.find((p) => p.id === preLancamentoMotoraId)?.code ?? "—"}</span>
+                            {" · "}
+                            Respiratória: <span className="font-mono">{procedimentos.find((p) => p.id === preLancamentoRespiratoriaId)?.code ?? "—"}</span>
+                          </>
+                        ) : (
+                          "Nenhum código sugerido ainda."
+                        )}
+                        <span className="mt-1 block text-xs text-recovery-700/80">Só admin e supervisor podem alterar.</span>
+                      </p>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
@@ -844,9 +896,10 @@ export default function Internacoes() {
                         Dx: {i.diagnostico}
                       </p>
                     )}
-                    {i.pre_lancamento_procedure_id && (
+                    {(i.pre_lancamento_motora_id || i.pre_lancamento_respiratoria_id) && (
                       <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-recovery-100 px-2 py-0.5 font-mono text-[10px] font-medium text-recovery-700">
-                        Pré-lançamento: {procedimentos.find((p) => p.id === i.pre_lancamento_procedure_id)?.code ?? "—"}
+                        Pré-lançamento: {procedimentos.find((p) => p.id === i.pre_lancamento_motora_id)?.code ?? "—"} ·{" "}
+                        {procedimentos.find((p) => p.id === i.pre_lancamento_respiratoria_id)?.code ?? "—"}
                       </span>
                     )}
                   </div>
@@ -1014,8 +1067,15 @@ export default function Internacoes() {
               </SheetDescription>
             </SheetHeader>
             <div className="flex flex-1 flex-col gap-4">
-              {internacaoParaLancar && (() => {
-                const jaLancados = producao.filter((p) => p.admission_id === internacaoParaLancar.id && p.production_date === hojeIso);
+              {conferindoProcedimentos ? (
+                <div className="flex items-center gap-2 rounded-md bg-surface-sunken px-3 py-2.5 text-sm text-ink-soft">
+                  Conferindo o que já foi lançado hoje…
+                </div>
+              ) : internacaoParaLancar && (() => {
+                const jaLancados =
+                  procedimentosDeHojeConferidos !== null
+                    ? procedimentosDeHojeConferidos
+                    : producao.filter((p) => p.admission_id === internacaoParaLancar.id && p.production_date === hojeIso);
                 if (jaLancados.length === 0) return null;
                 return (
                   <div className="flex flex-col gap-2 rounded-md bg-clinical-50 px-3 py-2.5 text-sm text-clinical-700">

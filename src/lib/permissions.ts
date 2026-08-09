@@ -33,6 +33,7 @@ const MODULOS_SUPERVISOR_OPERACIONAL = [
   "fisioterapeutas",
   "procedimentos",
   "relatorios",
+  "diagnostico",
 ];
 
 /**

@@ -175,7 +175,8 @@ export interface Admission {
   status: string;
   external_reference: string | null;
   diagnostico: string | null;
-  pre_lancamento_procedure_id: string | null;
+  pre_lancamento_motora_id: string | null;
+  pre_lancamento_respiratoria_id: string | null;
   created_at: string;
 }
 

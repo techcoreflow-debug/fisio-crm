@@ -29,6 +29,7 @@ import {
   SlidersHorizontal,
   Workflow,
   ClipboardCheck,
+  ShieldCheck,
   Receipt,
   ListOrdered,
 } from "lucide-react";
@@ -139,6 +140,7 @@ export const moduleGroups: ModuleGroup[] = [
       { slug: "financeiro", path: "/financeiro", label: "Financeiro", icon: Wallet, description: "Faturamento, contas a receber por convênio/contrato e fechamento mensal.", status: "pronto" },
       { slug: "faturamento", path: "/faturamento", label: "Faturamento", icon: Receipt, description: "Lançamento manual do relatório de repasse do Tasy — o que o hospital de fato pagou.", status: "pronto" },
       { slug: "auditoria", path: "/auditoria", label: "Auditoria", icon: ShieldAlert, description: "Trilha de auditoria de lançamentos, importações e alterações sensíveis.", status: "pronto" },
+      { slug: "diagnostico", path: "/diagnostico", label: "Diagnóstico", icon: ShieldCheck, description: "Checagens automáticas contra os dados reais — leitos travados, internações sem unidade, fisios sem login, e mais.", status: "pronto" },
     ],
   },
   {

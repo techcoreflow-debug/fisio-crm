@@ -20,6 +20,59 @@ Antes de subir um deploy:
 
 ---
 
+## v0.36.0 — 08/08/2026
+
+**Item 1 — Lançamento avulso confiável.** O "Lançar procedimento" em
+Pacientes Internados ainda confiava só no dado reativo (igual a Alta
+antes da v0.32.1) — agora busca direto no banco ao abrir, igual a
+Alta já fazia. Reconfere depois de cada lançamento também.
+
+**Item 2 — Pré-lançamento só editável por admin e supervisor.**
+Fisioterapeuta lançador vê o código sugerido (se já tiver sido
+definido), mas não consegue mais alterar — em Internações e em Novo
+Atendimento.
+
+**Item 3 — Pré-lançamento agora exige os dois juntos** (Motora +
+Respiratória), não mais um código único — reflete o padrão real de
+atendimento. Migration `0029` substitui a `0028` (remove o campo
+único, cria os dois novos). Validação impede salvar só um dos dois.
+
+**Item 4 — Botão "Atualizar agora"** em Fechamento e Painel de
+Procedimentos — força atualização imediata em vez de esperar o timer
+de 2 minutos (da v0.33.0). Criado um mecanismo global reutilizável no
+hook compartilhado: qualquer botão do app pode disparar o evento
+`fisio:forcar-recarga` e toda tela aberta atualiza na hora.
+
+Migrations pendentes: `0027` (supervisor) e `0029` (substitui a `0028`,
+tudo bem se você já rodou aquela).
+
+---
+
+## v0.35.0 — 08/08/2026
+
+**Novo painel "Diagnóstico do Sistema"** — pedido direto de uso em
+produção: uma forma de checar proativamente o estado real dos dados,
+em vez de esperar alguém reportar um problema. Roda 5 checagens
+automáticas toda vez que a tela é aberta:
+
+1. Leitos travados como "ocupado" sem internação real
+2. Leitos com duas internações ativas ao mesmo tempo (dupla ocupação)
+3. Internações ativas sem unidade ou hospital definidos
+4. Fisioterapeutas sem login vinculado (quebra Minha Fila pra essa pessoa)
+5. Procedimentos lançados com data no futuro (erro de digitação)
+
+Cada checagem mostra quantos e quais registros, com uma dica de como
+resolver. Também tem um gráfico de **lançamentos por dia (últimos 7
+dias)** — uma queda repentina sem explicação óbvia é o tipo de sinal
+que apontou pro problema do Realtime que corrigimos na v0.33.0; agora
+dá pra notar isso olhando o gráfico, sem esperar alguém reclamar.
+
+Acesso: admin, gestor e supervisor.
+
+Sem migration — só código, lê dados que já existem.
+
+---
+
 ## v0.34.0 — 08/08/2026
 
 **Regressão corrigida — filtros zerando no ALT+TAB.** A correção do

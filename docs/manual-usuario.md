@@ -187,10 +187,13 @@ Leito, Paciente (A-Z), Entrada (mais recente) ou Nr. Atendimento.
 - **Diagnóstico**: texto livre, também preenchido ao criar a internação —
   aparece logo após o nome do paciente na listagem, e é uma opção a mais
   na lista impressa.
-- **Pré-lançamento**: código de procedimento sugerido na triagem, pra
-  reduzir erro de codificação na hora de lançar de verdade depois —
-  aparece como selo (só o código) na listagem e é uma opção a mais na
-  lista impressa. Não lança nada sozinho, é só referência.
+- **Pré-lançamento**: dois códigos de procedimento sugeridos na triagem
+  — Motora e Respiratória, sempre juntos (não dá pra salvar só um) —
+  pra reduzir erro de codificação na hora de lançar de verdade depois.
+  Só admin e supervisor podem definir ou alterar; o fisioterapeuta
+  lançador só vê o que já foi definido. Aparece como selo (só os
+  códigos) na listagem e é uma opção a mais na lista impressa. Não
+  lança nada sozinho, é só referência.
 - **Excluir internação** (só papel admin, de empresa ou InovareTech):
   bloqueia se já tiver produção, evolução, fila ou faturamento
   lançado — mesma proteção do resto do sistema.
@@ -371,6 +374,17 @@ normal de excluir paciente/procedimento bloqueia se houver dados
 dependentes (paciente com internação, procedimento com lançamento) —
 proteção contra perda de dado. Aqui dá pra forçar, apagando junto tudo
 que depende. Sem volta depois de confirmar.
+
+## Diagnóstico do Sistema
+
+Checagens automáticas contra os dados reais, pensadas pra pegar
+problema antes de virar reclamação: leitos travados como "ocupado" sem
+internação real, leitos com dupla ocupação, internações ativas sem
+unidade/hospital, fisioterapeutas sem login vinculado, e procedimentos
+lançados com data no futuro. Também mostra um gráfico de lançamentos
+por dia (últimos 7 dias) — uma queda repentina sem explicação óbvia é
+sinal de alerta. Roda toda vez que a tela é aberta, com os dados de
+agora. Acesso: admin, gestor e supervisor.
 
 ## Auditoria
 

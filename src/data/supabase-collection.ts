@@ -97,6 +97,9 @@ export function useSupabaseCollection<T>(
     }
     document.addEventListener("visibilitychange", recarregarAoFocar);
     window.addEventListener("focus", recarregarAoFocar);
+    // 3) recarrega na hora, sob demanda — qualquer botão "Atualizar agora"
+    // do app dispara esse evento global, e toda tela aberta recarrega.
+    window.addEventListener("fisio:forcar-recarga", carregar);
     const intervalo = setInterval(carregar, 120_000);
 
     return () => {
@@ -104,6 +107,7 @@ export function useSupabaseCollection<T>(
       if (timeoutDebounce) clearTimeout(timeoutDebounce);
       document.removeEventListener("visibilitychange", recarregarAoFocar);
       window.removeEventListener("focus", recarregarAoFocar);
+      window.removeEventListener("fisio:forcar-recarga", carregar);
       clearInterval(intervalo);
       supabase.removeChannel(canal);
     };

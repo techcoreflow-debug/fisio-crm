@@ -15,7 +15,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { Download, TriangleAlert, ClipboardList } from "lucide-react";
+import { Download, TriangleAlert, ClipboardList, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,12 @@ function hoje() {
 }
 
 export default function PainelProducao() {
+  const [atualizadoAgora, setAtualizadoAgora] = useState(false);
+  function handleAtualizarAgora() {
+    window.dispatchEvent(new Event("fisio:forcar-recarga"));
+    setAtualizadoAgora(true);
+    setTimeout(() => setAtualizadoAgora(false), 2000);
+  }
   const producao = useDailyProduction();
   const internacoes = useAdmissions();
   const pacientes = usePatients();
@@ -178,6 +184,11 @@ export default function PainelProducao() {
       <PageHeader
         title="Painel de Procedimentos"
         description="Cruze os procedimentos lançados com glosa — filtre por período, unidade, convênio, fisioterapeuta e categoria."
+        actions={
+          <Button variant="secondary" size="sm" onClick={handleAtualizarAgora}>
+            <RefreshCw className="h-3.5 w-3.5" /> {atualizadoAgora ? "Atualizado!" : "Atualizar agora"}
+          </Button>
+        }
       />
 
       <Card>

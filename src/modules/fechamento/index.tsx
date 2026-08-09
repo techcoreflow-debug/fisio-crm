@@ -9,7 +9,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { ClipboardCheck, CircleDashed, ClipboardList, Building2, Download, TriangleAlert } from "lucide-react";
+import { ClipboardCheck, CircleDashed, ClipboardList, Building2, Download, TriangleAlert, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { GoniometerGauge } from "@/components/shared/goniometer-gauge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +50,12 @@ function primeiroDiaMes(iso: string) {
 type Preset = "hoje" | "ontem" | "semana" | "mes" | "personalizado";
 
 export default function Fechamento() {
+  const [atualizadoAgora, setAtualizadoAgora] = useState(false);
+  function handleAtualizarAgora() {
+    window.dispatchEvent(new Event("fisio:forcar-recarga"));
+    setAtualizadoAgora(true);
+    setTimeout(() => setAtualizadoAgora(false), 2000);
+  }
   const producao = useDailyProduction();
   const internacoes = useAdmissions();
   const pacientes = usePatients();
@@ -170,6 +176,11 @@ export default function Fechamento() {
       <PageHeader
         title="Fechamento"
         description="Lançado × confirmado pelo Tasy — o fechamento do período, por hospital, pronto para conferência."
+        actions={
+          <Button variant="secondary" size="sm" onClick={handleAtualizarAgora}>
+            <RefreshCw className="h-3.5 w-3.5" /> {atualizadoAgora ? "Atualizado!" : "Atualizar agora"}
+          </Button>
+        }
       />
 
       <Card>

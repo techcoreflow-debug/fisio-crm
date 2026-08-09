@@ -43,6 +43,7 @@ const pageComponents: Record<string, ComponentType> = {
   "evolucao-clinica": lazy(() => import("@/modules/evolucao-clinica")),
   financeiro: lazy(() => import("@/modules/financeiro")),
   auditoria: lazy(() => import("@/modules/auditoria")),
+  diagnostico: lazy(() => import("@/modules/diagnostico")),
   relatorios: lazy(() => import("@/modules/relatorios")),
   bi: lazy(() => import("@/modules/bi")),
   configuracoes: lazy(() => import("@/modules/configuracoes")),
