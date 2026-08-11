@@ -20,6 +20,36 @@ Antes de subir um deploy:
 
 ---
 
+## v0.38.0 — 10/08/2026
+
+**Impacto Assistencial ganhou 4 painéis novos**, baseados num modelo real
+de dashboard de gestão de fisioterapia hospitalar (planilha de
+referência analisada, adaptada ao que o sistema já registra):
+
+- **Efetividade Motora × Respiratória, mensal** — com filtro por
+  unidade, pra comparar o perfil de atendimento entre alas/hospitais.
+- **Altas** — goniômetro com % de altas no período, gráfico diário
+  (últimos 14 dias) e mensal (últimos 6 meses).
+- **Distribuição por convênio** — pacientes atendidos no período, por
+  convênio.
+- **Perfil por sexo** — totais Masculino e Feminino dos pacientes
+  atendidos no período (usa o campo sexo do cadastro do paciente —
+  fica vazio se esse campo não estiver preenchido).
+
+**Confirmado**: o card "Procedimentos hoje" do Painel do Gestor é
+funcional (pega de `daily_production`, filtrado por hoje) — mas usava
+a mesma tabela afetada pelo limite de 1.000 linhas corrigido na v0.37.0,
+então pode ter mostrado número errado por baixo antes dessa correção.
+
+**Ficou de fora, por ser mudança maior**: pesquisa de satisfação dos
+atendimentos — não existe hoje nenhuma forma de coletar essa resposta
+no sistema; precisa de conversa própria pra desenhar como e quando
+perguntar ao paciente/família antes de construir.
+
+Sem migration — usa só dado que já existe.
+
+---
+
 ## v0.37.0 — 09/08/2026
 
 **Causa raiz real do "lançamento sumindo" — achada e corrigida.** Depois

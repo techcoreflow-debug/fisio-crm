@@ -4,6 +4,9 @@ import {
   Bar,
   AreaChart,
   Area,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -11,7 +14,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Clock, Users, ClipboardList, CalendarCheck, Building2 } from "lucide-react";
+import { Clock, Users, ClipboardList, CalendarCheck, Building2, LogOut, HeartPulse } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { GoniometerGauge } from "@/components/shared/goniometer-gauge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,11 +23,15 @@ import {
   useAdmissions,
   useDailyProduction,
   useHospitals,
+  useUnits,
   useProcedures,
+  usePatients,
+  useHealthInsurances,
 } from "@/data/repository";
-import { hojeLocalIso } from "@/lib/data-local";
+import { hojeLocalIso, dataParaIsoLocal } from "@/lib/data-local";
 
 const TODOS = "todos";
+const CORES = ["#2f80ed", "#4f8f5f", "#e0a030", "#a05fe0", "#e05f7a", "#3fb6c9"];
 
 function primeiroDiaMes(iso: string) {
   return `${iso.slice(0, 7)}-01`;
@@ -33,14 +40,25 @@ function inicioDaSemanaIso(dataIso: string) {
   const d = new Date(`${dataIso}T00:00:00`);
   const diaSemana = d.getDay();
   d.setDate(d.getDate() - diaSemana);
-  return d.toISOString().slice(0, 10);
+  return dataParaIsoLocal(d);
+}
+function mesIso(dataIso: string) {
+  return dataIso.slice(0, 7); // YYYY-MM
+}
+function rotuloMes(mesIsoStr: string) {
+  const [ano, mes] = mesIsoStr.split("-");
+  const nomes = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  return `${nomes[Number(mes) - 1]}/${ano.slice(2)}`;
 }
 
 export default function ImpactoAssistencial() {
   const internacoes = useAdmissions();
   const producao = useDailyProduction();
   const hospitais = useHospitals();
+  const unidades = useUnits();
   const procedimentos = useProcedures();
+  const pacientes = usePatients();
+  const convenios = useHealthInsurances();
 
   const hoje = hojeLocalIso();
   const [periodoDe, setPeriodoDe] = useState(primeiroDiaMes(hoje));
@@ -141,6 +159,94 @@ export default function ImpactoAssistencial() {
     producaoPeriodo.map((p) => internacoes.find((i) => i.id === p.admission_id)?.patient_id).filter(Boolean)
   ).size;
   const diasAcompanhados = new Set(producaoPeriodo.map((p) => `${p.admission_id}|${p.production_date}`)).size;
+
+  // 7) Efetividade Motora × Respiratória — mensal, por unidade/hospital
+  const [filtroUnidadeEfetividade, setFiltroUnidadeEfetividade] = useState(TODOS);
+  const efetividadeMensal = useMemo(() => {
+    const producaoDaUnidade = producaoPeriodo.filter((p) => {
+      if (filtroUnidadeEfetividade === TODOS) return true;
+      const internacao = internacoes.find((i) => i.id === p.admission_id);
+      return internacao?.unit_id === filtroUnidadeEfetividade;
+    });
+    const porMes = new Map<string, { motora: number; respiratoria: number }>();
+    for (const p of producaoDaUnidade) {
+      const mes = mesIso(p.production_date);
+      const categoria = (procedimentos.find((pr) => pr.id === p.procedure_id)?.category ?? "").toLowerCase();
+      const atual = porMes.get(mes) ?? { motora: 0, respiratoria: 0 };
+      if (categoria.includes("motora")) atual.motora += 1;
+      else if (categoria.includes("respirat")) atual.respiratoria += 1;
+      porMes.set(mes, atual);
+    }
+    return Array.from(porMes.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([mes, valores]) => ({ mes: rotuloMes(mes), Motora: valores.motora, Respiratória: valores.respiratoria }));
+  }, [producaoPeriodo, internacoes, procedimentos, filtroUnidadeEfetividade]);
+
+  // 8) Altas — diário (últimos 14 dias) e mensal (últimos 6 meses), com percentual sobre internações do período
+  const altasPorDia = useMemo(() => {
+    const dias: { data: string; total: number }[] = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const iso = dataParaIsoLocal(d);
+      const total = internacoes.filter((int) => int.discharge_date === iso).length;
+      dias.push({ data: iso.slice(8, 10) + "/" + iso.slice(5, 7), total });
+    }
+    return dias;
+  }, [internacoes]);
+
+  const altasPorMes = useMemo(() => {
+    const porMes = new Map<string, number>();
+    for (const int of internacoes) {
+      if (!int.discharge_date) continue;
+      const mes = mesIso(int.discharge_date);
+      porMes.set(mes, (porMes.get(mes) ?? 0) + 1);
+    }
+    return Array.from(porMes.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-6)
+      .map(([mes, total]) => ({ mes: rotuloMes(mes), total }));
+  }, [internacoes]);
+
+  const taxaAltaNoPeriodo = useMemo(() => {
+    const internacoesNoPeriodo = internacoes.filter((int) => int.admission_date >= periodoDe && int.admission_date <= periodoAte);
+    if (internacoesNoPeriodo.length === 0) return null;
+    const comAlta = internacoesNoPeriodo.filter((int) => int.status === "alta").length;
+    return { taxa: Math.round((comAlta / internacoesNoPeriodo.length) * 100), total: internacoesNoPeriodo.length, comAlta };
+  }, [internacoes, periodoDe, periodoAte]);
+
+  // 9) Distribuição por convênio no período
+  const distribuicaoConvenio = useMemo(() => {
+    const porConvenio = new Map<string, number>();
+    const idsVistos = new Set<string>();
+    for (const p of producaoPeriodo) {
+      if (!p.admission_id || idsVistos.has(p.admission_id)) continue;
+      idsVistos.add(p.admission_id);
+      const internacao = internacoes.find((i) => i.id === p.admission_id);
+      const nome = convenios.find((c) => c.id === internacao?.health_insurance_id)?.name ?? "Sem convênio";
+      porConvenio.set(nome, (porConvenio.get(nome) ?? 0) + 1);
+    }
+    return Array.from(porConvenio.entries()).map(([name, value]) => ({ name, value }));
+  }, [producaoPeriodo, internacoes, convenios]);
+
+  // 10) Perfil por sexo no período
+  const distribuicaoSexo = useMemo(() => {
+    const idsVistos = new Set<string>();
+    let masculino = 0;
+    let feminino = 0;
+    for (const p of producaoPeriodo) {
+      const internacao = internacoes.find((i) => i.id === p.admission_id);
+      if (!internacao || idsVistos.has(internacao.patient_id)) continue;
+      idsVistos.add(internacao.patient_id);
+      const sexo = pacientes.find((pa) => pa.id === internacao.patient_id)?.sexo;
+      if (sexo === "M") masculino += 1;
+      else if (sexo === "F") feminino += 1;
+    }
+    return [
+      { name: "Masculino", value: masculino },
+      { name: "Feminino", value: feminino },
+    ].filter((d) => d.value > 0);
+  }, [producaoPeriodo, internacoes, pacientes]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -292,6 +398,138 @@ export default function ImpactoAssistencial() {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><HeartPulse className="h-4.5 w-4.5" /> Efetividade Motora × Respiratória — mensal</CardTitle>
+          <p className="text-sm text-ink-soft mt-0.5">Volume de cada tipo de atendimento por mês, dá pra olhar por unidade.</p>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <Select value={filtroUnidadeEfetividade} onValueChange={setFiltroUnidadeEfetividade}>
+            <SelectTrigger className="w-56"><SelectValue placeholder="Todas as unidades" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={TODOS}>Todas as unidades</SelectItem>
+              {unidades.map((u) => (
+                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="h-64">
+            {efetividadeMensal.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-ink-soft">Sem produção no período.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={efetividadeMensal} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#dbe2ea" vertical={false} />
+                  <XAxis dataKey="mes" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "#47566b" }} />
+                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "#47566b" }} allowDecimals={false} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #dbe2ea", fontSize: 13 }} />
+                  <Legend />
+                  <Bar dataKey="Motora" fill="#2f80ed" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Respiratória" fill="#4f8f5f" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-1">
+          <CardContent className="flex flex-col items-center justify-center gap-1 pt-6">
+            <GoniometerGauge
+              value={taxaAltaNoPeriodo?.taxa ?? 0}
+              label="Altas no período"
+              sublabel={taxaAltaNoPeriodo ? `${taxaAltaNoPeriodo.comAlta} de ${taxaAltaNoPeriodo.total} internações` : "sem internações no período"}
+              tone="attention"
+            />
+          </CardContent>
+        </Card>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><LogOut className="h-4.5 w-4.5" /> Altas por dia — últimos 14 dias</CardTitle>
+          </CardHeader>
+          <CardContent className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={altasPorDia} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#dbe2ea" vertical={false} />
+                <XAxis dataKey="data" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#47566b" }} />
+                <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "#47566b" }} allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #dbe2ea", fontSize: 13 }} />
+                <Bar dataKey="total" name="Altas" fill="#e0a030" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Altas por mês — últimos 6 meses</CardTitle>
+        </CardHeader>
+        <CardContent className="h-56">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={altasPorMes} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#dbe2ea" vertical={false} />
+              <XAxis dataKey="mes" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "#47566b" }} />
+              <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "#47566b" }} allowDecimals={false} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #dbe2ea", fontSize: 13 }} />
+              <Bar dataKey="total" name="Altas" fill="#e0a030" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Distribuição por convênio</CardTitle>
+            <p className="text-sm text-ink-soft mt-0.5">Pacientes atendidos no período, por convênio.</p>
+          </CardHeader>
+          <CardContent className="h-64">
+            {distribuicaoConvenio.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-ink-soft">Sem produção no período.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={distribuicaoConvenio} dataKey="value" nameKey="name" innerRadius={50} outerRadius={85} paddingAngle={2}>
+                    {distribuicaoConvenio.map((_, idx) => (
+                      <Cell key={idx} fill={CORES[idx % CORES.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #dbe2ea", fontSize: 13 }} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Perfil por sexo</CardTitle>
+            <p className="text-sm text-ink-soft mt-0.5">Pacientes atendidos no período — totais Masculino e Feminino.</p>
+          </CardHeader>
+          <CardContent className="h-64">
+            {distribuicaoSexo.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-ink-soft">
+                Sem dado de sexo preenchido no cadastro dos pacientes atendidos.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={distribuicaoSexo} dataKey="value" nameKey="name" innerRadius={50} outerRadius={85} paddingAngle={2}>
+                    <Cell fill="#2f80ed" />
+                    <Cell fill="#e05f7a" />
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #dbe2ea", fontSize: 13 }} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

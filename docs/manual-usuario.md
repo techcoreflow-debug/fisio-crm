@@ -76,7 +76,10 @@ pós-internação, cobertura diária (% dos internados de hoje já
 atendidos), intensidade terapêutica (procedimentos por paciente-dia),
 mix de categoria evoluindo semana a semana, comparativo entre
 hospitais, e os números do período (pacientes atendidos, procedimentos,
-dias de internação acompanhados). Filtro de período e hospital.
+dias de internação acompanhados). Também: efetividade Motora ×
+Respiratória mensal (com filtro por unidade), altas (diário/mensal/%
+do período), distribuição por convênio e perfil por sexo. Filtro de
+período e hospital.
 
 ## Dashboard Executivo
 
