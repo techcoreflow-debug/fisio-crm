@@ -17,6 +17,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useShifts, usePhysiotherapists, useUnits, repository } from "@/data/repository";
+import { dataParaIsoLocal } from "@/lib/data-local";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import type { ShiftPeriod } from "@/types/domain";
 
@@ -184,7 +185,7 @@ export default function Escalas() {
                     <p className="font-medium text-ink">{f.full_name}</p>
                   </td>
                   {dias.map((d) => {
-                    const dataIso = d.toISOString().slice(0, 10);
+                    const dataIso = dataParaIsoLocal(d);
                     const turnoDoDia = turnos.find((t) => t.physiotherapist_id === f.id && t.shift_date === dataIso);
                     return (
                       <td key={dataIso} className="px-2 py-3 text-center">

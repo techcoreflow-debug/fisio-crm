@@ -26,9 +26,7 @@ import {
   useBillingEntries,
 } from "@/data/repository";
 
-function hojeIso() {
-  return new Date().toISOString().slice(0, 10);
-}
+import { hojeLocalIso } from "@/lib/data-local";
 
 export default function PainelGestor() {
   const fila = usePatientQueue();
@@ -40,7 +38,7 @@ export default function PainelGestor() {
   const producao = useDailyProduction();
   const faturamento = useBillingEntries();
 
-  const hoje = hojeIso();
+  const hoje = hojeLocalIso();
   const internacoesAtivas = internacoes.filter((i) => i.status === "internado");
   const producaoHoje = producao.filter((p) => p.production_date === hoje);
   const filaHoje = fila.filter((f) => f.data === hoje);

@@ -56,6 +56,20 @@ MARCADORES = [
     ("data-local.ts — correção de fuso horário (v0.17.0)", "src/lib/data-local.ts", "hojeLocalIso"),
 ]
 
+# Arquivos que NUNCA podem voltar a calcular "hoje"/data via
+# toISOString() — bug clássico (UTC vs fuso local) que já causou dado
+# sumindo de tela por horas todo santo dia, entre ~21h e meia-noite no
+# Brasil. Achado de novo em 11/08/2026, espalhado por 7 arquivos, depois
+# de uma reconstrução do projeto — por isso essa checagem é dedicada,
+# separada dos marcadores normais acima.
+ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [
+    "src/modules/painel-gestor/index.tsx",
+    "src/modules/dashboard-operacional/index.tsx",
+    "src/modules/fechamento/index.tsx",
+    "src/modules/faturamento/index.tsx",
+    "src/modules/escalas/index.tsx",
+]
+
 
 def auditar():
     faltando = []
@@ -70,17 +84,44 @@ def auditar():
 
     total = len(MARCADORES)
     ok = total - len(faltando)
-    print(f"Auditoria de funcionalidades — {ok}/{total} OK\n")
 
-    if not faltando:
-        print("Tudo certo — nenhuma funcionalidade documentada está faltando.")
+    # Segunda checagem: bug de fuso horário voltando (toISOString pra
+    # calcular "hoje"/datas). Regex ampla — pega qualquer
+    # `.toISOString().slice(0, 10)` OU variável chamada hojeIso()
+    # definida com toISOString() por perto.
+    regressao_fuso = []
+    padrao_suspeito = re.compile(r"toISOString\(\)\.slice\(0,\s*10\)")
+    for caminho_rel in ARQUIVOS_SEM_TOISOSTRING_PARA_DATA:
+        caminho = RAIZ / caminho_rel
+        if not caminho.exists():
+            continue
+        conteudo = caminho.read_text(encoding="utf-8", errors="ignore")
+        if padrao_suspeito.search(conteudo):
+            regressao_fuso.append(caminho_rel)
+
+    print(f"Auditoria de funcionalidades — {ok}/{total} OK")
+    print(f"Auditoria de fuso horário — {len(ARQUIVOS_SEM_TOISOSTRING_PARA_DATA) - len(regressao_fuso)}/{len(ARQUIVOS_SEM_TOISOSTRING_PARA_DATA)} OK\n")
+
+    problema = False
+
+    if faltando:
+        problema = True
+        print(f"⚠ {len(faltando)} funcionalidade(s) documentada(s) no CHANGELOG, mas AUSENTE(S) no código:\n")
+        for descricao, caminho_rel, motivo in faltando:
+            print(f"  - {descricao}")
+            print(f"    arquivo: {caminho_rel}")
+            print(f"    motivo:  {motivo}\n")
+
+    if regressao_fuso:
+        problema = True
+        print(f"⚠ {len(regressao_fuso)} arquivo(s) com o bug de fuso horário de volta (toISOString().slice(0,10) pra calcular data/hoje):\n")
+        for caminho_rel in regressao_fuso:
+            print(f"  - {caminho_rel}")
+        print("    Troca por hojeLocalIso() / dataParaIsoLocal() de src/lib/data-local.ts\n")
+
+    if not problema:
+        print("Tudo certo — nenhuma funcionalidade documentada está faltando, e o fuso horário está seguro.")
         return 0
-
-    print(f"⚠ {len(faltando)} funcionalidade(s) documentada(s) no CHANGELOG, mas AUSENTE(S) no código:\n")
-    for descricao, caminho_rel, motivo in faltando:
-        print(f"  - {descricao}")
-        print(f"    arquivo: {caminho_rel}")
-        print(f"    motivo:  {motivo}\n")
     return 1
 
 

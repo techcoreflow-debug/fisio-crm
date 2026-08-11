@@ -25,23 +25,21 @@ import {
   useProcedures,
 } from "@/data/repository";
 import { exportarCsv, type LinhaRelatorio } from "@/lib/csv";
+import { hojeLocalIso, dataParaIsoLocal } from "@/lib/data-local";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 
 const TODOS = "todos";
 
-function hojeIso() {
-  return new Date().toISOString().slice(0, 10);
-}
 function somarDias(iso: string, dias: number) {
   const d = new Date(`${iso}T00:00:00`);
   d.setDate(d.getDate() + dias);
-  return d.toISOString().slice(0, 10);
+  return dataParaIsoLocal(d);
 }
 function primeiroDiaSemana(iso: string) {
   const d = new Date(`${iso}T00:00:00`);
   const diaSemana = d.getDay() || 7;
   d.setDate(d.getDate() - diaSemana + 1);
-  return d.toISOString().slice(0, 10);
+  return dataParaIsoLocal(d);
 }
 function primeiroDiaMes(iso: string) {
   return `${iso.slice(0, 7)}-01`;
@@ -63,7 +61,7 @@ export default function Fechamento() {
   const convenios = useHealthInsurances();
   const procedimentos = useProcedures();
 
-  const hoje = hojeIso();
+  const hoje = hojeLocalIso();
   const [preset, setPreset] = useState<Preset>("semana");
   const [personalizadoDe, setPersonalizadoDe] = useState(primeiroDiaSemana(hoje));
   const [personalizadoAte, setPersonalizadoAte] = useState(hoje);

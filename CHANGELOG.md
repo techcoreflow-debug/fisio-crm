@@ -20,6 +20,39 @@ Antes de subir um deploy:
 
 ---
 
+## v0.39.1 — 11/08/2026
+
+**Bug crítico — o bug de fuso horário (v0.17.0) tinha voltado, espalhado
+por 7 arquivos.** Descoberto ao investigar por que "Cobertura hoje"
+mostrava número estranho — o "hoje" calculado por `toISOString()` usa o
+fuso do servidor (UTC), não o de Brasília. Entre ~21h e meia-noite no
+horário do Brasil, isso faz o sistema achar que já é o dia seguinte —
+e qualquer tela que dependa de "hoje" passa a não contar nada do que
+foi lançado nas últimas horas do dia de verdade. Corrigido em:
+
+- Painel do Gestor (contagem "hoje")
+- Dashboard Operacional (cobertura de escala "hoje")
+- Fechamento (período "hoje", "ontem", cálculo de semana)
+- Faturamento (data padrão do lançamento)
+- Escalas (grade semanal — turno do dia certo)
+
+**Também corrigido**: os goniômetros de "Cobertura hoje" e "Altas no
+período" (Impacto Assistencial) mostravam o valor em **graus (°)** em
+vez de **porcentagem (%)** — o componente de goniômetro, sem um valor
+de exibição explícito, mostra o ângulo dele mesmo (é a origem do nome:
+mede ângulo de articulação). Faltava dizer pra ele mostrar "%" nesses
+dois cards específicos.
+
+**Auditoria automática reforçada** — `scripts/auditoria_funcionalidades.py`
+agora também varre os 5 arquivos acima em busca do padrão
+`toISOString().slice(0, 10)` usado pra calcular data, e falha a
+auditoria se achar. Antes só checava se uma funcionalidade tinha
+sumido — agora também impede esse bug específico de voltar em silêncio.
+
+Sem migration — só código.
+
+---
+
 ## v0.39.0 — 11/08/2026
 
 **Recuperação de regressões da reconstrução do ambiente** — depois do

@@ -289,6 +289,7 @@ export default function ImpactoAssistencial() {
           <CardContent className="flex flex-col items-center justify-center gap-1 pt-6">
             <GoniometerGauge
               value={coberturaHoje?.taxa ?? 0}
+              displayValue={`${coberturaHoje?.taxa ?? 0}%`}
               label="Cobertura hoje"
               sublabel={coberturaHoje ? `${coberturaHoje.atendidos} de ${coberturaHoje.total} internados` : "sem internados"}
               tone="recovery"
@@ -439,6 +440,7 @@ export default function ImpactoAssistencial() {
           <CardContent className="flex flex-col items-center justify-center gap-1 pt-6">
             <GoniometerGauge
               value={taxaAltaNoPeriodo?.taxa ?? 0}
+              displayValue={`${taxaAltaNoPeriodo?.taxa ?? 0}%`}
               label="Altas no período"
               sublabel={taxaAltaNoPeriodo ? `${taxaAltaNoPeriodo.comAlta} de ${taxaAltaNoPeriodo.total} internações` : "sem internações no período"}
               tone="attention"

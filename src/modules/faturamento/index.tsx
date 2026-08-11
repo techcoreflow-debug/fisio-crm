@@ -27,10 +27,7 @@ import {
 } from "@/data/repository";
 import { useAppStore } from "@/store/app-store";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
-
-function hojeIso() {
-  return new Date().toISOString().slice(0, 10);
-}
+import { hojeLocalIso } from "@/lib/data-local";
 
 export default function Faturamento() {
   const entradas = useBillingEntries();
@@ -157,7 +154,7 @@ export default function Faturamento() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="data_atendimento">Data do atendimento</Label>
-                      <Input id="data_atendimento" name="data_atendimento" type="date" required defaultValue={hojeIso()} />
+                      <Input id="data_atendimento" name="data_atendimento" type="date" required defaultValue={hojeLocalIso()} />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="quantidade">Quantidade</Label>

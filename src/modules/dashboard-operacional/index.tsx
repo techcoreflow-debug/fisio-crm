@@ -13,6 +13,7 @@ import {
   useAdmissions,
   useClinicalEvolutions,
 } from "@/data/repository";
+import { hojeLocalIso } from "@/lib/data-local";
 
 export default function DashboardOperacional() {
   const leitos = useBeds();
@@ -25,7 +26,7 @@ export default function DashboardOperacional() {
 
   const ocupacaoGeral = leitos.length > 0 ? Math.round((leitos.filter((l) => l.status === "ocupado").length / leitos.length) * 100) : 0;
 
-  const hojeIso = new Date().toISOString().slice(0, 10);
+  const hojeIso = hojeLocalIso();
   const turnosHoje = turnos.filter((t) => t.shift_date === hojeIso);
   const coberturaEscala = fisioterapeutas.length > 0 ? Math.round((turnosHoje.length / fisioterapeutas.length) * 100) : 0;
 
