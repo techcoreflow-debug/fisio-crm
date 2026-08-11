@@ -114,7 +114,7 @@ export default function Internacoes() {
   // pra ninguém confuso na codificação alterar o código que deveria
   // orientar (a razão de existir o pré-lançamento).
   const podeAlterarPreLancamento = profile?.role === "admin" || profile?.role === "supervisor" || profile?.is_platform_admin;
-  const podeExcluirInternacao = profile?.role === "admin" || profile?.is_platform_admin;
+  const podeExcluirInternacao = profile?.role === "admin" || profile?.role === "supervisor" || profile?.is_platform_admin;
 
   const hojeIso = hojeLocalIso();
   const internacoesComAtendimentoHoje = useMemo(
@@ -653,6 +653,7 @@ export default function Internacoes() {
                     <Label htmlFor="nr_atendimento">Nr. Atendimento (Tasy)</Label>
                     <Input
                       id="nr_atendimento"
+                      required
                       value={nrAtendimento}
                       onChange={(e) => setNrAtendimento(e.target.value)}
                       placeholder="Ex.: 706065"
@@ -1026,14 +1027,13 @@ export default function Internacoes() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label>Procedimento</Label>
-                  <Select value={procedimentoAltaId} onValueChange={setProcedimentoAltaId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione o procedimento" /></SelectTrigger>
-                    <SelectContent>
-                      {procedimentos.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    value={procedimentoAltaId}
+                    onValueChange={setProcedimentoAltaId}
+                    options={procedimentos.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}`, sublabel: p.category ?? undefined }))}
+                    placeholder="Buscar procedimento…"
+                    searchPlaceholder="Código, nome ou categoria…"
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1.5">

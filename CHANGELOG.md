@@ -20,6 +20,47 @@ Antes de subir um deploy:
 
 ---
 
+## v0.39.0 — 11/08/2026
+
+**Recuperação de regressões da reconstrução do ambiente** — depois do
+reset de ambiente (documentado na v0.32.1), várias funcionalidades já
+prontas tinham sumido silenciosamente do código, sem quebrar o build
+(TypeScript não acusa a AUSÊNCIA de uma funcionalidade, só erro de
+sintaxe/tipo). Restauradas:
+
+- Menu lateral recolhível (ícones só)
+- Alternância de layout tablet ↔ PC (o item que você reportou como
+  sumido na v0.37)
+- "Trocar senha" no menu do usuário (desktop e tablet)
+- Olhinho de mostrar/esconder senha
+- **Editar / Trocar senha de outros / Excluir usuário** — a causa real
+  do problema da Monika e do Carlos não era configuração de dado, era
+  a tela inteira ter sumido. **Precisa de novo deploy da Edge Function**
+  `create-user` (voltou a aceitar `action`: create/delete/reset-password).
+- Exclusão avançada de paciente/procedimento, em Configurações
+- Recuperação automática de "Failed to fetch dynamically imported
+  module" após um deploy novo
+
+**Itens novos desta rodada:**
+- Papel Supervisor incluído na permissão de excluir internação
+- Campo de procedimento na tela de Alta agora busca por código (era
+  só por nome)
+- Confirmação antes de excluir lançamento em Produção Diária (estava
+  excluindo direto, sem perguntar — motivo real: exclusão acidental
+  relatada)
+- Nr. Atendimento obrigatório em Internações e Novo Atendimento
+
+**Nova ferramenta interna**: `scripts/auditoria_funcionalidades.py` —
+audita o código real contra o que o changelog diz que já foi
+construído. Roda antes de qualquer entrega grande e, principalmente,
+sempre depois de reconstruir o projeto a partir de um zip em vez do
+git — é como essa própria rodada de correções foi conferida (25/25 OK
+no final).
+
+Precisa de novo deploy da Edge Function `create-user`. Sem migration.
+
+---
+
 ## v0.38.0 — 10/08/2026
 
 **Impacto Assistencial ganhou 4 painéis novos**, baseados num modelo real

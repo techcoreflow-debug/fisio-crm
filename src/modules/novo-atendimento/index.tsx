@@ -367,6 +367,7 @@ export default function NovoAtendimento() {
                 <Label htmlFor="nr_atendimento_novo">Nr. Atendimento (Tasy)</Label>
                 <Input
                   id="nr_atendimento_novo"
+                  required
                   value={nrAtendimento}
                   onChange={(e) => setNrAtendimento(e.target.value)}
                   placeholder="Ex.: 706065"

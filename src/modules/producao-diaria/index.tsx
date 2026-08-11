@@ -107,6 +107,7 @@ export default function ProducaoDiaria() {
   }
 
   async function handleExcluir(id: string) {
+    if (!window.confirm("Deseja realmente excluir este registro? Esta ação não pode ser desfeita.")) return;
     try {
       await repository.dailyProduction.remove(id);
       notificarSucesso("Lançamento excluído.");

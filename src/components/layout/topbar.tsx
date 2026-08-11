@@ -1,10 +1,16 @@
-import { Menu, Search, Bell, ChevronsUpDown, LogOut, Settings, Moon, Sun, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { Menu, Search, Bell, ChevronsUpDown, LogOut, Settings, Moon, Sun, ShieldCheck, KeyRound, Tablet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/store/app-store";
 import { useCompanies } from "@/data/repository";
 import { useAuth } from "@/auth/auth-provider";
-import { notificarErro } from "@/store/toast-store";
+import { supabase } from "@/lib/supabase";
+import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -27,14 +33,39 @@ export function Topbar() {
   const setActiveCompanyId = useAppStore((s) => s.setActiveCompanyId);
   const theme = useAppStore((s) => s.theme);
   const toggleTheme = useAppStore((s) => s.toggleTheme);
+  const setModoExibicaoFisio = useAppStore((s) => s.setModoExibicaoFisio);
   const companies = useCompanies();
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const [openTrocarSenha, setOpenTrocarSenha] = useState(false);
+  const [salvandoSenha, setSalvandoSenha] = useState(false);
 
   const activeCompany = companies.find((c) => c.id === activeCompanyId) ?? companies[0];
 
   async function handleSignOut() {
     await signOut();
+  }
+
+  async function handleTrocarSenha(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const novaSenha = String(form.get("nova_senha") ?? "");
+    const confirmacao = String(form.get("confirmacao") ?? "");
+    if (novaSenha !== confirmacao) {
+      notificarErro("As senhas não coincidem", "Digite a mesma senha nos dois campos.");
+      return;
+    }
+    setSalvandoSenha(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: novaSenha });
+      if (error) throw error;
+      notificarSucesso("Senha alterada.");
+      setOpenTrocarSenha(false);
+    } catch (erro) {
+      notificarErro("Não foi possível trocar a senha", erro);
+    } finally {
+      setSalvandoSenha(false);
+    }
   }
 
   return (
@@ -123,12 +154,45 @@ export function Topbar() {
             <DropdownMenuItem onSelect={() => navigate("/configuracoes")}>
               <Settings className="h-4 w-4" /> Configurações
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setOpenTrocarSenha(true)}>
+              <KeyRound className="h-4 w-4" /> Trocar senha
+            </DropdownMenuItem>
+            {profile?.role === "fisioterapeuta" && !profile.is_platform_admin && (
+              <DropdownMenuItem onSelect={() => setModoExibicaoFisio("tablet")}>
+                <Tablet className="h-4 w-4" /> Usar layout tablet
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onSelect={handleSignOut}>
               <LogOut className="h-4 w-4" /> Sair
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <Dialog open={openTrocarSenha} onOpenChange={setOpenTrocarSenha}>
+        <DialogContent>
+          <form onSubmit={handleTrocarSenha}>
+            <DialogHeader>
+              <DialogTitle>Trocar senha</DialogTitle>
+              <DialogDescription>Escolha uma nova senha pra sua conta.</DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-4 py-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="nova_senha">Nova senha</Label>
+                <PasswordInput id="nova_senha" name="nova_senha" required minLength={6} placeholder="Mínimo 6 caracteres" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="confirmacao">Confirmar nova senha</Label>
+                <PasswordInput id="confirmacao" name="confirmacao" required minLength={6} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="secondary" onClick={() => setOpenTrocarSenha(false)}>Cancelar</Button>
+              <Button type="submit" disabled={salvandoSenha}>{salvandoSenha ? "Salvando…" : "Trocar senha"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </header>
   );
 }
