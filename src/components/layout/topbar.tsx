@@ -33,7 +33,7 @@ export function Topbar() {
   const setActiveCompanyId = useAppStore((s) => s.setActiveCompanyId);
   const theme = useAppStore((s) => s.theme);
   const toggleTheme = useAppStore((s) => s.toggleTheme);
-  const setModoExibicaoFisio = useAppStore((s) => s.setModoExibicaoFisio);
+  const setModoExibicao = useAppStore((s) => s.setModoExibicao);
   const companies = useCompanies();
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
@@ -157,11 +157,9 @@ export function Topbar() {
             <DropdownMenuItem onSelect={() => setOpenTrocarSenha(true)}>
               <KeyRound className="h-4 w-4" /> Trocar senha
             </DropdownMenuItem>
-            {profile?.role === "fisioterapeuta" && !profile.is_platform_admin && (
-              <DropdownMenuItem onSelect={() => setModoExibicaoFisio("tablet")}>
-                <Tablet className="h-4 w-4" /> Usar layout tablet
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem onSelect={() => setModoExibicao("tablet")}>
+              <Tablet className="h-4 w-4" /> Usar layout tablet
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={handleSignOut}>
               <LogOut className="h-4 w-4" /> Sair
             </DropdownMenuItem>

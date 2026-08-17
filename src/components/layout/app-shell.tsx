@@ -35,9 +35,13 @@ export function AppShell() {
   }, [profile, companies, activeCompanyId, setActiveCompanyId]);
 
   const ehFisioterapeuta = profile?.role === "fisioterapeuta" && !profile.is_platform_admin;
-  const modoExibicaoFisio = useAppStore((s) => s.modoExibicaoFisio);
+  const modoEscolhido = useAppStore((s) => s.modoExibicao);
+  // Ninguém escolheu ainda nesse aparelho: fisio começa em tablet (é o
+  // uso mais comum dele), os demais em desktop — mas todo mundo pode
+  // trocar, o toggle não é mais exclusivo do fisio.
+  const modoEfetivo = modoEscolhido ?? (ehFisioterapeuta ? "tablet" : "desktop");
 
-  if (ehFisioterapeuta && modoExibicaoFisio === "tablet") {
+  if (modoEfetivo === "tablet") {
     return (
       <TabletShell>
         <Outlet />

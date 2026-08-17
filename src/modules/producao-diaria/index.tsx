@@ -209,6 +209,7 @@ export default function ProducaoDiaria() {
           Quarto: quarto?.code ?? "—",
           Leito: leito?.code ?? "—",
           Diagnóstico: internacao?.diagnostico ?? "—",
+          "Status da Internação": internacao?.status === "alta" ? "Alta" : internacao?.status === "internado" ? "Internado" : "—",
           "Código do procedimento": proc?.code ?? "—",
           Procedimento: proc?.name ?? "—",
           Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",

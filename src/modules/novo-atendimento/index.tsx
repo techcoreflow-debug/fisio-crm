@@ -144,6 +144,15 @@ export default function NovoAtendimento() {
     const form = new FormData(e.currentTarget);
     const unidade = unidades.find((u) => u.id === unidadeId);
     if (!pacienteAtual || !unidade) return;
+    if (!leitoId) {
+      notificarErro("Leito obrigatório", "Selecione um leito antes de salvar.");
+      return;
+    }
+    const leitoEscolhido = leitos.find((l) => l.id === leitoId);
+    if (leitoEscolhido && !leitoEscolhido.room_id && !quartoInlineId) {
+      notificarErro("Quarto obrigatório", "Esse leito ainda não tem quarto vinculado — preencha o campo de quarto que apareceu logo abaixo do leito.");
+      return;
+    }
     if (!!preLancamentoMotoraId !== !!preLancamentoRespiratoriaId) {
       notificarErro(
         "Pré-lançamento incompleto",
@@ -323,7 +332,7 @@ export default function NovoAtendimento() {
                 />
               </div>
               <div className="flex flex-col gap-1.5 sm:w-96">
-                <Label>Leito (opcional)</Label>
+                <Label>Leito</Label>
                 <Select value={leitoId} onValueChange={(v) => { setLeitoId(v); setQuartoInlineId(""); }}>
                   <SelectTrigger><SelectValue placeholder="Selecione um leito livre" /></SelectTrigger>
                   <SelectContent>
@@ -428,7 +437,7 @@ export default function NovoAtendimento() {
                 <Button type="button" variant="secondary" onClick={() => setEtapa("concluido")}>
                   Concluir aqui (sem internação)
                 </Button>
-                <Button type="submit" disabled={salvando || !unidadeId}>
+                <Button type="submit" disabled={salvando || !unidadeId || !leitoId}>
                   {salvando ? "Salvando…" : "Continuar para procedimento"} <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>

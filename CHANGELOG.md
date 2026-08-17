@@ -20,6 +20,45 @@ Antes de subir um deploy:
 
 ---
 
+## v0.39.2 — 11/08/2026
+
+**O bug real por trás do fisio não conseguir editar internação —
+achado e corrigido.** Depois de três relatos (06/08, 09/08, 11/08),
+achamos a causa de verdade: o formulário de "Editar internação" inteiro
+estava aninhado dentro da mesma condição que só libera pra quem pode
+*criar* internação nova. Pro fisioterapeuta, esse bloco literalmente
+não existia na tela — por isso o clique no lápis não abria nada, mesmo
+o botão aparecendo normalmente. Corrigido: o formulário fica sempre
+montado (controlado pelo estado, não pela permissão de criar); só o
+botão "Nova internação" continua restrito a quem pode criar.
+
+**Campos obrigatórios**: Leito (Internações e Novo Atendimento), Quarto
+(quando o leito escolhido ainda não tem um vinculado), Data de
+nascimento e Sexo (cadastro de paciente — alimentam os dashboards).
+
+**Tablet/PC pra todos os usuários** — o toggle de layout, que antes só
+existia pro fisioterapeuta, agora vale pra qualquer papel. Padrão
+continua sendo tablet pro fisio e desktop pros demais — ninguém é
+surpreendido com uma mudança de layout sem escolher.
+
+**Coluna "Status da Internação"** (Internado/Alta) nas exportações de
+Produção Diária, Painel de Procedimentos e Relatórios — facilita achar
+registros com problema (paciente já com alta, mas ainda aparecendo em
+produção sem quarto/convênio, por exemplo).
+
+**Novo indicador — cobertura sobre o total do hospital**, em Impacto
+Assistencial: "hoje temos X internados no hospital, Y com fisioterapia,
+o que representa Z%". Depende de lançar o total geral do hospital (dado
+que só o hospital sabe) — botão "Lançar total de hoje" no próprio
+painel. Migration `0030` (`hospital_census`).
+
+**Auditoria expandida** — 27 marcadores de funcionalidade + checagem de
+fuso horário em 5 arquivos, tudo verde nessa entrega.
+
+Precisa rodar a migration `0030`.
+
+---
+
 ## v0.39.1 — 11/08/2026
 
 **Bug crítico — o bug de fuso horário (v0.17.0) tinha voltado, espalhado

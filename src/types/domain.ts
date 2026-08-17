@@ -321,6 +321,16 @@ export interface ProcedureCategory {
   created_at: string;
 }
 
+export interface HospitalCensus {
+  id: string;
+  company_id: string;
+  hospital_id: string;
+  census_date: string;
+  total_internados: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PatientQueueItem {
   id: string;
   company_id: string;

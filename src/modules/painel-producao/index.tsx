@@ -163,6 +163,7 @@ export default function PainelProducao() {
           Leito: leito?.code ?? "—",
           Paciente: ctx.paciente?.full_name ?? "—",
           Diagnóstico: ctx.internacao?.diagnostico ?? "—",
+          "Status da Internação": ctx.internacao?.status === "alta" ? "Alta" : ctx.internacao?.status === "internado" ? "Internado" : "—",
           Convênio: convenios.find((c) => c.id === ctx.convenioId)?.name ?? "—",
           Categoria: ctx.procedimento?.category ?? "—",
           "Código do procedimento": ctx.procedimento?.code ?? "—",

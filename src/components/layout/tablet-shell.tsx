@@ -24,7 +24,7 @@ const ROTULO_CURTO: Record<string, string> = {
 
 export function TabletShell({ children }: { children: React.ReactNode }) {
   const { profile, signOut } = useAuth();
-  const setModoExibicaoFisio = useAppStore((s) => s.setModoExibicaoFisio);
+  const setModoExibicao = useAppStore((s) => s.setModoExibicao);
   const permissoes = useRolePermissions();
   const [openTrocarSenha, setOpenTrocarSenha] = useState(false);
   const [salvandoSenha, setSalvandoSenha] = useState(false);
@@ -72,7 +72,7 @@ export function TabletShell({ children }: { children: React.ReactNode }) {
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setModoExibicaoFisio("desktop")}
+            onClick={() => setModoExibicao("desktop")}
             className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-ink-soft hover:bg-surface-sunken"
             aria-label="Usar layout PC"
             title="Usar layout PC"
@@ -101,14 +101,14 @@ export function TabletShell({ children }: { children: React.ReactNode }) {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface-raised pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
-        <div className="mx-auto flex max-w-3xl">
+        <div className="mx-auto flex max-w-3xl overflow-x-auto">
           {abas.map((mod) => (
             <NavLink
               key={mod.slug}
               to={mod.path}
               className={({ isActive }) =>
                 cn(
-                  "flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium transition-colors",
+                  "flex flex-1 shrink-0 basis-20 flex-col items-center gap-1 py-3 text-xs font-medium transition-colors",
                   isActive ? "text-clinical-600" : "text-ink-soft"
                 )
               }
@@ -116,7 +116,7 @@ export function TabletShell({ children }: { children: React.ReactNode }) {
               {({ isActive }) => (
                 <>
                   <mod.icon className={cn("h-6 w-6", isActive && "text-clinical-600")} />
-                  {ROTULO_CURTO[mod.slug] ?? mod.label}
+                  <span className="truncate px-1">{ROTULO_CURTO[mod.slug] ?? mod.label}</span>
                 </>
               )}
             </NavLink>

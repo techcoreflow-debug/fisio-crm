@@ -30,9 +30,9 @@ RAIZ = Path(__file__).resolve().parent.parent
 # lugar, então não quebra a compilação).
 MARCADORES = [
     ("Sidebar recolhível (v0.22.0)", "src/components/layout/sidebar.tsx", "sidebarRecolhida"),
-    ("Alternância tablet/PC (v0.27.0)", "src/store/app-store.ts", "modoExibicaoFisio"),
-    ("Alternância tablet/PC — botão no tablet (v0.27.0)", "src/components/layout/tablet-shell.tsx", "setModoExibicaoFisio"),
-    ("Alternância tablet/PC — botão no desktop (v0.27.0)", "src/components/layout/topbar.tsx", "setModoExibicaoFisio"),
+    ("Alternância tablet/PC — agora pra todos os papéis (v0.39.2)", "src/store/app-store.ts", "modoExibicao"),
+    ("Alternância tablet/PC — botão no tablet (v0.39.2)", "src/components/layout/tablet-shell.tsx", "setModoExibicao"),
+    ("Alternância tablet/PC — botão no desktop (v0.39.2)", "src/components/layout/topbar.tsx", "setModoExibicao"),
     ("Trocar senha — tablet (v0.19.0)", "src/components/layout/tablet-shell.tsx", "handleTrocarSenha"),
     ("Trocar senha — desktop (v0.19.0)", "src/components/layout/topbar.tsx", "handleTrocarSenha"),
     ("Olhinho de senha (v0.17.0)", "src/components/ui/password-input.tsx", "PasswordInput"),
@@ -54,6 +54,8 @@ MARCADORES = [
     ("Rede de segurança contra Realtime caindo (v0.33.0)", "src/data/supabase-collection.ts", "fisio:forcar-recarga"),
     ("Ordenação por mais recente nas tabelas de alto volume (v0.37.0)", "src/data/repository.ts", '"created_at", true'),
     ("data-local.ts — correção de fuso horário (v0.17.0)", "src/lib/data-local.ts", "hojeLocalIso"),
+    ("Sheet de editar internação sempre montado, fisio consegue editar (v0.39.2)", "src/modules/internacoes/index.tsx", "O Sheet fica SEMPRE montado"),
+    ("Cobertura hospitalar — censo diário (v0.39.2)", "src/modules/impacto-assistencial/index.tsx", "hospitalCensus"),
 ]
 
 # Arquivos que NUNCA podem voltar a calcular "hoje"/data via

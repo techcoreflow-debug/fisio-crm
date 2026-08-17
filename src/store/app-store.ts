@@ -9,17 +9,22 @@ function lerRecolhidaSalva(): boolean {
 }
 
 /**
- * Modo de exibição do fisioterapeuta (lançador) — "tablet" (enxuto, sem
- * sidebar) ou "desktop" (layout padrão, igual os outros papéis). A
+ * Modo de exibição — "tablet" (enxuto, sem sidebar, navegação por ícones
+ * embaixo) ou "desktop" (layout padrão, com sidebar). Antes só o
+ * fisioterapeuta tinha essa opção; agora vale pra qualquer papel — a
  * mesma pessoa pode usar tablet no plantão e PC no escritório, então
- * isso fica salvo por APARELHO (localStorage), não por conta — trocar
- * num não afeta o outro.
+ * isso fica salvo por APARELHO (localStorage), não por conta.
  */
-function lerModoExibicaoFisioSalvo(): "tablet" | "desktop" {
+function lerModoExibicaoSalvo(): "tablet" | "desktop" | null {
   try {
-    return localStorage.getItem("fisio:modo-exibicao-fisio") === "desktop" ? "desktop" : "tablet";
+    const salvo = localStorage.getItem("fisio:modo-exibicao");
+    if (salvo === "tablet" || salvo === "desktop") return salvo;
+    // Compatibilidade com a versão antiga (só existia pra fisioterapeuta)
+    const antigo = localStorage.getItem("fisio:modo-exibicao-fisio");
+    if (antigo === "desktop" || antigo === "tablet") return antigo;
+    return null;
   } catch {
-    return "tablet";
+    return null;
   }
 }
 
@@ -31,9 +36,9 @@ interface AppState {
   /** Recolher a sidebar pra ícones só, no desktop — preferência que persiste entre sessões. */
   sidebarRecolhida: boolean;
   toggleSidebarRecolhida: () => void;
-  /** Só usado pelo perfil fisioterapeuta — "tablet" (padrão) ou "desktop". */
-  modoExibicaoFisio: "tablet" | "desktop";
-  setModoExibicaoFisio: (modo: "tablet" | "desktop") => void;
+  /** Vale pra qualquer papel — "tablet" ou "desktop". null = nunca escolheu (usa o padrão do papel). */
+  modoExibicao: "tablet" | "desktop" | null;
+  setModoExibicao: (modo: "tablet" | "desktop") => void;
   theme: "light" | "dark";
   toggleTheme: () => void;
 }
@@ -54,14 +59,14 @@ export const useAppStore = create<AppState>((set) => ({
       }
       return { sidebarRecolhida: next };
     }),
-  modoExibicaoFisio: lerModoExibicaoFisioSalvo(),
-  setModoExibicaoFisio: (modo) => {
+  modoExibicao: lerModoExibicaoSalvo(),
+  setModoExibicao: (modo) => {
     try {
-      localStorage.setItem("fisio:modo-exibicao-fisio", modo);
+      localStorage.setItem("fisio:modo-exibicao", modo);
     } catch {
       // sem persistência nesse aparelho, tudo bem — só volta ao padrão na próxima sessão
     }
-    set({ modoExibicaoFisio: modo });
+    set({ modoExibicao: modo });
   },
   theme: "light",
   toggleTheme: () =>

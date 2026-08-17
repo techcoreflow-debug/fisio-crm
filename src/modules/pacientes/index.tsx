@@ -71,6 +71,10 @@ export default function Pacientes() {
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!sexo) {
+      notificarErro("Sexo obrigatório", "Selecione o sexo do paciente — esse dado alimenta os painéis de gestão.");
+      return;
+    }
     const form = new FormData(e.currentTarget);
     const dados = {
       full_name: String(form.get("full_name") ?? ""),
@@ -124,7 +128,7 @@ export default function Pacientes() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="birth_date">Data de nascimento</Label>
-                      <Input id="birth_date" name="birth_date" type="date" defaultValue={editando?.birth_date ?? ""} />
+                      <Input id="birth_date" name="birth_date" type="date" required defaultValue={editando?.birth_date ?? ""} />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <Label>Sexo</Label>
@@ -162,7 +166,7 @@ export default function Pacientes() {
                   <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={salvando || !empresaId}>
+                  <Button type="submit" disabled={salvando || !empresaId || !sexo}>
                     {salvando ? "Salvando…" : editando ? "Salvar alterações" : "Criar paciente"}
                   </Button>
                 </SheetFooter>

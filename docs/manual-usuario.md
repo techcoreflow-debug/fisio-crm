@@ -78,8 +78,11 @@ mix de categoria evoluindo semana a semana, comparativo entre
 hospitais, e os números do período (pacientes atendidos, procedimentos,
 dias de internação acompanhados). Também: efetividade Motora ×
 Respiratória mensal (com filtro por unidade), altas (diário/mensal/%
-do período), distribuição por convênio e perfil por sexo. Filtro de
-período e hospital.
+do período), distribuição por convênio e perfil por sexo. **Cobertura
+sobre o total do hospital** — "hoje temos X internados no hospital, Y
+com fisioterapia, Z%" — depende de lançar o total geral do hospital
+(dado que só o hospital sabe), botão "Lançar total de hoje" no próprio
+painel. Filtro de período e hospital.
 
 ## Dashboard Executivo
 
@@ -186,7 +189,8 @@ Leito, Paciente (A-Z), Entrada (mais recente) ou Nr. Atendimento.
 - **Nr. Atendimento**: campo digitado ao criar a internação — é o ID da
   internação no Tasy, usado como **chave da conciliação** (ver seção
   própria). Uma internação pode ter vários procedimentos em várias datas
-  enquanto durar, todos sob o mesmo Nr. Atendimento.
+  enquanto durar, todos sob o mesmo Nr. Atendimento. Junto com
+  **Leito**, obrigatório.
 - **Diagnóstico**: texto livre, também preenchido ao criar a internação —
   aparece logo após o nome do paciente na listagem, e é uma opção a mais
   na lista impressa.
@@ -404,18 +408,19 @@ confirmação antes de apagar. Sem volta depois de confirmado.
 
 ---
 
-# Modo tablet (fisioterapeuta)
+# Modo tablet
 
-Quem loga como fisioterapeuta (lançador) vê um app completamente
-diferente: sem menu lateral, navegação por ícones grandes na parte de
-baixo da tela (Fila, Lançar, Pacientes, Internados, Produção) — pensado
-pra usar com o dedo em tablet, na correria do plantão. As abas mostradas
-se ajustam sozinhas conforme as permissões daquele papel — se um admin
-liberar mais acesso, a barra ganha mais abas sem precisar mexer em
-código.
+Fisioterapeuta (lançador) começa nesse modo por padrão: sem menu
+lateral, navegação por ícones grandes na parte de baixo da tela (Fila,
+Lançar, Pacientes, Internados, Produção) — pensado pra usar com o dedo
+em tablet, na correria do plantão. As abas mostradas se ajustam
+sozinhas conforme as permissões daquele papel — se um admin liberar
+mais acesso, a barra ganha mais abas sem precisar mexer em código.
 
-**Dá pra trocar pro layout padrão** (o mesmo dos outros perfis) —
-ícone de monitor no cabeçalho do modo tablet, ou "Usar layout tablet"
-no menu do usuário quando já estiver no padrão. A escolha fica salva
-**por aparelho**, não por conta — o tablet do plantão e o PC do
-escritório guardam preferências independentes.
+**Qualquer usuário pode usar esse modo, não só o fisioterapeuta** — os
+demais perfis começam no layout padrão (com menu lateral), mas dá pra
+trocar pro modo tablet a qualquer momento pelo menu do usuário
+("Usar layout tablet"). E de dentro do modo tablet, o ícone de monitor
+no cabeçalho volta pro layout padrão. A escolha fica salva **por
+aparelho**, não por conta — o tablet do plantão e o PC do escritório
+guardam preferências independentes.

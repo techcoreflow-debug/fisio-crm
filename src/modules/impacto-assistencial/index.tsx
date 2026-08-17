@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   BarChart,
   Bar,
@@ -14,10 +14,14 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Clock, Users, ClipboardList, CalendarCheck, Building2, LogOut, HeartPulse } from "lucide-react";
+import { Clock, Users, ClipboardList, CalendarCheck, Building2, LogOut, HeartPulse, ClipboardEdit } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { GoniometerGauge } from "@/components/shared/goniometer-gauge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import {
   useAdmissions,
@@ -27,8 +31,12 @@ import {
   useProcedures,
   usePatients,
   useHealthInsurances,
+  useHospitalCensus,
+  repository,
 } from "@/data/repository";
 import { hojeLocalIso, dataParaIsoLocal } from "@/lib/data-local";
+import { notificarErro, notificarSucesso } from "@/store/toast-store";
+import { useAppStore } from "@/store/app-store";
 
 const TODOS = "todos";
 const CORES = ["#2f80ed", "#4f8f5f", "#e0a030", "#a05fe0", "#e05f7a", "#3fb6c9"];
@@ -59,6 +67,8 @@ export default function ImpactoAssistencial() {
   const procedimentos = useProcedures();
   const pacientes = usePatients();
   const convenios = useHealthInsurances();
+  const censo = useHospitalCensus();
+  const empresaId = useAppStore((s) => s.activeCompanyId);
 
   const hoje = hojeLocalIso();
   const [periodoDe, setPeriodoDe] = useState(primeiroDiaMes(hoje));
@@ -248,6 +258,45 @@ export default function ImpactoAssistencial() {
     ].filter((d) => d.value > 0);
   }, [producaoPeriodo, internacoes, pacientes]);
 
+  // 11) Cobertura sobre o total do hospital — depende do censo lançado
+  // manualmente (o sistema só sabe quantos pacientes A EQUIPE atende,
+  // não quantos o hospital tem internados no total).
+  const [filtroHospitalCenso, setFiltroHospitalCenso] = useState(hospitais[0]?.id ?? "");
+  useEffect(() => {
+    if (!filtroHospitalCenso && hospitais.length > 0) setFiltroHospitalCenso(hospitais[0].id);
+  }, [hospitais, filtroHospitalCenso]);
+  const censoHospitalHoje = censo.find((c) => c.hospital_id === filtroHospitalCenso && c.census_date === hoje);
+  const internadosComFisioHoje = internacoes.filter(
+    (i) => i.status === "internado" && i.hospital_id === filtroHospitalCenso
+  ).length;
+  const coberturaHospitalar = censoHospitalHoje
+    ? Math.round((internadosComFisioHoje / censoHospitalHoje.total_internados) * 100)
+    : null;
+
+  const [openLancarCenso, setOpenLancarCenso] = useState(false);
+  const [salvandoCenso, setSalvandoCenso] = useState(false);
+
+  async function handleLancarCenso(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!empresaId || !filtroHospitalCenso) return;
+    const form = new FormData(e.currentTarget);
+    const total = Number(form.get("total_internados"));
+    if (!total || total < 0) {
+      notificarErro("Valor inválido", "Informe o total de internados do hospital hoje.");
+      return;
+    }
+    setSalvandoCenso(true);
+    try {
+      await repository.hospitalCensus.salvar(empresaId, filtroHospitalCenso, hoje, total);
+      notificarSucesso("Total de internados do hospital registrado.");
+      setOpenLancarCenso(false);
+    } catch (erro) {
+      notificarErro("Não foi possível salvar", erro);
+    } finally {
+      setSalvandoCenso(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -308,6 +357,43 @@ export default function ImpactoAssistencial() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Users className="h-4.5 w-4.5" /> Cobertura sobre o total do hospital</CardTitle>
+          <p className="text-sm text-ink-soft mt-0.5">
+            "Hoje temos X internados no hospital... Y com fisioterapia, o que representa Z% dos internados com
+            fisio." Depende de lançar o total geral do hospital (dado que só o hospital tem, não vem do nosso
+            sistema).
+          </p>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <Select value={filtroHospitalCenso} onValueChange={setFiltroHospitalCenso}>
+            <SelectTrigger className="w-56"><SelectValue placeholder="Selecione o hospital" /></SelectTrigger>
+            <SelectContent>
+              {hospitais.map((h) => (
+                <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex flex-1 flex-col items-center gap-1">
+            <GoniometerGauge
+              value={coberturaHospitalar ?? 0}
+              displayValue={coberturaHospitalar === null ? "—" : `${coberturaHospitalar}%`}
+              label="Internados com fisio, sobre o total"
+              sublabel={
+                censoHospitalHoje
+                  ? `${internadosComFisioHoje} de ${censoHospitalHoje.total_internados} internados no hospital`
+                  : "total geral de hoje ainda não foi lançado"
+              }
+              tone="clinical"
+            />
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => setOpenLancarCenso(true)} disabled={!filtroHospitalCenso}>
+            <ClipboardEdit className="h-3.5 w-3.5" /> {censoHospitalHoje ? "Atualizar total de hoje" : "Lançar total de hoje"}
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
@@ -532,6 +618,36 @@ export default function ImpactoAssistencial() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={openLancarCenso} onOpenChange={setOpenLancarCenso}>
+        <DialogContent>
+          <form onSubmit={handleLancarCenso}>
+            <DialogHeader>
+              <DialogTitle>Total de internados hoje</DialogTitle>
+              <DialogDescription>
+                {hospitais.find((h) => h.id === filtroHospitalCenso)?.name} — quantos pacientes estão internados no
+                hospital como um todo, hoje. É um número que só o hospital sabe, não vem do nosso sistema.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-1.5 py-2">
+              <Label htmlFor="total_internados">Total de internados</Label>
+              <Input
+                id="total_internados"
+                name="total_internados"
+                type="number"
+                min={0}
+                required
+                defaultValue={censoHospitalHoje?.total_internados}
+                placeholder="Ex.: 81"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="secondary" onClick={() => setOpenLancarCenso(false)}>Cancelar</Button>
+              <Button type="submit" disabled={salvandoCenso}>{salvandoCenso ? "Salvando…" : "Salvar"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

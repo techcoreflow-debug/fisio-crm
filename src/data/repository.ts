@@ -42,6 +42,7 @@ import type {
   RolePermission,
   BillingEntry,
   PatientQueueItem,
+  HospitalCensus,
   ProcedureCategory,
   ActivityLog,
   Receivable,
@@ -158,6 +159,9 @@ export function useBillingEntries(): BillingEntry[] {
 }
 export function usePatientQueue(): PatientQueueItem[] {
   return useSupabaseCollection<PatientQueueItem>("patient_queue", { company_id: useActiveCompanyId() });
+}
+export function useHospitalCensus(): HospitalCensus[] {
+  return useSupabaseCollection<HospitalCensus>("hospital_census", { company_id: useActiveCompanyId() }, "census_date", true);
 }
 export function useProcedureCategories(): ProcedureCategory[] {
   return useSupabaseCollection<ProcedureCategory>("procedure_categories", { company_id: useActiveCompanyId() }, "name");
@@ -603,6 +607,19 @@ export const repository = {
         entity_type: "Internação",
         entity_label: `Internação ${id.slice(0, 8)}`,
       });
+    },
+  },
+
+  hospitalCensus: {
+    /** Cria ou atualiza o total do dia — um valor só por hospital+data. */
+    salvar: async (companyId: string, hospitalId: string, censusDate: string, totalInternados: number): Promise<void> => {
+      const { error } = await supabase
+        .from("hospital_census")
+        .upsert(
+          { company_id: companyId, hospital_id: hospitalId, census_date: censusDate, total_internados: totalInternados, updated_at: new Date().toISOString() },
+          { onConflict: "hospital_id,census_date" }
+        );
+      if (error) throw new Error(error.message);
     },
   },
 

@@ -17,7 +17,6 @@ import {
   SheetTitle,
   SheetDescription,
   SheetFooter,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import {
   useAdmissions,
@@ -421,6 +420,15 @@ export default function Internacoes() {
     const paciente = pacientes.find((p) => p.id === pacienteId);
     const unidade = unidades.find((u) => u.id === unidadeId);
     if (!paciente || !unidade) return;
+    if (!leitoId) {
+      notificarErro("Leito obrigatório", "Selecione um leito antes de salvar.");
+      return;
+    }
+    const leitoEscolhido = leitos.find((l) => l.id === leitoId);
+    if (leitoEscolhido && !leitoEscolhido.room_id && !quartoInlineId) {
+      notificarErro("Quarto obrigatório", "Esse leito ainda não tem quarto vinculado — preencha o campo de quarto que apareceu logo abaixo do leito.");
+      return;
+    }
     if (!!preLancamentoMotoraId !== !!preLancamentoRespiratoriaId) {
       notificarErro(
         "Pré-lançamento incompleto",
@@ -571,33 +579,39 @@ export default function Internacoes() {
         description="Pacientes internados acompanhados pela equipe, com leito, hospital, convênio e status de atendimento do dia."
         actions={
           podeAdministrarInternacao ? (
-            <Sheet open={open} onOpenChange={(v) => (v ? setOpen(true) : limparRascunho())}>
-            <SheetTrigger asChild>
-              <Button size="sm" onClick={abrirNova}>
-                <Plus className="h-4 w-4" /> Nova internação
-              </Button>
-            </SheetTrigger>
-            <SheetContent>
-              <form key={editando?.id ?? "nova"} className="flex h-full flex-col" onSubmit={handleSubmit}>
-                <SheetHeader>
-                  <SheetTitle>{editando ? "Editar internação" : "Nova internação"}</SheetTitle>
-                  <SheetDescription>Ao escolher um leito livre, ele passa automaticamente para ocupado.</SheetDescription>
-                </SheetHeader>
-                <div className="flex flex-1 flex-col gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Paciente</Label>
-                    <Select value={pacienteId} onValueChange={setPacienteId}>
-                      <SelectTrigger><SelectValue placeholder="Selecione o paciente" /></SelectTrigger>
-                      <SelectContent>
-                        {pacientes.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Unidade</Label>
-                    <Select value={unidadeId} onValueChange={(v) => setRascunho({ ...rascunho, unidadeId: v, leitoId: "" })}>
+            <Button size="sm" onClick={abrirNova}>
+              <Plus className="h-4 w-4" /> Nova internação
+            </Button>
+          ) : null
+        }
+      />
+
+      {/* O Sheet fica SEMPRE montado, independente de quem pode criar — senão
+          quem só tem permissão de EDITAR (fisioterapeuta) clica no lápis da
+          linha, o estado muda, mas não existe nada na tela pra abrir. Já foi
+          bug real, relatado várias vezes antes de ser encontrado. */}
+      <Sheet open={open} onOpenChange={(v) => (v ? setOpen(true) : limparRascunho())}>
+        <SheetContent>
+          <form key={editando?.id ?? "nova"} className="flex h-full flex-col" onSubmit={handleSubmit}>
+            <SheetHeader>
+              <SheetTitle>{editando ? "Editar internação" : "Nova internação"}</SheetTitle>
+              <SheetDescription>Ao escolher um leito livre, ele passa automaticamente para ocupado.</SheetDescription>
+            </SheetHeader>
+            <div className="flex flex-1 flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label>Paciente</Label>
+                <Select value={pacienteId} onValueChange={setPacienteId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o paciente" /></SelectTrigger>
+                  <SelectContent>
+                    {pacientes.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Unidade</Label>
+                <Select value={unidadeId} onValueChange={(v) => setRascunho({ ...rascunho, unidadeId: v, leitoId: "" })}>
                       <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
                       <SelectContent>
                         {unidades.map((u) => (
@@ -607,7 +621,7 @@ export default function Internacoes() {
                     </Select>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label>Leito (opcional)</Label>
+                    <Label>Leito</Label>
                     <Select value={leitoId} onValueChange={(v) => { setLeitoId(v); setQuartoInlineId(""); }}>
                       <SelectTrigger><SelectValue placeholder="Selecione um leito livre" /></SelectTrigger>
                       <SelectContent>
@@ -729,16 +743,13 @@ export default function Internacoes() {
                 </div>
                 <SheetFooter>
                   <Button type="button" variant="secondary" onClick={() => limparRascunho()}>Cancelar</Button>
-                  <Button type="submit" disabled={salvando || !pacienteId || !unidadeId}>
+                  <Button type="submit" disabled={salvando || !pacienteId || !unidadeId || !leitoId}>
                     {salvando ? "Salvando…" : editando ? "Salvar alterações" : "Registrar internação"}
                   </Button>
                 </SheetFooter>
-              </form>
-            </SheetContent>
-          </Sheet>
-          ) : null
-        }
-      />
+          </form>
+        </SheetContent>
+      </Sheet>
 
       <Card>
         <div className="flex flex-col gap-3 border-b border-line p-4">
