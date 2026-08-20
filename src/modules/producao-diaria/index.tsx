@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { hojeLocalIso } from "@/lib/data-local";
+import { hojeLocalIso, calcularIdade, calcularDiasInternacao } from "@/lib/data-local";
 import { Search, Plus, ClipboardList, TriangleAlert, Pencil, Trash2, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
@@ -200,16 +200,21 @@ export default function ProducaoDiaria() {
         const proc = procedimentos.find((pr) => pr.id === p.procedure_id);
         const leito = leitos.find((l) => l.id === internacao?.bed_id);
         const quarto = quartos.find((q) => q.id === leito?.room_id);
+        const paciente = pacientes.find((pa) => pa.id === internacao?.patient_id);
+        const idadeCalc = calcularIdade(paciente?.birth_date ?? null);
         return {
           Data: p.production_date.split("-").reverse().join("/"),
           Hora: p.production_time?.slice(0, 5) ?? "—",
           "Nr. Atendimento": internacao?.external_reference ?? "—",
           Paciente: nomePaciente(p.admission_id),
+          Idade: idadeCalc !== null ? idadeCalc : "—",
           Unidade: unidades.find((u) => u.id === internacao?.unit_id)?.name ?? "—",
           Quarto: quarto?.code ?? "—",
           Leito: leito?.code ?? "—",
           Diagnóstico: internacao?.diagnostico ?? "—",
-          "Status da Internação": internacao?.status === "alta" ? "Alta" : internacao?.status === "internado" ? "Internado" : "—",
+          "Status da Internação":
+            internacao?.status === "alta" ? "Alta" : internacao?.status === "transferido" ? "Transferido" : internacao?.status === "internado" ? "Internado" : "—",
+          "Dia da Internação": internacao ? calcularDiasInternacao(internacao.admission_date, internacao.discharge_date) : "—",
           "Código do procedimento": proc?.code ?? "—",
           Procedimento: proc?.name ?? "—",
           Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",

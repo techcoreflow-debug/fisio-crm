@@ -608,6 +608,63 @@ export const repository = {
         entity_label: `Internação ${id.slice(0, 8)}`,
       });
     },
+
+    /**
+     * Transferência (ex.: pra UTI de outra empresa) — congela a
+     * internação SEM fechar ela como alta. O Nr. Atendimento continua o
+     * mesmo; o leito de origem é liberado (a pessoa não está mais nele
+     * fisicamente).
+     */
+    transferir: async (id: string, destino: string): Promise<void> => {
+      const { data: admissao, error } = await supabase.from("admissions").select("*").eq("id", id).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!admissao) throw new Error("Internação não encontrada.");
+      if (admissao.status !== "internado") throw new Error("Só é possível transferir uma internação ativa.");
+
+      await atualizarLinha("admissions", id, {
+        status: "transferido",
+        transferred_at: new Date().toISOString(),
+        transfer_destino: destino,
+        bed_id: null,
+      });
+      if (admissao.bed_id) {
+        await atualizarLinha("beds", admissao.bed_id, { status: "higienizacao", higienizacao_desde: new Date().toISOString() });
+      }
+      await registrarAuditoria({
+        company_id: admissao.company_id,
+        action: "transferencia",
+        entity_type: "Internação",
+        entity_label: `Internação ${id.slice(0, 8)} → ${destino}`,
+      });
+    },
+
+    /**
+     * Volta de uma transferência — reabre a MESMA internação (mesmo Nr.
+     * Atendimento, mesmo histórico), com leito/unidade novos (a pessoa
+     * fisicamente está num lugar diferente de antes de ir pra UTI).
+     */
+    retornarDeTransferencia: async (id: string, unitId: string, hospitalId: string | null, bedId: string | null): Promise<void> => {
+      const { data: admissao, error } = await supabase.from("admissions").select("*").eq("id", id).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!admissao) throw new Error("Internação não encontrada.");
+      if (admissao.status !== "transferido") throw new Error("Esta internação não está em transferência.");
+
+      await atualizarLinha("admissions", id, {
+        status: "internado",
+        unit_id: unitId,
+        hospital_id: hospitalId,
+        bed_id: bedId,
+      });
+      if (bedId) {
+        await atualizarLinha("beds", bedId, { status: "ocupado" });
+      }
+      await registrarAuditoria({
+        company_id: admissao.company_id,
+        action: "retorno_transferencia",
+        entity_type: "Internação",
+        entity_label: `Internação ${id.slice(0, 8)} — voltou pra Enfermaria`,
+      });
+    },
   },
 
   hospitalCensus: {

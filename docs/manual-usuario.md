@@ -82,7 +82,9 @@ do período), distribuição por convênio e perfil por sexo. **Cobertura
 sobre o total do hospital** — "hoje temos X internados no hospital, Y
 com fisioterapia, Z%" — depende de lançar o total geral do hospital
 (dado que só o hospital sabe), botão "Lançar total de hoje" no próprio
-painel. Filtro de período e hospital.
+painel. Filtro de período e hospital. Também mostra **quantitativo de
+procedimentos por faixa etária** (0–17, 18–39, 40–59, 60–79, 80+),
+usando a data de nascimento do paciente.
 
 ## Dashboard Executivo
 
@@ -218,6 +220,17 @@ frequência), mas nunca criar internação nova nem excluir.
   nenhum procedimento lançado — o aviso já está visível, então quem
   confirma decide com a informação em mãos. Pede **data e hora exatas**
   da alta.
+- **Transferir** (status "Transferido"): pra quando o paciente sai do
+  nosso acompanhamento temporariamente (ex.: vai pra UTI atendida por
+  outra empresa) e vai **voltar depois com o mesmo Nr. Atendimento**.
+  Diferente de dar alta — não fecha a internação, só congela ela: libera
+  o leito de origem, guarda o destino (texto livre) e a data. Quando o
+  paciente volta, o botão **"Retornou"** reabre a MESMA internação
+  (mesmo histórico, mesmo diagnóstico), só pede o leito/unidade novos —
+  nunca cria uma internação desconectada da original.
+- **Idade** e **Dias de Internação**: calculados automaticamente (idade
+  a partir da data de nascimento do paciente; dias, da entrada até hoje
+  ou até a alta) — aparecem na listagem e são opções na lista impressa.
 - **Gerar/imprimir lista**: escolhe quais colunas aparecem (sequência
   numerada sempre entra; Nr. Atendimento, paciente, procedimento do dia,
   quarto, leito, hospital e convênio são opcionais, todas ligadas por

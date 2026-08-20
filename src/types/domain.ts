@@ -177,6 +177,8 @@ export interface Admission {
   diagnostico: string | null;
   pre_lancamento_motora_id: string | null;
   pre_lancamento_respiratoria_id: string | null;
+  transferred_at: string | null;
+  transfer_destino: string | null;
   created_at: string;
 }
 
@@ -245,7 +247,7 @@ export interface Receivable {
   created_at: string;
 }
 
-export type ActivityAction = "criado" | "editado" | "excluido" | "alta" | "importado" | "desfeito";
+export type ActivityAction = "criado" | "editado" | "excluido" | "alta" | "importado" | "desfeito" | "transferencia" | "retorno_transferencia";
 
 export interface ActivityLog {
   id: string;

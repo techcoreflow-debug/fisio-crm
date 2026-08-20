@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { hojeLocalIso } from "@/lib/data-local";
+import { hojeLocalIso, calcularIdade, calcularDiasInternacao } from "@/lib/data-local";
 import { supabase } from "@/lib/supabase";
-import { Search, Plus, Pencil, BedDouble, LogOut, AlertTriangle, ClipboardPlus, Printer, Users, X } from "lucide-react";
+import { Search, Plus, Pencil, BedDouble, LogOut, AlertTriangle, ClipboardPlus, Printer, Users, X, ArrowRightLeft, CornerDownLeft } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,11 +40,12 @@ import { useAuth } from "@/auth/auth-provider";
 import { useAppStore } from "@/store/app-store";
 import type { Admission, Bed, DailyProduction } from "@/types/domain";
 
-type StatusInternacao = "internado" | "alta";
+type StatusInternacao = "internado" | "alta" | "transferido";
 
 const statusConfig: Record<StatusInternacao, { label: string; variant: NonNullable<BadgeProps["variant"]> }> = {
   internado: { label: "Internado", variant: "clinical" },
   alta: { label: "Alta", variant: "neutral" },
+  transferido: { label: "Transferido", variant: "attention" },
 };
 
 function formatarData(iso: string) {
@@ -88,6 +89,8 @@ export default function Internacoes() {
     { chave: "paciente", rotulo: "Paciente" },
     { chave: "diagnostico", rotulo: "Diagnóstico" },
     { chave: "preLancamento", rotulo: "Pré-lançamento" },
+    { chave: "idade", rotulo: "Idade" },
+    { chave: "diasInternacao", rotulo: "Dias de Internação" },
     { chave: "procedimento", rotulo: "Procedimento (hoje)" },
     { chave: "quarto", rotulo: "Quarto" },
     { chave: "leito", rotulo: "Leito" },
@@ -124,7 +127,7 @@ export default function Internacoes() {
   const [busca, setBusca] = useState("");
   const [filtroHospital, setFiltroHospital] = useState<string>("todos");
   const [filtroUnidade, setFiltroUnidade] = useState<string>("todas");
-  const [filtroStatus, setFiltroStatus] = useState<"todos" | "internado" | "alta">("internado");
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "internado" | "alta" | "transferido">("internado");
   const [filtroEntradaDe, setFiltroEntradaDe] = useState("");
   const [filtroEntradaAte, setFiltroEntradaAte] = useState("");
   const [apenasPendentes, setApenasPendentes] = useState(false);
@@ -178,7 +181,63 @@ export default function Internacoes() {
 
   // Fluxo de alta — precisa de mais de uma etapa quando não há atendimento
   // lançado no dia, por isso vive num Sheet separado com seu próprio estado.
+  const leitosDaUnidadeRetorno = leitos.filter((l) => l.unit_id === unidadeRetorno && leitoEstaLivre(l));
+
   const [internacaoParaAlta, setInternacaoParaAlta] = useState<Admission | null>(null);
+
+  // --- Transferência (ex.: UTI de outra empresa) ---
+  const [internacaoParaTransferir, setInternacaoParaTransferir] = useState<Admission | null>(null);
+  const [destinoTransferencia, setDestinoTransferencia] = useState("");
+  const [salvandoTransferencia, setSalvandoTransferencia] = useState(false);
+
+  function abrirTransferencia(internacao: Admission) {
+    setInternacaoParaTransferir(internacao);
+    setDestinoTransferencia("");
+  }
+
+  async function handleConfirmarTransferencia(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!internacaoParaTransferir || !destinoTransferencia.trim()) return;
+    setSalvandoTransferencia(true);
+    try {
+      await repository.admissions.transferir(internacaoParaTransferir.id, destinoTransferencia.trim());
+      notificarSucesso("Internação transferida — continua com o mesmo Nr. Atendimento, sem alta.");
+      setInternacaoParaTransferir(null);
+    } catch (erro) {
+      notificarErro("Não foi possível transferir", erro);
+    } finally {
+      setSalvandoTransferencia(false);
+    }
+  }
+
+  // --- Retorno da transferência (paciente volta pra Enfermaria) ---
+  const [internacaoParaRetornar, setInternacaoParaRetornar] = useState<Admission | null>(null);
+  const [unidadeRetorno, setUnidadeRetorno] = useState("");
+  const [leitoRetorno, setLeitoRetorno] = useState("");
+  const [salvandoRetorno, setSalvandoRetorno] = useState(false);
+
+  function abrirRetornoTransferencia(internacao: Admission) {
+    setInternacaoParaRetornar(internacao);
+    setUnidadeRetorno(internacao.unit_id ?? "");
+    setLeitoRetorno("");
+  }
+
+  async function handleConfirmarRetorno(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!internacaoParaRetornar || !unidadeRetorno) return;
+    const unidade = unidades.find((u) => u.id === unidadeRetorno);
+    if (!unidade) return;
+    setSalvandoRetorno(true);
+    try {
+      await repository.admissions.retornarDeTransferencia(internacaoParaRetornar.id, unidadeRetorno, unidade.hospital_id, leitoRetorno || null);
+      notificarSucesso("Internação reaberta — mesmo Nr. Atendimento de antes da transferência.");
+      setInternacaoParaRetornar(null);
+    } catch (erro) {
+      notificarErro("Não foi possível reabrir a internação", erro);
+    } finally {
+      setSalvandoRetorno(false);
+    }
+  }
   const [etapaAlta, setEtapaAlta] = useState<"data" | "lancar">("data");
   const [dataHoraAlta, setDataHoraAlta] = useState(agoraParaInputDatetime());
   const [salvandoAlta, setSalvandoAlta] = useState(false);
@@ -242,6 +301,11 @@ export default function Internacoes() {
               const respiratoria = procedimentos.find((p) => p.id === i.pre_lancamento_respiratoria_id)?.code;
               return motora || respiratoria ? `${motora ?? "—"} · ${respiratoria ?? "—"}` : "—";
             }
+            case "idade": {
+              const idadeCalc = calcularIdade(pacientes.find((p) => p.id === i.patient_id)?.birth_date ?? null);
+              return idadeCalc !== null ? `${idadeCalc} anos` : "—";
+            }
+            case "diasInternacao": return String(calcularDiasInternacao(i.admission_date, i.discharge_date));
             case "procedimento": return nomeProcedimentoHoje(i.id);
             case "quarto": {
               const leito = leitos.find((l) => l.id === i.bed_id);
@@ -784,6 +848,7 @@ export default function Internacoes() {
                 <SelectContent>
                   <SelectItem value="todos">Todos os status</SelectItem>
                   <SelectItem value="internado">Só internados</SelectItem>
+                  <SelectItem value="transferido">Só transferidos</SelectItem>
                   <SelectItem value="alta">Só com alta</SelectItem>
                 </SelectContent>
               </Select>
@@ -865,6 +930,8 @@ export default function Internacoes() {
           <div className="divide-y divide-line">
             {paginaAtual.map((i) => {
               const paciente = pacientes.find((p) => p.id === i.patient_id)?.full_name ?? "—";
+              const idadePaciente = calcularIdade(pacientes.find((p) => p.id === i.patient_id)?.birth_date ?? null);
+              const diasInternacao = calcularDiasInternacao(i.admission_date, i.discharge_date);
               const leito = leitos.find((l) => l.id === i.bed_id);
               const quarto = quartos.find((q) => q.id === leito?.room_id);
               const unidade = unidades.find((u) => u.id === i.unit_id)?.name ?? "—";
@@ -901,11 +968,19 @@ export default function Internacoes() {
                       {quarto && <> · Quarto {quarto.code}</>}
                       {leito && <> · Leito {leito.code}</>}
                       {" · "}{convenio}
+                      {idadePaciente !== null && <> · {idadePaciente} anos</>}
+                      {" · "}{diasInternacao}{diasInternacao === 1 ? " dia internado" : " dias internado"}
                       {" · Entrada "}{formatarData(i.admission_date)} {i.admission_time?.slice(0, 5)}
                     </p>
                     {i.diagnostico && (
                       <p className="mt-0.5 truncate text-xs italic text-ink-soft/80" title={i.diagnostico}>
                         Dx: {i.diagnostico}
+                      </p>
+                    )}
+                    {i.status === "transferido" && (
+                      <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-attention-700">
+                        <ArrowRightLeft className="h-3 w-3" /> Transferido pra {i.transfer_destino ?? "—"}
+                        {i.transferred_at && <> em {new Date(i.transferred_at).toLocaleDateString("pt-BR")}</>}
                       </p>
                     )}
                     {(i.pre_lancamento_motora_id || i.pre_lancamento_respiratoria_id) && (
@@ -929,7 +1004,15 @@ export default function Internacoes() {
                         <Button variant="ghost" size="sm" onClick={() => abrirFluxoAlta(i)} title="Dar alta">
                           <LogOut className="h-3.5 w-3.5" /> Alta
                         </Button>
+                        <Button variant="ghost" size="sm" onClick={() => abrirTransferencia(i)} title="Transferir (ex.: UTI de outra empresa) — sem dar alta">
+                          <ArrowRightLeft className="h-3.5 w-3.5" /> Transferir
+                        </Button>
                       </>
+                    )}
+                    {i.status === "transferido" && (
+                      <Button variant="ghost" size="sm" onClick={() => abrirRetornoTransferencia(i)} title="Paciente voltou — reabre esta mesma internação">
+                        <CornerDownLeft className="h-3.5 w-3.5" /> Retornou
+                      </Button>
                     )}
                     {podeExcluirInternacao && (
                       <DeleteButton itemLabel={`internação de ${paciente}`} onConfirm={() => repository.admissions.remove(i.id)} moduleSlug="internacoes" />
@@ -1227,6 +1310,88 @@ export default function Internacoes() {
               {distribuindo ? "Distribuindo…" : "Distribuir"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={internacaoParaTransferir !== null} onOpenChange={(v) => !v && setInternacaoParaTransferir(null)}>
+        <DialogContent>
+          <form onSubmit={handleConfirmarTransferencia}>
+            <DialogHeader>
+              <DialogTitle>Transferir internação</DialogTitle>
+              <DialogDescription>
+                {internacaoParaTransferir && (pacientes.find((p) => p.id === internacaoParaTransferir.patient_id)?.full_name ?? "—")} —
+                congela essa internação (mesmo Nr. Atendimento, sem dar alta) e libera o leito de origem. Use quando
+                o paciente for pra um lugar fora do nosso acompanhamento (ex.: UTI de outra empresa) e for voltar
+                depois.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-1.5 py-2">
+              <Label htmlFor="destino_transferencia">Pra onde vai</Label>
+              <Input
+                id="destino_transferencia"
+                value={destinoTransferencia}
+                onChange={(e) => setDestinoTransferencia(e.target.value)}
+                required
+                placeholder="Ex.: UTI (outra empresa)"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="secondary" onClick={() => setInternacaoParaTransferir(null)}>Cancelar</Button>
+              <Button type="submit" disabled={salvandoTransferencia || !destinoTransferencia.trim()}>
+                {salvandoTransferencia ? "Salvando…" : "Transferir"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={internacaoParaRetornar !== null} onOpenChange={(v) => !v && setInternacaoParaRetornar(null)}>
+        <DialogContent>
+          <form onSubmit={handleConfirmarRetorno}>
+            <DialogHeader>
+              <DialogTitle>Paciente voltou</DialogTitle>
+              <DialogDescription>
+                {internacaoParaRetornar && (pacientes.find((p) => p.id === internacaoParaRetornar.patient_id)?.full_name ?? "—")} —
+                reabre a mesma internação (mesmo Nr. Atendimento
+                {internacaoParaRetornar?.external_reference ? ` — ${internacaoParaRetornar.external_reference}` : ""}),
+                só precisa do leito novo.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-4 py-2">
+              <div className="flex flex-col gap-1.5">
+                <Label>Unidade</Label>
+                <Select value={unidadeRetorno} onValueChange={(v) => { setUnidadeRetorno(v); setLeitoRetorno(""); }}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
+                  <SelectContent>
+                    {unidades.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Leito (opcional)</Label>
+                <Select value={leitoRetorno} onValueChange={setLeitoRetorno}>
+                  <SelectTrigger><SelectValue placeholder="Selecione um leito livre" /></SelectTrigger>
+                  <SelectContent>
+                    {leitosDaUnidadeRetorno.length === 0 ? (
+                      <SelectItem value="none" disabled>Nenhum leito livre nesta unidade</SelectItem>
+                    ) : (
+                      leitosDaUnidadeRetorno.map((l) => (
+                        <SelectItem key={l.id} value={l.id}>{l.code}</SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="secondary" onClick={() => setInternacaoParaRetornar(null)}>Cancelar</Button>
+              <Button type="submit" disabled={salvandoRetorno || !unidadeRetorno}>
+                {salvandoRetorno ? "Salvando…" : "Confirmar retorno"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

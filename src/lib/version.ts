@@ -3,5 +3,5 @@
  * e em Configurações. Existe pra facilitar identificar qual build está no
  * ar (Cloudflare Pages não expõe isso na UI por padrão).
  */
-export const APP_VERSION = "0.39.2";
+export const APP_VERSION = "0.40.0";
 export const APP_NAME = "inovare.fisio";

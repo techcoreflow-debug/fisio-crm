@@ -56,6 +56,9 @@ MARCADORES = [
     ("data-local.ts — correção de fuso horário (v0.17.0)", "src/lib/data-local.ts", "hojeLocalIso"),
     ("Sheet de editar internação sempre montado, fisio consegue editar (v0.39.2)", "src/modules/internacoes/index.tsx", "O Sheet fica SEMPRE montado"),
     ("Cobertura hospitalar — censo diário (v0.39.2)", "src/modules/impacto-assistencial/index.tsx", "hospitalCensus"),
+    ("Transferência de internação preserva Nr. Atendimento (v0.40.0)", "src/data/repository.ts", "retornarDeTransferencia"),
+    ("Idade e Dias de Internação na listagem (v0.40.0)", "src/modules/internacoes/index.tsx", "calcularDiasInternacao"),
+    ("Quantitativo de procedimentos por idade (v0.40.0)", "src/modules/impacto-assistencial/index.tsx", "procedimentosPorIdade"),
 ]
 
 # Arquivos que NUNCA podem voltar a calcular "hoje"/data via

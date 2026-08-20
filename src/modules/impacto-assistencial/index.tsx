@@ -34,7 +34,7 @@ import {
   useHospitalCensus,
   repository,
 } from "@/data/repository";
-import { hojeLocalIso, dataParaIsoLocal } from "@/lib/data-local";
+import { hojeLocalIso, dataParaIsoLocal, calcularIdade } from "@/lib/data-local";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useAppStore } from "@/store/app-store";
 
@@ -273,6 +273,35 @@ export default function ImpactoAssistencial() {
     ? Math.round((internadosComFisioHoje / censoHospitalHoje.total_internados) * 100)
     : null;
 
+  // 12) Quantitativo de procedimentos por faixa etária
+  const FAIXAS_ETARIAS = [
+    { rotulo: "0–17", min: 0, max: 17 },
+    { rotulo: "18–39", min: 18, max: 39 },
+    { rotulo: "40–59", min: 40, max: 59 },
+    { rotulo: "60–79", min: 60, max: 79 },
+    { rotulo: "80+", min: 80, max: 200 },
+  ];
+  const procedimentosPorIdade = useMemo(() => {
+    const contagem = new Map(FAIXAS_ETARIAS.map((f) => [f.rotulo, 0]));
+    let semIdade = 0;
+    for (const p of producaoPeriodo) {
+      const internacao = internacoes.find((i) => i.id === p.admission_id);
+      const paciente = pacientes.find((pa) => pa.id === internacao?.patient_id);
+      const idade = calcularIdade(paciente?.birth_date ?? null);
+      if (idade === null) {
+        semIdade += 1;
+        continue;
+      }
+      const faixa = FAIXAS_ETARIAS.find((f) => idade >= f.min && idade <= f.max);
+      if (faixa) contagem.set(faixa.rotulo, (contagem.get(faixa.rotulo) ?? 0) + 1);
+    }
+    return {
+      dados: FAIXAS_ETARIAS.map((f) => ({ faixa: f.rotulo, procedimentos: contagem.get(f.rotulo) ?? 0 })),
+      semIdade,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [producaoPeriodo, internacoes, pacientes]);
+
   const [openLancarCenso, setOpenLancarCenso] = useState(false);
   const [salvandoCenso, setSalvandoCenso] = useState(false);
 
@@ -461,6 +490,27 @@ export default function ImpactoAssistencial() {
               </AreaChart>
             </ResponsiveContainer>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Users className="h-4.5 w-4.5" /> Quantitativo de procedimentos por idade</CardTitle>
+          <p className="text-sm text-ink-soft mt-0.5">
+            Procedimentos realizados no período, por faixa etária do paciente.
+            {procedimentosPorIdade.semIdade > 0 && ` ${procedimentosPorIdade.semIdade} sem data de nascimento cadastrada, não entram aqui.`}
+          </p>
+        </CardHeader>
+        <CardContent className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={procedimentosPorIdade.dados} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#dbe2ea" vertical={false} />
+              <XAxis dataKey="faixa" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "#47566b" }} />
+              <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "#47566b" }} allowDecimals={false} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #dbe2ea", fontSize: 13 }} />
+              <Bar dataKey="procedimentos" name="Procedimentos" fill="#a05fe0" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </CardContent>
       </Card>
 

@@ -20,6 +20,41 @@ Antes de subir um deploy:
 
 ---
 
+## v0.40.0 — 14/08/2026
+
+**Transferência de internação — preserva o Nr. Atendimento.** Novo
+mecanismo pra o cenário real: paciente internado na Enfermaria vai pra
+UTI (que pode ser atendida por outra empresa, fora do nosso sistema) e
+depois **volta pra Enfermaria com o mesmo Nr. Atendimento**. Antes, a
+única opção era dar alta — o que quebrava a continuidade quando o
+paciente voltava (viraria uma internação nova, desconectada do
+histórico e do diagnóstico). Agora:
+
+- **"Transferir"**: congela a internação (novo status "Transferido")
+  sem fechar como alta — libera o leito de origem, guarda o destino
+  (texto livre, ex.: "UTI") e a data/hora.
+- **"Retornou"**: reabre a MESMA internação (mesmo Nr. Atendimento,
+  mesmo histórico, mesmo diagnóstico) — só pede o leito/unidade novos.
+- Filtro "Só transferidos" na listagem, card mostra "Transferido pra X
+  em DD/MM", auditoria registrando as duas ações.
+
+Migration `0031` (`transferred_at`, `transfer_destino`).
+
+**Idade e Dias de Internação** — agora aparecem na listagem de
+Pacientes Internados, e nas exportações de Produção Diária e
+Relatórios ("Idade" e "Dia da Internação"). Também nas colunas
+opcionais da lista impressa.
+
+**Novo painel — Quantitativo de procedimentos por idade**, em Impacto
+Assistencial: procedimentos do período, agrupados por faixa etária
+(0–17, 18–39, 40–59, 60–79, 80+).
+
+**Auditoria expandida** — 30 marcadores de funcionalidade, tudo verde.
+
+Precisa rodar a migration `0031`.
+
+---
+
 ## v0.39.2 — 11/08/2026
 
 **O bug real por trás do fisio não conseguir editar internação —

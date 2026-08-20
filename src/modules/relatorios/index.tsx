@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { hojeLocalIso } from "@/lib/data-local";
+import { hojeLocalIso, calcularIdade, calcularDiasInternacao } from "@/lib/data-local";
 import { BarChart3, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -136,16 +136,21 @@ export default function Relatorios() {
           const internacao = internacoes.find((i) => i.id === p.admission_id);
           const leito = leitos.find((l) => l.id === internacao?.bed_id);
           const quarto = quartos.find((q) => q.id === leito?.room_id);
+          const paciente = pacientes.find((pa) => pa.id === internacao?.patient_id);
+          const idadeCalc = calcularIdade(paciente?.birth_date ?? null);
           return {
             Data: formatarData(p.production_date),
             Hora: p.production_time?.slice(0, 5) ?? "—",
             "Nr. Atendimento": internacao?.external_reference ?? "—",
             Paciente: nomePaciente(p.admission_id),
+            Idade: idadeCalc !== null ? idadeCalc : "—",
             Unidade: unidades.find((u) => u.id === internacao?.unit_id)?.name ?? "—",
             Quarto: quarto?.code ?? "—",
             Leito: leito?.code ?? "—",
             Diagnóstico: internacao?.diagnostico ?? "—",
-            "Status da Internação": internacao?.status === "alta" ? "Alta" : internacao?.status === "internado" ? "Internado" : "—",
+            "Status da Internação":
+              internacao?.status === "alta" ? "Alta" : internacao?.status === "transferido" ? "Transferido" : internacao?.status === "internado" ? "Internado" : "—",
+            "Dia da Internação": internacao ? calcularDiasInternacao(internacao.admission_date, internacao.discharge_date) : "—",
             "Código do procedimento": procedimentos.find((pr) => pr.id === p.procedure_id)?.code ?? "—",
             Procedimento: procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—",
             Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
