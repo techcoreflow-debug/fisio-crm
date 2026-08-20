@@ -421,6 +421,12 @@ confirmação antes de apagar. Sem volta depois de confirmado.
 
 ---
 
+# Novidades
+
+O sino no topo (desktop e tablet) mostra um ponto vermelho quando tem
+alguma entrega nova que vale a pena saber — clica pra ver a lista, em
+linguagem direta. Marca como visto sozinho ao abrir.
+
 # Modo tablet
 
 Fisioterapeuta (lançador) começa nesse modo por padrão: sem menu

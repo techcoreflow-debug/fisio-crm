@@ -59,6 +59,8 @@ MARCADORES = [
     ("Transferência de internação preserva Nr. Atendimento (v0.40.0)", "src/data/repository.ts", "retornarDeTransferencia"),
     ("Idade e Dias de Internação na listagem (v0.40.0)", "src/modules/internacoes/index.tsx", "calcularDiasInternacao"),
     ("Quantitativo de procedimentos por idade (v0.40.0)", "src/modules/impacto-assistencial/index.tsx", "procedimentosPorIdade"),
+    ("Sino de novidades — desktop (v0.41.0)", "src/components/layout/topbar.tsx", "SinoNovidades"),
+    ("Sino de novidades — tablet (v0.41.0)", "src/components/layout/tablet-shell.tsx", "SinoNovidades"),
 ]
 
 # Arquivos que NUNCA podem voltar a calcular "hoje"/data via

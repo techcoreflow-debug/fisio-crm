@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Menu, Search, Bell, ChevronsUpDown, LogOut, Settings, Moon, Sun, ShieldCheck, KeyRound, Tablet } from "lucide-react";
+import { Menu, Search, ChevronsUpDown, LogOut, Settings, Moon, Sun, ShieldCheck, KeyRound, Tablet } from "lucide-react";
+import { SinoNovidades } from "@/components/shared/sino-novidades";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/store/app-store";
 import { useCompanies } from "@/data/repository";
@@ -133,15 +134,7 @@ export function Topbar() {
         >
           {theme === "light" ? <Moon className="h-4.5 w-4.5" /> : <Sun className="h-4.5 w-4.5" />}
         </button>
-        <button
-          className="rounded-md p-2 text-ink-soft hover:bg-surface-sunken"
-          aria-label="Notificações"
-          onClick={() =>
-            notificarErro("Central de notificações ainda não implementada", "Os alertas de cada módulo (ex.: Dashboard Executivo) já são reais — isso aqui é só o sino, sem lista própria ainda.")
-          }
-        >
-          <Bell className="h-4.5 w-4.5" />
-        </button>
+        <SinoNovidades />
         <DropdownMenu>
           <DropdownMenuTrigger className="ml-1">
             <Avatar>

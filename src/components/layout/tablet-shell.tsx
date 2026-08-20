@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { Activity, LogOut, KeyRound, Monitor } from "lucide-react";
+import { SinoNovidades } from "@/components/shared/sino-novidades";
 import { moduleGroups } from "@/app/modules-registry";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/auth/auth-provider";
@@ -79,6 +80,7 @@ export function TabletShell({ children }: { children: React.ReactNode }) {
           >
             <Monitor className="h-4 w-4" />
           </button>
+          <SinoNovidades />
           <button
             onClick={() => setOpenTrocarSenha(true)}
             className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-ink-soft hover:bg-surface-sunken"

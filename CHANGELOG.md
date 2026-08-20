@@ -20,6 +20,29 @@ Antes de subir um deploy:
 
 ---
 
+## v0.41.0 — 20/08/2026
+
+**Sino de notificações de novidades** — substituiu o sino decorativo
+do Topbar (que só mostrava uma mensagem de "ainda não implementado").
+Agora mostra um ponto vermelho quando tem novidade não vista, e ao
+clicar lista as últimas entregas em linguagem direta (não é o
+changelog técnico) — cada uma com título, data e descrição curta.
+Marca como visto ao abrir. Disponível no desktop e no modo tablet.
+
+Pra manter atualizado: `src/lib/novidades.ts` é onde entra uma linha
+nova a cada entrega que valha a pena avisar pra quem usa o sistema.
+
+**Investigação em aberto**: reportado um caso de data errada
+("filtrar dia 15, mostra dia 16") em Impacto Assistencial — varredura
+completa feita em todos os `toISOString()` e `new Date()` do projeto,
+nada encontrado que explique esse padrão específico. Aguardando print
+de exemplo pra fechar com certeza — sem isso, ficaria arriscando
+correção às cegas.
+
+Sem migration — só código.
+
+---
+
 ## v0.40.0 — 14/08/2026
 
 **Transferência de internação — preserva o Nr. Atendimento.** Novo
