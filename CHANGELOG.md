@@ -20,6 +20,19 @@ Antes de subir um deploy:
 
 ---
 
+## v0.41.1 — 20/08/2026
+
+**Bug urgente corrigido — Pacientes Internados não abria ("Cannot
+access 'unidadeRetorno' before initialization").** Ficou de fora na
+v0.40.0 (transferência de internação): uma variável (`leitosDaUnidadeRetorno`)
+foi declarada usando outra (`unidadeRetorno`) antes dela existir no
+código — o TypeScript não pega esse tipo de erro (só aparece em tempo
+de execução, no navegador). Corrigido reordenando a declaração.
+
+Sem migration — só código.
+
+---
+
 ## v0.41.0 — 20/08/2026
 
 **Sino de notificações de novidades** — substituiu o sino decorativo

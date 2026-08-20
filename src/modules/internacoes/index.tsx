@@ -179,10 +179,6 @@ export default function Internacoes() {
   }
   const leitosDaUnidade = leitos.filter((l) => l.unit_id === unidadeId && leitoEstaLivre(l));
 
-  // Fluxo de alta — precisa de mais de uma etapa quando não há atendimento
-  // lançado no dia, por isso vive num Sheet separado com seu próprio estado.
-  const leitosDaUnidadeRetorno = leitos.filter((l) => l.unit_id === unidadeRetorno && leitoEstaLivre(l));
-
   const [internacaoParaAlta, setInternacaoParaAlta] = useState<Admission | null>(null);
 
   // --- Transferência (ex.: UTI de outra empresa) ---
@@ -214,6 +210,7 @@ export default function Internacoes() {
   const [internacaoParaRetornar, setInternacaoParaRetornar] = useState<Admission | null>(null);
   const [unidadeRetorno, setUnidadeRetorno] = useState("");
   const [leitoRetorno, setLeitoRetorno] = useState("");
+  const leitosDaUnidadeRetorno = leitos.filter((l) => l.unit_id === unidadeRetorno && leitoEstaLivre(l));
   const [salvandoRetorno, setSalvandoRetorno] = useState(false);
 
   function abrirRetornoTransferencia(internacao: Admission) {
