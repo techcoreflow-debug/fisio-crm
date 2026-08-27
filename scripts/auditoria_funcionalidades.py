@@ -23,11 +23,6 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 
-# Cada item: (descrição, arquivo, um texto que DEVE aparecer no arquivo).
-# Adicionar uma linha aqui sempre que uma funcionalidade nova e não-óbvia
-# for construída — principalmente coisas puramente de UI/UX que o
-# TypeScript não reclama se sumirem (função nunca é chamada por outro
-# lugar, então não quebra a compilação).
 MARCADORES = [
     ("Sidebar recolhível (v0.22.0)", "src/components/layout/sidebar.tsx", "sidebarRecolhida"),
     ("Alternância tablet/PC — agora pra todos os papéis (v0.39.2)", "src/store/app-store.ts", "modoExibicao"),
@@ -61,14 +56,14 @@ MARCADORES = [
     ("Quantitativo de procedimentos por idade (v0.40.0)", "src/modules/impacto-assistencial/index.tsx", "procedimentosPorIdade"),
     ("Sino de novidades — desktop (v0.41.0)", "src/components/layout/topbar.tsx", "SinoNovidades"),
     ("Sino de novidades — tablet (v0.41.0)", "src/components/layout/tablet-shell.tsx", "SinoNovidades"),
+    ("Tipo de alta — controle de óbitos ONA (v0.42.0)", "src/modules/impacto-assistencial/index.tsx", "taxaObitoNoPeriodo"),
+    ("Combo de setor na transferência (v0.42.0)", "src/modules/internacoes/index.tsx", "SETORES_TRANSFERENCIA"),
+    ("Relatório de Pacientes Internados (v0.42.0)", "src/modules/relatorios/index.tsx", "pacientes-internados"),
+    ("Escalas — copiar semana anterior (v0.43.0)", "src/modules/escalas/index.tsx", "handleCopiarSemanaAnterior"),
+    ("Tasy Modelo 2 — CSV com vírgula, acentos corrompidos tolerados (v0.43.0)", "src/lib/tasy-parser.ts", "detectarModeloTasy"),
+    ("Relatório de pendências Tasy com motivo + exportar (v0.44.0)", "src/modules/importacao-tasy/index.tsx", "MOTIVO_LABEL"),
 ]
 
-# Arquivos que NUNCA podem voltar a calcular "hoje"/data via
-# toISOString() — bug clássico (UTC vs fuso local) que já causou dado
-# sumindo de tela por horas todo santo dia, entre ~21h e meia-noite no
-# Brasil. Achado de novo em 11/08/2026, espalhado por 7 arquivos, depois
-# de uma reconstrução do projeto — por isso essa checagem é dedicada,
-# separada dos marcadores normais acima.
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [
     "src/modules/painel-gestor/index.tsx",
     "src/modules/dashboard-operacional/index.tsx",
@@ -92,10 +87,6 @@ def auditar():
     total = len(MARCADORES)
     ok = total - len(faltando)
 
-    # Segunda checagem: bug de fuso horário voltando (toISOString pra
-    # calcular "hoje"/datas). Regex ampla — pega qualquer
-    # `.toISOString().slice(0, 10)` OU variável chamada hojeIso()
-    # definida com toISOString() por perto.
     regressao_fuso = []
     padrao_suspeito = re.compile(r"toISOString\(\)\.slice\(0,\s*10\)")
     for caminho_rel in ARQUIVOS_SEM_TOISOSTRING_PARA_DATA:

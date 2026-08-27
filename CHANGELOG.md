@@ -20,6 +20,93 @@ Antes de subir um deploy:
 
 ---
 
+## v0.44.0 — 26/08/2026
+
+**Relatório e apontamento de divergências, direto na Conciliação Tasy**
+— o que fizemos manualmente com a planilha da Dra. Monika (achar o
+lançamento faltando da Silvia Mara, achar o Nr. Atendimento errado do
+Jacinto) agora é automático, toda vez que uma conciliação roda. Cada
+pendência mostra o **motivo**, não é mais tudo a mesma coisa:
+
+- **Internação não encontrada** — o Nr. Atendimento do Tasy não bate
+  com nenhuma internação cadastrada (provável erro de digitação no
+  número, ou internação nunca criada). Caso do Jacinto.
+- **Procedimento não cadastrado** — o código do Tasy não existe no
+  cadastro de Procedimentos.
+- **Falta lançar** — internação e procedimento existem, mas ninguém
+  lançou esse atendimento ainda. Caso da Silvia Mara.
+
+Resumo por motivo no topo da tela (clica pra filtrar), e botão
+**Exportar** — baixa a lista de pendências em CSV, com o motivo de
+cada uma.
+
+Sem migration — o motivo fica dentro do `raw_data` que já existia.
+
+---
+
+## v0.43.0 — 25/08/2026
+
+**Item 2 (batimento) fechado** — cruzamento entre a planilha "Produtividade
+Médica" da Dra. Monika (15-19/08) e o sistema. De 21 Nr. Atendimento
+conferidos, 2 problemas reais achados: 1 lançamento faltando (Silvia
+Mara Paes De Sá, visita da tarde de 15/08) e 1 internação com Nr.
+Atendimento divergente entre sistema e Tasy (Jacinto de Jesus Perussi:
+780485 no sistema × 779402 no Tasy — provável erro de digitação).
+
+**Item 3 — Escalas**: confirmado que o Forms de hoje monta a escala do
+zero (igual ao nosso módulo já faz) — o ganho real era de eficiência.
+Adicionado: navegação entre semanas (antes só dava pra ver "a próxima
+semana", fixo) e **"Copiar semana anterior"** — duplica os turnos da
+semana passada pra atual de uma vez, sem montar tudo de novo turno por
+turno.
+
+**Item 10 — Tasy Modelo 2 implementado e testado com o arquivo real.**
+O parser existente (Modelo 1, TAB) foi generalizado pra também aceitar
+CSV (vírgula) — mesma estrutura de relatório "Produtividade Médica",
+só muda o separador. Dois problemas reais do export da Dra. Monika
+tratados:
+- Acentos corrompidos (o Tasy dela exporta "?" no lugar de qualquer
+  vogal acentuada, ex.: "M?dica" em vez de "Médica") — reconhecimento
+  de marcadores agora tolera isso.
+- Descrição de procedimento com vírgula sem aspas no CSV (quebra a
+  coluna) — o parser rejunta automaticamente, avisando na prévia.
+
+Testado contra o arquivo real da Dra. Monika: 846 linhas de produção
+extraídas corretamente, 87 internações, 6 convênios, zero falso
+positivo.
+
+Sem migration — só código.
+
+---
+
+## v0.42.0 — 25/08/2026
+
+Primeira leva de itens validados da lista de 12 (ver conversa — os
+demais seguem em análise/aguardando informação):
+
+**Tipo de alta — Hospitalar × Óbito** (migration `0032`,
+`discharge_type`). Ao confirmar a alta, escolhe o tipo — vira o
+indicador **"Efetividade Assistencial — Controle de Óbitos"** novo em
+Impacto Assistencial (% de óbitos sobre as altas do período), pedido
+como acompanhamento assistencial pra ONA.
+
+**Combo de setor na transferência** — trocou o texto livre por uma
+lista fixa (UTI Coronária (Ext), UTI Geral, Outro Hospital, Outras) —
+escolhendo "Outras", abre um campo pra descrever o detalhe.
+
+**Relatório de Pacientes Internados**, em Relatórios — Paciente,
+Idade, Nr. Atendimento, Data da Internação, Hospital, Ala, Leito,
+Convênio, Status (incluindo Alta/Óbito/Transferido), Dias de
+Internação e Diagnóstico. Usa o filtro de período geral que já existia
+na tela.
+
+**Data da Internação** ao lado do Nr. Atendimento, nos exports de
+Produção Diária e Relatórios.
+
+Precisa rodar a migration `0032`.
+
+---
+
 ## v0.41.1 — 20/08/2026
 
 **Bug urgente corrigido — Pacientes Internados não abria ("Cannot

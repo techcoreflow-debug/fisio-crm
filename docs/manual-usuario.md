@@ -21,7 +21,6 @@ Tasy.
 | **Admin InovareTech** | Acesso total, em todas as empresas do grupo. Só ele vê o seletor de empresa no topo, pode vincular um usuário novo a uma empresa, e é o único que enxerga a Zona de risco. |
 | **Admin de empresa** | Acesso completo, travado na própria empresa. |
 | **Gestor** | Acesso completo por padrão — ajustável em Permissões. |
-| **Supervisor** | Mesmo acesso do fisioterapeuta (lançador) nos módulos do dia a dia, mais visão e controle dos painéis operacionais (Painel do Gestor, Dashboard Operacional, Impacto Assistencial, Leitos, Escalas, Evolução Clínica, Fisioterapeutas, Procedimentos, Relatórios) — sem ser admin, e sem acesso a faturamento. |
 | **Financeiro** | Acesso completo aos módulos financeiros (Financeiro, Faturamento, Fechamento, Painel de Procedimentos, Relatórios, Contratos); só visualização no resto. |
 | **Auditor** | Só visualização, em todos os módulos. |
 | **Fisioterapeuta (lançador)** | Acesso restrito a Minha Fila, Novo Atendimento, Pacientes, Pacientes Internados e Produção Diária — o essencial pro dia a dia dele. Usa o **modo tablet** (ver seção própria). |
@@ -74,17 +73,16 @@ Indicadores clínicos — o que a equipe está entregando de cuidado, não
 só números operacionais/financeiros: tempo médio até o 1º atendimento
 pós-internação, cobertura diária (% dos internados de hoje já
 atendidos), intensidade terapêutica (procedimentos por paciente-dia),
-mix de categoria evoluindo semana a semana, comparativo entre
-hospitais, e os números do período (pacientes atendidos, procedimentos,
-dias de internação acompanhados). Também: efetividade Motora ×
-Respiratória mensal (com filtro por unidade), altas (diário/mensal/%
-do período), distribuição por convênio e perfil por sexo. **Cobertura
-sobre o total do hospital** — "hoje temos X internados no hospital, Y
-com fisioterapia, Z%" — depende de lançar o total geral do hospital
-(dado que só o hospital sabe), botão "Lançar total de hoje" no próprio
-painel. Filtro de período e hospital. Também mostra **quantitativo de
-procedimentos por faixa etária** (0–17, 18–39, 40–59, 60–79, 80+),
-usando a data de nascimento do paciente.
+mix de categoria evoluindo semana a semana, quantitativo de
+procedimentos por faixa etária, comparativo entre hospitais, e os
+números do período (pacientes atendidos, procedimentos, dias de
+internação acompanhados). Também: efetividade Motora × Respiratória
+mensal (com filtro por unidade), altas (diário/mensal/% do período),
+**efetividade assistencial — controle de óbitos** (% de óbitos sobre
+as altas do período, indicador ONA), distribuição por convênio, perfil
+por sexo e cobertura sobre o total do hospital (lança o total geral do
+hospital no próprio painel, já que esse número só o hospital sabe).
+Filtro de período e hospital.
 
 ## Dashboard Executivo
 
@@ -191,25 +189,13 @@ Leito, Paciente (A-Z), Entrada (mais recente) ou Nr. Atendimento.
 - **Nr. Atendimento**: campo digitado ao criar a internação — é o ID da
   internação no Tasy, usado como **chave da conciliação** (ver seção
   própria). Uma internação pode ter vários procedimentos em várias datas
-  enquanto durar, todos sob o mesmo Nr. Atendimento. Junto com
-  **Leito**, obrigatório.
+  enquanto durar, todos sob o mesmo Nr. Atendimento.
 - **Diagnóstico**: texto livre, também preenchido ao criar a internação —
   aparece logo após o nome do paciente na listagem, e é uma opção a mais
   na lista impressa.
-- **Pré-lançamento**: dois códigos de procedimento sugeridos na triagem
-  — Motora e Respiratória, sempre juntos (não dá pra salvar só um) —
-  pra reduzir erro de codificação na hora de lançar de verdade depois.
-  Só admin e supervisor podem definir ou alterar; o fisioterapeuta
-  lançador só vê o que já foi definido. Aparece como selo (só os
-  códigos) na listagem e é uma opção a mais na lista impressa. Não
-  lança nada sozinho, é só referência.
 - **Excluir internação** (só papel admin, de empresa ou InovareTech):
   bloqueia se já tiver produção, evolução, fila ou faturamento
   lançado — mesma proteção do resto do sistema.
-
-O fisioterapeuta lançador pode **editar** uma internação já existente
-(trocar unidade, leito, quarto — útil porque paciente muda de quarto com
-frequência), mas nunca criar internação nova nem excluir.
 - **Lançar procedimento** ("+ Procedimento"): direto na linha, sem precisar ir em Produção
   Diária.
 - **Dar alta** ("Alta"): sempre mostra quantos procedimentos já foram
@@ -219,18 +205,17 @@ frequência), mas nunca criar internação nova nem excluir.
   botão "Sim, confirmar alta" também fica sempre disponível, mesmo sem
   nenhum procedimento lançado — o aviso já está visível, então quem
   confirma decide com a informação em mãos. Pede **data e hora exatas**
-  da alta.
-- **Transferir** (status "Transferido"): pra quando o paciente sai do
-  nosso acompanhamento temporariamente (ex.: vai pra UTI atendida por
-  outra empresa) e vai **voltar depois com o mesmo Nr. Atendimento**.
-  Diferente de dar alta — não fecha a internação, só congela ela: libera
-  o leito de origem, guarda o destino (texto livre) e a data. Quando o
-  paciente volta, o botão **"Retornou"** reabre a MESMA internação
-  (mesmo histórico, mesmo diagnóstico), só pede o leito/unidade novos —
-  nunca cria uma internação desconectada da original.
-- **Idade** e **Dias de Internação**: calculados automaticamente (idade
-  a partir da data de nascimento do paciente; dias, da entrada até hoje
-  ou até a alta) — aparecem na listagem e são opções na lista impressa.
+  da alta, e o **tipo** — Alta Hospitalar ou Óbito (alimenta o
+  indicador de efetividade assistencial em Impacto Assistencial).
+- **Transferir**: pra quando o paciente sai do nosso acompanhamento
+  temporariamente (ex.: vai pra UTI atendida por outra empresa) e vai
+  **voltar depois com o mesmo Nr. Atendimento**. Diferente de dar alta
+  — não fecha a internação, só congela ela (status "Transferido"):
+  libera o leito de origem, guarda o setor (combo: UTI Coronária
+  (Ext), UTI Geral, Outro Hospital, ou "Outras" com um campo pra
+  detalhar) e a data. Quando o paciente volta, o botão **"Retornou"**
+  reabre a MESMA internação (mesmo histórico, mesmo diagnóstico), só
+  pede o leito/unidade novos.
 - **Gerar/imprimir lista**: escolhe quais colunas aparecem (sequência
   numerada sempre entra; Nr. Atendimento, paciente, procedimento do dia,
   quarto, leito, hospital e convênio são opcionais, todas ligadas por
@@ -324,8 +309,9 @@ CSV — abre direto no Excel.
 **Não é carga por padrão** — a equipe lança o procedimento manualmente
 primeiro (em Pacientes Internados, Novo Atendimento ou Produção Diária).
 O Tasy chega depois só pra conferir: sobe o relatório "Produtividade
-Médica" (`.xls`, mas na prática é texto) e o sistema tenta casar cada
-linha com um lançamento já existente.
+Médica" — aceita tanto `.xls` (na prática texto separado por TAB) quanto
+`.csv` (separado por vírgula, formato de impressão) — e o sistema tenta
+casar cada linha com um lançamento já existente.
 
 **Chave da conciliação: Nr. Atendimento + código do procedimento + data.**
 Uma internação pode ter o mesmo procedimento 2+ vezes no mesmo dia — a
@@ -334,11 +320,19 @@ por chave, não um casamento fixo 1-para-1).
 
 - **Bateu** → o lançamento fica marcado como **confirmado** (baixado/
   finalizado pelo hospital).
-- **Não bateu** → vira uma **pendência** — o sistema não cria nada
-  sozinho (nem paciente, nem procedimento, nem internação) e não marca
-  como glosa automaticamente. Alguém revisa a lista de pendências e
-  decide (pode editar o lançamento não confirmado, se foi erro de
-  digitação, ou registrar glosa).
+- **Não bateu** → vira uma **pendência**, com o **motivo** já
+  identificado — o sistema não cria nada sozinho (nem paciente, nem
+  procedimento, nem internação) e não marca como glosa automaticamente:
+  - **Internação não encontrada**: o Nr. Atendimento do Tasy não bate
+    com nenhuma internação cadastrada — provável erro de digitação no
+    número, ou a internação nunca foi criada.
+  - **Procedimento não cadastrado**: o código do Tasy não existe no
+    cadastro de Procedimentos.
+  - **Falta lançar**: internação e procedimento existem, mas ninguém
+    lançou esse atendimento ainda — o caso mais comum.
+
+  A tela de Conciliação mostra um resumo por motivo (clica pra
+  filtrar) e um botão **Exportar** pra baixar a lista em CSV.
 
 "Desfazer conciliação" reverte de verdade: volta tudo que aquela
 conciliação tinha confirmado para "não confirmado".
@@ -395,17 +389,6 @@ dependentes (paciente com internação, procedimento com lançamento) —
 proteção contra perda de dado. Aqui dá pra forçar, apagando junto tudo
 que depende. Sem volta depois de confirmar.
 
-## Diagnóstico do Sistema
-
-Checagens automáticas contra os dados reais, pensadas pra pegar
-problema antes de virar reclamação: leitos travados como "ocupado" sem
-internação real, leitos com dupla ocupação, internações ativas sem
-unidade/hospital, fisioterapeutas sem login vinculado, e procedimentos
-lançados com data no futuro. Também mostra um gráfico de lançamentos
-por dia (últimos 7 dias) — uma queda repentina sem explicação óbvia é
-sinal de alerta. Roda toda vez que a tela é aberta, com os dados de
-agora. Acesso: admin, gestor e supervisor.
-
 ## Auditoria
 
 Trilha real de quem criou, editou, excluiu, deu alta ou importou o quê e
@@ -421,25 +404,18 @@ confirmação antes de apagar. Sem volta depois de confirmado.
 
 ---
 
-# Novidades
+# Modo tablet (fisioterapeuta)
 
-O sino no topo (desktop e tablet) mostra um ponto vermelho quando tem
-alguma entrega nova que vale a pena saber — clica pra ver a lista, em
-linguagem direta. Marca como visto sozinho ao abrir.
+Quem loga como fisioterapeuta (lançador) vê um app completamente
+diferente: sem menu lateral, navegação por ícones grandes na parte de
+baixo da tela (Fila, Lançar, Pacientes, Internados, Produção) — pensado
+pra usar com o dedo em tablet, na correria do plantão. As abas mostradas
+se ajustam sozinhas conforme as permissões daquele papel — se um admin
+liberar mais acesso, a barra ganha mais abas sem precisar mexer em
+código.
 
-# Modo tablet
-
-Fisioterapeuta (lançador) começa nesse modo por padrão: sem menu
-lateral, navegação por ícones grandes na parte de baixo da tela (Fila,
-Lançar, Pacientes, Internados, Produção) — pensado pra usar com o dedo
-em tablet, na correria do plantão. As abas mostradas se ajustam
-sozinhas conforme as permissões daquele papel — se um admin liberar
-mais acesso, a barra ganha mais abas sem precisar mexer em código.
-
-**Qualquer usuário pode usar esse modo, não só o fisioterapeuta** — os
-demais perfis começam no layout padrão (com menu lateral), mas dá pra
-trocar pro modo tablet a qualquer momento pelo menu do usuário
-("Usar layout tablet"). E de dentro do modo tablet, o ícone de monitor
-no cabeçalho volta pro layout padrão. A escolha fica salva **por
-aparelho**, não por conta — o tablet do plantão e o PC do escritório
-guardam preferências independentes.
+**Dá pra trocar pro layout padrão** (o mesmo dos outros perfis) —
+ícone de monitor no cabeçalho do modo tablet, ou "Usar layout tablet"
+no menu do usuário quando já estiver no padrão. A escolha fica salva
+**por aparelho**, não por conta — o tablet do plantão e o PC do
+escritório guardam preferências independentes.
