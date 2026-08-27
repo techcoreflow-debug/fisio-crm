@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Menu, Search, ChevronsUpDown, LogOut, Settings, Moon, Sun, ShieldCheck, KeyRound, Tablet } from "lucide-react";
-import { SinoNovidades } from "@/components/shared/sino-novidades";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/store/app-store";
 import { useCompanies } from "@/data/repository";
@@ -14,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { SinoNovidades } from "@/components/shared/sino-novidades";
 import {
   DropdownMenu,
   DropdownMenuContent,

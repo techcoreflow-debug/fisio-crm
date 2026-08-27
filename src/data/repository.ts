@@ -529,7 +529,7 @@ export const repository = {
       await excluirLinha("admissions", id);
     },
     create: async (
-      data: Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "external_reference" | "diagnostico" | "pre_lancamento_motora_id" | "pre_lancamento_respiratoria_id" | "company_id">
+      data: Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "external_reference" | "diagnostico" | "company_id">
     ): Promise<Admission> => {
       try {
         const row = await inserirLinha<Admission>("admissions", { ...data, status: "internado" });
@@ -545,7 +545,7 @@ export const repository = {
     },
     update: async (
       id: string,
-      patch: Partial<Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "external_reference" | "diagnostico" | "pre_lancamento_motora_id" | "pre_lancamento_respiratoria_id" | "company_id">>
+      patch: Partial<Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "external_reference" | "diagnostico" | "company_id">>
     ): Promise<void> => {
       try {
         await atualizarLinha("admissions", id, patch);
@@ -573,7 +573,7 @@ export const repository = {
      * Lança um erro com esse sentinela específico pra a tela reconhecer e
      * mostrar a pergunta certa, em vez de um erro genérico.
      */
-    discharge: async (id: string, dischargeAtISO: string, semAtendimento = false): Promise<void> => {
+    discharge: async (id: string, dischargeAtISO: string, semAtendimento = false, dischargeType: "hospitalar" | "obito" = "hospitalar"): Promise<void> => {
       const { data: admissao, error } = await supabase.from("admissions").select("*").eq("id", id).maybeSingle();
       if (error) throw new Error(error.message);
       if (!admissao) throw new Error("Internação não encontrada.");
@@ -596,6 +596,7 @@ export const repository = {
         status: "alta",
         discharge_date: dataAlta,
         discharge_at: dischargeAtISO,
+        discharge_type: dischargeType,
         confirmou_sem_atendimento_alta: semAtendimento,
       });
       if (admissao.bed_id) {
@@ -914,6 +915,15 @@ export const repository = {
             matchId = fila.shift()!; // consome um da fila — a próxima linha do Tasy com a mesma chave pega o próximo
           }
         }
+        // Motivo da pendência — pra saber se o problema é a internação
+        // (Nr. Atendimento errado/faltando), o cadastro do procedimento,
+        // ou simplesmente falta lançar mesmo (o caso mais comum).
+        let motivo: import("@/types/domain").MotivoPendenciaTasy | undefined;
+        if (!matchId) {
+          if (!admissionId) motivo = "internacao_nao_encontrada";
+          else if (!procedureId) motivo = "procedimento_nao_cadastrado";
+          else motivo = "lancamento_nao_encontrado";
+        }
         if (matchId) {
           confirmados++;
           idsParaConfirmar.push(matchId);
@@ -931,6 +941,7 @@ export const repository = {
             procedimentoNome: l.procedimentoNome,
             data: l.dataProducao,
             referenciaExterna: l.referenciaExterna,
+            motivo,
           },
           matched_daily_production_id: matchId,
           status: (matchId ? "confirmado" : "pendente") as "confirmado" | "pendente",

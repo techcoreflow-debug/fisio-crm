@@ -1,14 +1,37 @@
 import { useState, type ChangeEvent } from "react";
-import { UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, Undo2, Loader2, HelpCircle, X } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, Undo2, Loader2, HelpCircle, X, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useTasyImports, useTasyImportRowsPendentes, repository } from "@/data/repository";
 import { useAppStore } from "@/store/app-store";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { parseTasyReport, resumirImportacao, type TasyParseResult } from "@/lib/tasy-parser";
+import { exportarCsv } from "@/lib/csv";
+import type { MotivoPendenciaTasy } from "@/types/domain";
+
+const MOTIVO_LABEL: Record<MotivoPendenciaTasy, { label: string; variant: NonNullable<BadgeProps["variant"]>; dica: string }> = {
+  internacao_nao_encontrada: {
+    label: "Internação não encontrada",
+    variant: "critical",
+    dica: "O Nr. Atendimento do Tasy não bate com nenhuma internação cadastrada — provável erro de digitação no número, ou internação nunca criada.",
+  },
+  procedimento_nao_cadastrado: {
+    label: "Procedimento não cadastrado",
+    variant: "attention",
+    dica: "O código de procedimento do Tasy não existe no cadastro de Procedimentos — cadastre esse código.",
+  },
+  lancamento_nao_encontrado: {
+    label: "Falta lançar",
+    variant: "clinical",
+    dica: "A internação e o procedimento existem, mas ninguém lançou esse atendimento no sistema ainda — lance retroativamente.",
+  },
+};
+
+const TODOS = "todos";
 
 async function lerArquivoComoTextoLatin1(arquivo: File): Promise<string> {
   const buffer = await arquivo.arrayBuffer();
@@ -19,6 +42,24 @@ export default function ImportacaoTasy() {
   const historico = useTasyImports();
   const pendencias = useTasyImportRowsPendentes();
   const empresaId = useAppStore((s) => s.activeCompanyId);
+  const [filtroMotivo, setFiltroMotivo] = useState<MotivoPendenciaTasy | typeof TODOS>(TODOS);
+
+  const pendenciasFiltradas = filtroMotivo === TODOS ? pendencias : pendencias.filter((p) => p.raw_data.motivo === filtroMotivo);
+
+  function handleExportarPendencias() {
+    exportarCsv(
+      "pendencias-conciliacao-tasy",
+      pendenciasFiltradas.map((p) => ({
+        Data: p.raw_data.data.split("-").reverse().join("/"),
+        "Nr. Atendimento": p.raw_data.referenciaExterna,
+        Paciente: p.raw_data.paciente,
+        Convênio: p.raw_data.convenio,
+        "Código do procedimento": p.raw_data.procedimentoCodigo,
+        Procedimento: p.raw_data.procedimentoNome,
+        Motivo: p.raw_data.motivo ? MOTIVO_LABEL[p.raw_data.motivo].label : "—",
+      }))
+    );
+  }
 
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [prevendo, setPrevendo] = useState(false);
@@ -126,7 +167,7 @@ export default function ImportacaoTasy() {
                 <p className="font-display font-semibold text-ink">
                   {prevendo ? "Lendo arquivo…" : "Arraste o arquivo do Tasy ou clique para selecionar"}
                 </p>
-                <p className="mt-1 text-sm text-ink-soft">Relatório "Produtividade Médica" exportado do Tasy (.xls)</p>
+                <p className="mt-1 text-sm text-ink-soft">Relatório "Produtividade Médica" exportado do Tasy — aceita .xls (TAB) ou .csv (vírgula)</p>
               </div>
             </label>
           ) : (
@@ -256,13 +297,49 @@ export default function ImportacaoTasy() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Pendências de conciliação ({pendencias.length})</CardTitle>
-          <p className="text-sm text-ink-soft mt-0.5">
-            Vieram no Tasy mas não bateram com nenhum lançamento existente (paciente/procedimento/data). Não viraram
-            glosa sozinhas — revise e decida.
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Pendências de conciliação ({pendenciasFiltradas.length})</CardTitle>
+              <p className="text-sm text-ink-soft mt-0.5">
+                Vieram no Tasy mas não bateram com nenhum lançamento existente. Cada uma mostra o motivo — não é
+                tudo a mesma coisa, e a ação certa muda conforme o motivo.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={filtroMotivo} onValueChange={(v) => setFiltroMotivo(v as typeof filtroMotivo)}>
+                <SelectTrigger className="w-56"><SelectValue placeholder="Todos os motivos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={TODOS}>Todos os motivos</SelectItem>
+                  {Object.entries(MOTIVO_LABEL).map(([chave, cfg]) => (
+                    <SelectItem key={chave} value={chave}>{cfg.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button variant="secondary" size="sm" onClick={handleExportarPendencias} disabled={pendenciasFiltradas.length === 0}>
+                <Download className="h-3.5 w-3.5" /> Exportar
+              </Button>
+            </div>
+          </div>
         </CardHeader>
-        {pendencias.length === 0 ? (
+        {pendencias.length > 0 && (
+          <CardContent className="flex flex-wrap gap-3 pb-0 pt-0">
+            {Object.entries(MOTIVO_LABEL).map(([chave, cfg]) => {
+              const qtd = pendencias.filter((p) => p.raw_data.motivo === chave).length;
+              if (qtd === 0) return null;
+              return (
+                <button
+                  key={chave}
+                  type="button"
+                  onClick={() => setFiltroMotivo(chave as MotivoPendenciaTasy)}
+                  className="flex items-center gap-2 rounded-md border border-line px-3 py-2 text-sm hover:bg-surface-sunken"
+                >
+                  <Badge variant={cfg.variant}>{qtd}</Badge> {cfg.label}
+                </button>
+              );
+            })}
+          </CardContent>
+        )}
+        {pendenciasFiltradas.length === 0 ? (
           <CardContent className="py-8 text-center text-sm text-ink-soft">Nenhuma pendência no momento.</CardContent>
         ) : (
           <div className="overflow-x-auto">
@@ -274,26 +351,35 @@ export default function ImportacaoTasy() {
                   <th className="px-4 py-3 font-medium">Paciente</th>
                   <th className="px-4 py-3 font-medium">Convênio</th>
                   <th className="px-4 py-3 font-medium">Procedimento</th>
+                  <th className="px-4 py-3 font-medium">Motivo</th>
                   <th className="px-4 py-3 font-medium" />
                 </tr>
               </thead>
               <tbody>
-                {pendencias.map((p) => (
-                  <tr key={p.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
-                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">{p.raw_data.data.split("-").reverse().join("/")}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">{p.raw_data.referenciaExterna}</td>
-                    <td className="px-4 py-3 font-medium text-ink">{p.raw_data.paciente}</td>
-                    <td className="px-4 py-3 text-ink-soft">{p.raw_data.convenio}</td>
-                    <td className="px-4 py-3 text-ink-soft">
-                      <span className="font-mono text-xs">{p.raw_data.procedimentoCodigo}</span> {p.raw_data.procedimentoNome}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button variant="ghost" size="sm" onClick={() => handleIgnorarPendencia(p.id)}>
-                        <X className="h-3.5 w-3.5" /> Ignorar
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                {pendenciasFiltradas.map((p) => {
+                  const motivoCfg = p.raw_data.motivo ? MOTIVO_LABEL[p.raw_data.motivo] : null;
+                  return (
+                    <tr key={p.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
+                      <td className="px-4 py-3 font-mono text-xs text-ink-soft">{p.raw_data.data.split("-").reverse().join("/")}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-ink-soft">{p.raw_data.referenciaExterna}</td>
+                      <td className="px-4 py-3 font-medium text-ink">{p.raw_data.paciente}</td>
+                      <td className="px-4 py-3 text-ink-soft">{p.raw_data.convenio}</td>
+                      <td className="px-4 py-3 text-ink-soft">
+                        <span className="font-mono text-xs">{p.raw_data.procedimentoCodigo}</span> {p.raw_data.procedimentoNome}
+                      </td>
+                      <td className="px-4 py-3">
+                        {motivoCfg && (
+                          <Badge variant={motivoCfg.variant} title={motivoCfg.dica}>{motivoCfg.label}</Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button variant="ghost" size="sm" onClick={() => handleIgnorarPendencia(p.id)}>
+                          <X className="h-3.5 w-3.5" /> Ignorar
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -26,16 +26,11 @@ export default function Diagnostico() {
 
   const hoje = hojeLocalIso();
 
-  // 1) Leitos "ocupados" no banco sem internação ativa de verdade — a
-  // tela de Leitos já se autocorrige sozinha, mas se aparecer aqui é
-  // sinal de que algo fora dela ainda está gravando esse status errado.
   const leitosOcupadosSemInternacao = useMemo(
     () => leitos.filter((l) => l.status === "ocupado" && !internacoes.some((i) => i.bed_id === l.id && i.status === "internado")),
     [leitos, internacoes]
   );
 
-  // 2) Dois leitos "internado" apontando pro MESMO bed_id — dupla
-  // ocupação, não devia existir nunca.
   const leitosComDuplaOcupacao = useMemo(() => {
     const contagem = new Map<string, number>();
     for (const i of internacoes) {
@@ -44,24 +39,15 @@ export default function Diagnostico() {
     return [...contagem.entries()].filter(([, qtd]) => qtd > 1);
   }, [internacoes]);
 
-  // 3) Internações ativas sem unidade ou sem hospital — quebra filtros,
-  // relatórios e a lista de leitos livres em qualquer tela.
   const internacoesSemUnidadeOuHospital = useMemo(
     () => internacoes.filter((i) => i.status === "internado" && (!i.unit_id || !i.hospital_id)),
     [internacoes]
   );
 
-  // 4) Fisioterapeutas sem login vinculado — Minha Fila e o modo tablet
-  // não funcionam pra essa pessoa até isso ser corrigido.
   const fisioterapeutasSemLogin = useMemo(() => fisioterapeutas.filter((f) => !f.user_id), [fisioterapeutas]);
 
-  // 5) Procedimentos lançados com data no futuro — quase sempre erro de
-  // digitação (ou o mesmo bug de fuso horário, se algum dia voltar).
   const producaoComDataFutura = useMemo(() => producao.filter((p) => p.production_date > hoje), [producao, hoje]);
 
-  // 6) Volume de lançamentos por dia, últimos 7 dias — pra enxergar uma
-  // queda repentina que pode ser sinal de alguma tela não exibindo o que
-  // já está sendo lançado (o mesmo tipo de problema já visto).
   const volumePorDia = useMemo(() => {
     const dias: { data: string; total: number }[] = [];
     for (let i = 6; i >= 0; i--) {

@@ -1,9 +1,20 @@
 /**
  * Parser do relatório "Produtividade Médica" exportado pelo Tasy.
  *
- * O arquivo tem extensão .xls mas na prática é texto simples separado por
- * TAB (confirmado em arquivo real fornecido pelo cliente) — não é um
- * binário Excel. Layout observado:
+ * Dois formatos observados na prática, mesma estrutura de relatório:
+ *
+ *   Modelo 1 (.xls que na prática é texto simples separado por TAB):
+ *   confirmado em arquivo real fornecido pelo cliente, testado em produção.
+ *
+ *   Modelo 2 (.csv separado por vírgula, formato de impressão):
+ *   enviado pela Dra. Monika Trevisan — várias páginas impressas, cada
+ *   uma repetindo cabeçalho/rodapé. Detalhe real observado: o Tasy dela
+ *   exporta com os acentos corrompidos (ex.: "M?dica" no lugar de
+ *   "Médica", "?" no lugar de qualquer vogal acentuada) — por isso todo
+ *   marcador de texto é comparado de forma tolerante a acento (ver
+ *   `normalizarMarcador`), nunca por igualdade exata.
+ *
+ * Layout (igual nos dois modelos, só muda o separador de coluna):
  *
  *   Produtividade Médica              ← título, repete a cada página impressa
  *   (linha em branco)
@@ -26,8 +37,60 @@
  */
 
 const COLUNAS_CABECALHO = ["Data Procedimento", "Nr. Atend.", "Beneficiário", "Grau Partic.", "Código", "Procedimento", "Qtde."];
-const MARCA_FIM_DETALHE = "Procedimentos por Convênio";
 const REGEX_DATA_HORA = /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?$/;
+
+/**
+ * Remove acento (á→a, é→e...) e deixa minúsculo — usado só pra comparar
+ * marcadores SEM acento nenhum na versão corrompida (ex.: "Hospital",
+ * "Impresso em"). Pra marcadores que TÊM letra acentuada (ex.: "Médica",
+ * "Convênio"), usar as constantes RE_* abaixo — elas tratam "?" como
+ * curinga de "qualquer caractere", porque simplesmente apagar o "?"
+ * (como uma normalização ingênua faria) perde uma letra e nunca mais
+ * bate com a palavra original ("M?dica" sem o "?" vira "Mdica", que
+ * nunca é igual a "Medica").
+ */
+function normalizarMarcador(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+// "." no lugar da letra acentuada — casa tanto a letra certa quanto um
+// "?" de corrupção de acento, sem perder a contagem de caracteres.
+const RE_PRODUTIVIDADE_MEDICA = /^produtividade\s*m.dica$/i;
+const RE_FIM_DETALHE = /^procedimentos\s*por\s*conv.nio$/i;
+const RE_IMPRESSO_EM = /^impresso\s*em/i;
+const RE_DE_ATE = /^de:\s*\d{2}\/\d{2}\/\d{4}\s*at.\s*\d{2}\/\d{2}\/\d{4}/i;
+
+/** Divide uma linha de CSV respeitando aspas — vírgula dentro de aspas não conta como separador. */
+function dividirLinhaCsv(linha: string): string[] {
+  const campos: string[] = [];
+  let atual = "";
+  let dentroDeAspas = false;
+  for (let i = 0; i < linha.length; i++) {
+    const c = linha[i];
+    if (c === '"') {
+      dentroDeAspas = !dentroDeAspas;
+    } else if (c === "," && !dentroDeAspas) {
+      campos.push(atual);
+      atual = "";
+    } else {
+      atual += c;
+    }
+  }
+  campos.push(atual);
+  return campos;
+}
+
+export type ModeloArquivoTasy = "tab" | "csv";
+
+/** Detecta automaticamente se o arquivo é TAB (Modelo 1) ou CSV (Modelo 2), pela primeira linha não-vazia. */
+export function detectarModeloTasy(texto: string): ModeloArquivoTasy {
+  const primeiraLinha = texto.split(/\r?\n/).find((l) => l.trim().length > 0) ?? "";
+  return primeiraLinha.includes("\t") ? "tab" : "csv";
+}
 
 export interface TasyParsedRow {
   linha: number;
@@ -50,8 +113,9 @@ export interface TasyParseResult {
   periodoTexto: string | null;
 }
 
-function tokensNaoVazios(linhaBruta: string): string[] {
-  return linhaBruta.split("\t").map((c) => c.trim()).filter((c) => c.length > 0);
+function tokensNaoVazios(linhaBruta: string, modelo: ModeloArquivoTasy): string[] {
+  const campos = modelo === "tab" ? linhaBruta.split("\t") : dividirLinhaCsv(linhaBruta);
+  return campos.map((c) => c.trim()).filter((c) => c.length > 0);
 }
 
 function paraIso(dataHora: string): { iso: string; data: string } | null {
@@ -63,7 +127,8 @@ function paraIso(dataHora: string): { iso: string; data: string } | null {
   return { iso, data };
 }
 
-export function parseTasyReport(texto: string): TasyParseResult {
+export function parseTasyReport(texto: string, modelo?: ModeloArquivoTasy): TasyParseResult {
+  const modeloEfetivo = modelo ?? detectarModeloTasy(texto);
   const linhasArquivo = texto.split(/\r?\n/);
   const linhas: TasyParsedRow[] = [];
   const avisos: string[] = [];
@@ -78,11 +143,16 @@ export function parseTasyReport(texto: string): TasyParseResult {
   for (let i = 0; i < linhasArquivo.length; i++) {
     if (leituraEncerrada) break;
 
-    const tokens = tokensNaoVazios(linhasArquivo[i]);
+    const tokens = tokensNaoVazios(linhasArquivo[i], modeloEfetivo);
     if (tokens.length === 0) continue;
 
-    // Linha de dado: 7 colunas com a primeira sendo uma data válida.
-    if (tokens.length === 7 && REGEX_DATA_HORA.test(tokens[0]) && tokens[0] !== COLUNAS_CABECALHO[0]) {
+    // Linha de dado: a primeira coluna é uma data válida. Normalmente 7
+    // colunas — mas o export do Tasy às vezes tem vírgula SEM ASPAS
+    // dentro da descrição do procedimento (confirmado em arquivo real),
+    // o que quebra ela em colunas a mais. Sempre que sobrar coluna além
+    // das 7 esperadas, junta tudo entre "código" e "quantidade" (a
+    // última coluna) de volta numa descrição só.
+    if (tokens.length >= 7 && REGEX_DATA_HORA.test(tokens[0]) && normalizarMarcador(tokens[0]) !== normalizarMarcador(COLUNAS_CABECALHO[0])) {
       const convertido = paraIso(tokens[0]);
       if (!convertido) {
         avisos.push(`Linha ${i + 1}: data "${tokens[0]}" não reconhecida, ignorada.`);
@@ -92,6 +162,10 @@ export function parseTasyReport(texto: string): TasyParseResult {
         avisos.push(`Linha ${i + 1}: dado encontrado antes de identificar hospital/fisioterapeuta/convênio — ignorada.`);
         continue;
       }
+      const procedimentoNomeJunto = tokens.slice(5, tokens.length - 1).join(", ");
+      if (tokens.length > 7) {
+        avisos.push(`Linha ${i + 1}: descrição do procedimento tinha vírgula sem aspas no arquivo original — colunas rejuntadas automaticamente.`);
+      }
       linhas.push({
         linha: i + 1,
         hospitalNome: hospitalAtual,
@@ -100,9 +174,9 @@ export function parseTasyReport(texto: string): TasyParseResult {
         pacienteNome: tokens[2],
         referenciaExterna: tokens[1],
         procedimentoCodigo: tokens[4],
-        procedimentoNome: tokens[5],
+        procedimentoNome: procedimentoNomeJunto,
         grauParticipacao: tokens[3],
-        quantidade: Number.parseInt(tokens[6], 10) || 1,
+        quantidade: Number.parseInt(tokens[tokens.length - 1], 10) || 1,
         dataHoraISO: convertido.iso,
         dataProducao: convertido.data,
       });
@@ -110,9 +184,15 @@ export function parseTasyReport(texto: string): TasyParseResult {
     }
 
     // Linha de cabeçalho de coluna — apenas confirma que dados seguem.
-    if (tokens.length === 7 && tokens[0] === COLUNAS_CABECALHO[0]) {
+    if (tokens.length === 7 && normalizarMarcador(tokens[0]) === normalizarMarcador(COLUNAS_CABECALHO[0])) {
       continue;
     }
+
+    // Rodapé de página — às vezes vem como 1 coluna só, às vezes o
+    // Tasy separa "Impresso em: ...", "Página N" e o código do relatório
+    // em colunas diferentes (confirmado em arquivo real). Detecta sempre
+    // pela primeira coluna, não pela quantidade de colunas da linha.
+    if (RE_IMPRESSO_EM.test(tokens[0].trim())) continue;
 
     // Daqui pra baixo, linhas de uma única célula (marcadores de seção).
     if (tokens.length !== 1) {
@@ -121,22 +201,22 @@ export function parseTasyReport(texto: string): TasyParseResult {
     }
 
     const valor = tokens[0];
+    const valorNormalizado = normalizarMarcador(valor);
 
-    if (valor === MARCA_FIM_DETALHE) {
+    if (RE_FIM_DETALHE.test(valor.trim())) {
       leituraEncerrada = true;
       break;
     }
-    if (valor === "Produtividade Médica") continue;
-    if (valor.startsWith("De:") && valor.includes("até")) {
-      periodoTexto = valor.replace(/^De:\s*/, "");
+    if (RE_PRODUTIVIDADE_MEDICA.test(valor.trim())) continue;
+    if (RE_DE_ATE.test(valor.trim())) {
+      periodoTexto = valor.replace(/^De:\s*/i, "");
       continue;
     }
-    if (valor.startsWith("Impresso em")) continue;
-    if (/^Total\(\d+\)$/.test(valor)) continue;
+    if (/^total\(\d+\)$/.test(valorNormalizado)) continue;
     if (/^\d+$/.test(valor)) continue; // linha do total isolado, ex.: "46"
 
-    if (valor.startsWith("Hospital ")) {
-      hospitalAtual = valor.replace(/^Hospital\s+/, "").trim();
+    if (valorNormalizado.startsWith("hospital ")) {
+      hospitalAtual = valor.replace(/^hospital\s+/i, "").trim();
       esperandoNomeFisio = true;
       continue;
     }

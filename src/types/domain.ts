@@ -170,6 +170,7 @@ export interface Admission {
   admission_time: string;
   discharge_date: string | null;
   discharge_at: string | null;
+  discharge_type: "hospitalar" | "obito" | null;
   admission_number: number;
   confirmou_sem_atendimento_alta: boolean;
   status: string;
@@ -270,6 +271,8 @@ export interface TasyImport {
   undone_at: string | null;
 }
 
+export type MotivoPendenciaTasy = "internacao_nao_encontrada" | "procedimento_nao_cadastrado" | "lancamento_nao_encontrado";
+
 export interface TasyImportRow {
   id: string;
   import_id: string;
@@ -283,6 +286,8 @@ export interface TasyImportRow {
     procedimentoNome: string;
     data: string;
     referenciaExterna: string;
+    /** Só preenchido quando status === "pendente" — por que não bateu. */
+    motivo?: MotivoPendenciaTasy;
   };
   matched_daily_production_id: string | null;
   status: "confirmado" | "pendente" | "ignorado";

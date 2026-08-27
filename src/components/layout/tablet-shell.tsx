@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { Activity, LogOut, KeyRound, Monitor } from "lucide-react";
-import { SinoNovidades } from "@/components/shared/sino-novidades";
 import { moduleGroups } from "@/app/modules-registry";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/auth/auth-provider";
@@ -14,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { SinoNovidades } from "@/components/shared/sino-novidades";
 
 const ROTULO_CURTO: Record<string, string> = {
   "minha-fila": "Fila",

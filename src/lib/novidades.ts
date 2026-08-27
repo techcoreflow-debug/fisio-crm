@@ -17,6 +17,12 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    versao: "0.41.0",
+    data: "20/08/2026",
+    titulo: "Sino de novidades",
+    descricao: "Esse sino aqui — mostra as últimas entregas em linguagem direta, sem precisar ler changelog técnico.",
+  },
+  {
     versao: "0.40.0",
     data: "14/08/2026",
     titulo: "Transferência de internação",

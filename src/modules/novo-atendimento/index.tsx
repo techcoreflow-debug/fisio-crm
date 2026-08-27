@@ -1,6 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { hojeLocalIso } from "@/lib/data-local";
-import { useAuth } from "@/auth/auth-provider";
 import { UserRound, BedDouble, ClipboardList, CheckCircle2, ArrowRight, RotateCcw } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,8 +42,6 @@ function Passo({ numero, titulo, ativo, feito }: { numero: number; titulo: strin
 }
 
 export default function NovoAtendimento() {
-  const { profile } = useAuth();
-  const podeAlterarPreLancamento = profile?.role === "admin" || profile?.role === "supervisor" || profile?.is_platform_admin;
   const empresaId = useAppStore((s) => s.activeCompanyId);
   const pacientes = usePatients();
   const convenios = useHealthInsurances();
@@ -71,8 +68,6 @@ export default function NovoAtendimento() {
   const [convenioInternacaoId, setConvenioInternacaoId] = useState("");
   const [nrAtendimento, setNrAtendimento] = useState("");
   const [diagnostico, setDiagnostico] = useState("");
-  const [preLancamentoMotoraId, setPreLancamentoMotoraId] = useState("");
-  const [preLancamentoRespiratoriaId, setPreLancamentoRespiratoriaId] = useState("");
   const [internacaoCriada, setInternacaoCriada] = useState<Admission | null>(null);
 
   const [fisioId, setFisioId] = useState("");
@@ -104,8 +99,6 @@ export default function NovoAtendimento() {
     setConvenioInternacaoId("");
     setNrAtendimento("");
     setDiagnostico("");
-    setPreLancamentoMotoraId("");
-    setPreLancamentoRespiratoriaId("");
     setInternacaoCriada(null);
     setFisioId("");
     setProcedimentoId("");
@@ -144,22 +137,6 @@ export default function NovoAtendimento() {
     const form = new FormData(e.currentTarget);
     const unidade = unidades.find((u) => u.id === unidadeId);
     if (!pacienteAtual || !unidade) return;
-    if (!leitoId) {
-      notificarErro("Leito obrigatório", "Selecione um leito antes de salvar.");
-      return;
-    }
-    const leitoEscolhido = leitos.find((l) => l.id === leitoId);
-    if (leitoEscolhido && !leitoEscolhido.room_id && !quartoInlineId) {
-      notificarErro("Quarto obrigatório", "Esse leito ainda não tem quarto vinculado — preencha o campo de quarto que apareceu logo abaixo do leito.");
-      return;
-    }
-    if (!!preLancamentoMotoraId !== !!preLancamentoRespiratoriaId) {
-      notificarErro(
-        "Pré-lançamento incompleto",
-        "Se for preencher o pré-lançamento, precisa dos dois: Motora e Respiratória — não faz sentido só um."
-      );
-      return;
-    }
     setSalvando(true);
     try {
       if (leitoId && quartoInlineId) {
@@ -175,8 +152,6 @@ export default function NovoAtendimento() {
         admission_time: String(form.get("admission_time") ?? ""),
         external_reference: nrAtendimento.trim() || null,
         diagnostico: diagnostico.trim() || null,
-        pre_lancamento_motora_id: preLancamentoMotoraId || null,
-        pre_lancamento_respiratoria_id: preLancamentoRespiratoriaId || null,
         company_id: pacienteAtual.company_id,
       });
       setInternacaoCriada(criada);
@@ -332,7 +307,7 @@ export default function NovoAtendimento() {
                 />
               </div>
               <div className="flex flex-col gap-1.5 sm:w-96">
-                <Label>Leito</Label>
+                <Label>Leito (opcional)</Label>
                 <Select value={leitoId} onValueChange={(v) => { setLeitoId(v); setQuartoInlineId(""); }}>
                   <SelectTrigger><SelectValue placeholder="Selecione um leito livre" /></SelectTrigger>
                   <SelectContent>
@@ -376,7 +351,6 @@ export default function NovoAtendimento() {
                 <Label htmlFor="nr_atendimento_novo">Nr. Atendimento (Tasy)</Label>
                 <Input
                   id="nr_atendimento_novo"
-                  required
                   value={nrAtendimento}
                   onChange={(e) => setNrAtendimento(e.target.value)}
                   placeholder="Ex.: 706065"
@@ -396,33 +370,6 @@ export default function NovoAtendimento() {
                   className="rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm text-ink shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/40"
                 />
               </div>
-              {podeAlterarPreLancamento && (
-                <div className="flex flex-col gap-2 rounded-md border border-recovery-400/40 bg-recovery-100 p-3 sm:w-96">
-                  <Label>Pré-lançamento (opcional — Motora e Respiratória juntas)</Label>
-                  <Combobox
-                    value={preLancamentoMotoraId}
-                    onValueChange={setPreLancamentoMotoraId}
-                    options={procedimentos
-                      .filter((p) => !p.category || p.category.toLowerCase().includes("motora"))
-                      .map((p) => ({ value: p.id, label: `${p.code} · ${p.name}` }))}
-                    placeholder="Código sugerido — Motora"
-                    searchPlaceholder="Nome ou código…"
-                  />
-                  <Combobox
-                    value={preLancamentoRespiratoriaId}
-                    onValueChange={setPreLancamentoRespiratoriaId}
-                    options={procedimentos
-                      .filter((p) => !p.category || p.category.toLowerCase().includes("respirat"))
-                      .map((p) => ({ value: p.id, label: `${p.code} · ${p.name}` }))}
-                    placeholder="Código sugerido — Respiratória"
-                    searchPlaceholder="Nome ou código…"
-                  />
-                  <p className="text-xs text-recovery-700">
-                    O código certo pra usar depois, na hora de lançar de verdade — evita confusão de codificação.
-                    Preenche os dois juntos, ou nenhum.
-                  </p>
-                </div>
-              )}
               <div className="grid gap-3 sm:w-96 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="admission_date">Data de entrada</Label>
@@ -437,7 +384,7 @@ export default function NovoAtendimento() {
                 <Button type="button" variant="secondary" onClick={() => setEtapa("concluido")}>
                   Concluir aqui (sem internação)
                 </Button>
-                <Button type="submit" disabled={salvando || !unidadeId || !leitoId}>
+                <Button type="submit" disabled={salvando || !unidadeId}>
                   {salvando ? "Salvando…" : "Continuar para procedimento"} <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -463,10 +410,7 @@ export default function NovoAtendimento() {
                       {jaLancados.map((p) => (
                         <li key={p.id} className="flex items-center gap-1.5">
                           <span className="font-mono">{p.production_time?.slice(0, 5)}</span>
-                          {(() => {
-                            const proc = procedimentos.find((pr) => pr.id === p.procedure_id);
-                            return proc ? <><span className="font-mono">{proc.code}</span> {proc.name}</> : "—";
-                          })()}
+                          {procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—"}
                         </li>
                       ))}
                     </ul>

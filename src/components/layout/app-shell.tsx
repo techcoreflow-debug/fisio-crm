@@ -20,16 +20,11 @@ export function AppShell() {
     if (!profile) return;
 
     if (profile.is_platform_admin) {
-      // Admin InovareTech escolhe livremente — mas precisa de uma seleção
-      // válida de partida, senão "" (ou um id de empresa que não existe
-      // mais) faz toda consulta filtrada por empresa vir vazia em silêncio.
       const atualAindaExiste = companies.some((c) => c.id === activeCompanyId);
       if (!atualAindaExiste && companies.length > 0) {
         setActiveCompanyId(companies[0].id);
       }
     } else if (profile.company_id && profile.company_id !== activeCompanyId) {
-      // Usuário comum: a empresa ativa é sempre a dele, travada — não
-      // existe seletor pra ele trocar.
       setActiveCompanyId(profile.company_id);
     }
   }, [profile, companies, activeCompanyId, setActiveCompanyId]);

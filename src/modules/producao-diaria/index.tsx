@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { hojeLocalIso, calcularIdade, calcularDiasInternacao } from "@/lib/data-local";
+import { hojeLocalIso } from "@/lib/data-local";
 import { Search, Plus, ClipboardList, TriangleAlert, Pencil, Trash2, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
@@ -34,7 +34,6 @@ import {
   repository,
 } from "@/data/repository";
 import { useAppStore } from "@/store/app-store";
-import { useAuth } from "@/auth/auth-provider";
 import { exportarCsv, type LinhaRelatorio } from "@/lib/csv";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import type { DailyProduction } from "@/types/domain";
@@ -53,7 +52,6 @@ export default function ProducaoDiaria() {
 
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
-  const [filtroHospital, setFiltroHospital] = useState("todos");
   const [filtroUnidade, setFiltroUnidade] = useState("todas");
   const [filtroConvenio, setFiltroConvenio] = useState("todos");
   const [periodoDe, setPeriodoDe] = useState("");
@@ -66,8 +64,6 @@ export default function ProducaoDiaria() {
 
   const companies = useCompanies();
   const activeCompanyId = useAppStore((s) => s.activeCompanyId);
-  const { profile } = useAuth();
-  const podeAlterarProcedimento = profile?.role === "admin" || profile?.role === "supervisor" || profile?.is_platform_admin;
   const empresa = companies.find((c) => c.id === activeCompanyId);
   const glosaPorProcedimento = empresa?.glosa_por_procedimento ?? false;
 
@@ -107,7 +103,6 @@ export default function ProducaoDiaria() {
   }
 
   async function handleExcluir(id: string) {
-    if (!window.confirm("Deseja realmente excluir este registro? Esta ação não pode ser desfeita.")) return;
     try {
       await repository.dailyProduction.remove(id);
       notificarSucesso("Lançamento excluído.");
@@ -183,7 +178,6 @@ export default function ProducaoDiaria() {
       if (periodoDe && p.production_date < periodoDe) return false;
       if (periodoAte && p.production_date > periodoAte) return false;
       const internacao = internacoes.find((i) => i.id === p.admission_id);
-      if (filtroHospital !== "todos" && internacao?.hospital_id !== filtroHospital) return false;
       if (filtroUnidade !== "todas" && internacao?.unit_id !== filtroUnidade) return false;
       if (filtroConvenio !== "todos" && internacao?.health_insurance_id !== filtroConvenio) return false;
       if (!termo) return true;
@@ -191,7 +185,7 @@ export default function ProducaoDiaria() {
       return nomePaciente(p.admission_id).toLowerCase().includes(termo) || fisio.toLowerCase().includes(termo);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busca, producao, fisioterapeutas, internacoes, filtroHospital, filtroUnidade, filtroConvenio, periodoDe, periodoAte]);
+  }, [busca, producao, fisioterapeutas, internacoes, filtroUnidade, filtroConvenio, periodoDe, periodoAte]);
 
   function handleExportar() {
     try {
@@ -200,21 +194,16 @@ export default function ProducaoDiaria() {
         const proc = procedimentos.find((pr) => pr.id === p.procedure_id);
         const leito = leitos.find((l) => l.id === internacao?.bed_id);
         const quarto = quartos.find((q) => q.id === leito?.room_id);
-        const paciente = pacientes.find((pa) => pa.id === internacao?.patient_id);
-        const idadeCalc = calcularIdade(paciente?.birth_date ?? null);
         return {
           Data: p.production_date.split("-").reverse().join("/"),
           Hora: p.production_time?.slice(0, 5) ?? "—",
           "Nr. Atendimento": internacao?.external_reference ?? "—",
+          "Data da Internação": internacao ? internacao.admission_date.split("-").reverse().join("/") : "—",
           Paciente: nomePaciente(p.admission_id),
-          Idade: idadeCalc !== null ? idadeCalc : "—",
           Unidade: unidades.find((u) => u.id === internacao?.unit_id)?.name ?? "—",
           Quarto: quarto?.code ?? "—",
           Leito: leito?.code ?? "—",
           Diagnóstico: internacao?.diagnostico ?? "—",
-          "Status da Internação":
-            internacao?.status === "alta" ? "Alta" : internacao?.status === "transferido" ? "Transferido" : internacao?.status === "internado" ? "Internado" : "—",
-          "Dia da Internação": internacao ? calcularDiasInternacao(internacao.admission_date, internacao.discharge_date) : "—",
           "Código do procedimento": proc?.code ?? "—",
           Procedimento: proc?.name ?? "—",
           Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
@@ -298,10 +287,7 @@ export default function ProducaoDiaria() {
                           {jaLancados.map((p) => (
                             <li key={p.id} className="flex items-center gap-1.5">
                               <span className="font-mono">{p.production_time?.slice(0, 5)}</span>
-                              {(() => {
-                            const proc = procedimentos.find((pr) => pr.id === p.procedure_id);
-                            return proc ? <><span className="font-mono">{proc.code}</span> {proc.name}</> : "—";
-                          })()}
+                              {procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—"}
                             </li>
                           ))}
                         </ul>
@@ -359,22 +345,11 @@ export default function ProducaoDiaria() {
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
                 <Input value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} placeholder="Buscar por paciente ou fisioterapeuta…" className="pl-9" />
               </div>
-              <Select value={filtroHospital} onValueChange={(v) => { setFiltroHospital(v); setFiltroUnidade("todas"); setPagina(1); }}>
-                <SelectTrigger className="sm:w-48"><SelectValue placeholder="Todos os hospitais" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos os hospitais</SelectItem>
-                  {hospitais.map((h) => (
-                    <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Select value={filtroUnidade} onValueChange={(v) => { setFiltroUnidade(v); setPagina(1); }}>
                 <SelectTrigger className="sm:w-52"><SelectValue placeholder="Todas as unidades" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todas">Todas as unidades</SelectItem>
-                  {unidades
-                    .filter((u) => filtroHospital === "todos" || u.hospital_id === filtroHospital)
-                    .map((u) => (
+                  {unidades.map((u) => (
                     <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -469,11 +444,9 @@ export default function ProducaoDiaria() {
                     <td className="px-4 py-3 text-right">
                       {!p.confirmado_tasy && (
                         <div className="flex items-center justify-end gap-1">
-                          {podeAlterarProcedimento && (
-                            <Button variant="ghost" size="icon" aria-label="Editar lançamento" onClick={() => abrirEdicao(p)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          )}
+                          <Button variant="ghost" size="icon" aria-label="Editar lançamento" onClick={() => abrirEdicao(p)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="icon" aria-label="Excluir lançamento" onClick={() => handleExcluir(p.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>

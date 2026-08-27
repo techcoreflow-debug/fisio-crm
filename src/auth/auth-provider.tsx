@@ -66,10 +66,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!newSession) {
         setProfile(null);
         usuarioAnteriorRef.current = null;
-        // Sem isso, a URL fica presa na última tela que a pessoa anterior
-        // estava — quando alguém novo loga nessa mesma aba, o roteador
-        // tenta abrir de novo essa mesma rota antes de checar se o
-        // usuário novo pode vê-la.
         if (window.location.pathname !== "/") {
           window.history.replaceState(null, "", "/");
         }
@@ -81,11 +77,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === "TOKEN_REFRESHED") return;
       // Alguns navegadores também disparam SIGNED_IN de novo ao voltar o
       // foco da aba, revalidando a MESMA sessão — sem essa checagem, isso
-      // acionava a tela cheia de carregamento (profileLoading) e
-      // desmontava a tela que a pessoa estava usando (inclusive filtros
-      // aplicados), sem ela ter feito login de novo de verdade. Foi
-      // corrigido antes (v0.18.0) e se perdeu numa reconstrução do
-      // projeto — atenção especial pra não regredir de novo.
+      // acionava a tela cheia de carregamento e desmontava a tela que a
+      // pessoa estava usando (inclusive filtros aplicados).
       const mudouDeUsuario = usuarioAnteriorRef.current !== newSession.user.id;
       usuarioAnteriorRef.current = newSession.user.id;
       if (event === "SIGNED_IN" && !mudouDeUsuario) return;

@@ -10,16 +10,14 @@ function lerRecolhidaSalva(): boolean {
 
 /**
  * Modo de exibição — "tablet" (enxuto, sem sidebar, navegação por ícones
- * embaixo) ou "desktop" (layout padrão, com sidebar). Antes só o
- * fisioterapeuta tinha essa opção; agora vale pra qualquer papel — a
- * mesma pessoa pode usar tablet no plantão e PC no escritório, então
- * isso fica salvo por APARELHO (localStorage), não por conta.
+ * embaixo) ou "desktop" (layout padrão, com sidebar). Vale pra qualquer
+ * papel — a mesma pessoa pode usar tablet no plantão e PC no escritório,
+ * então isso fica salvo por APARELHO (localStorage), não por conta.
  */
 function lerModoExibicaoSalvo(): "tablet" | "desktop" | null {
   try {
     const salvo = localStorage.getItem("fisio:modo-exibicao");
     if (salvo === "tablet" || salvo === "desktop") return salvo;
-    // Compatibilidade com a versão antiga (só existia pra fisioterapeuta)
     const antigo = localStorage.getItem("fisio:modo-exibicao-fisio");
     if (antigo === "desktop" || antigo === "tablet") return antigo;
     return null;
@@ -64,7 +62,7 @@ export const useAppStore = create<AppState>((set) => ({
     try {
       localStorage.setItem("fisio:modo-exibicao", modo);
     } catch {
-      // sem persistência nesse aparelho, tudo bem — só volta ao padrão na próxima sessão
+      // sem persistência nesse aparelho, tudo bem
     }
     set({ modoExibicao: modo });
   },

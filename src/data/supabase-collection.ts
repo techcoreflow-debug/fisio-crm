@@ -90,16 +90,16 @@ export function useSupabaseCollection<T>(
     // wifi de hospital) e nunca mais reconectar sozinho, sem avisar
     // ninguém: a tela fica com dado desatualizado, achando que está tudo
     // certo. Já causou lançamento sumindo de tela (não do banco — só da
-    // exibição). Duas redes independentes do Realtime:
-    //   1) recarrega ao voltar o foco da aba (ex.: trocou de aplicativo e voltou)
+    // exibição). Três redes independentes do Realtime:
+    //   1) recarrega ao voltar o foco da aba
     //   2) recarrega a cada 2 minutos, mesmo sem trocar de aba
+    //   3) recarrega na hora, sob demanda (botão "Atualizar agora" em
+    //      qualquer tela dispara esse evento global)
     function recarregarAoFocar() {
       if (document.visibilityState === "visible") carregar();
     }
     document.addEventListener("visibilitychange", recarregarAoFocar);
     window.addEventListener("focus", recarregarAoFocar);
-    // 3) recarrega na hora, sob demanda — qualquer botão "Atualizar agora"
-    // do app dispara esse evento global, e toda tela aberta recarrega.
     window.addEventListener("fisio:forcar-recarga", carregar);
     const intervalo = setInterval(carregar, 120_000);
 

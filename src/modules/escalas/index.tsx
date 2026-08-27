@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Plus } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, CopyPlus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -44,18 +44,27 @@ export default function Escalas() {
 
   const [open, setOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [copiando, setCopiando] = useState(false);
   const [fisioId, setFisioId] = useState("");
   const [unidadeId, setUnidadeId] = useState(unidades[0]?.id ?? "");
   const [periodo, setPeriodo] = useState<ShiftPeriod>("manha");
+  // Semanas a partir de "próxima segunda" — 0 = próxima semana, -1 = semana
+  // que já passou, 1 = daqui a duas semanas. Sem isso, só dava pra ver/montar
+  // uma única semana fixa, e "copiar semana anterior" não tinha o que copiar.
+  const [semanaOffset, setSemanaOffset] = useState(0);
 
   const dias = useMemo(() => {
     const inicio = proximaSegunda();
+    inicio.setDate(inicio.getDate() + semanaOffset * 7);
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(inicio);
       d.setDate(inicio.getDate() + i);
       return d;
     });
-  }, []);
+  }, [semanaOffset]);
+
+  const diasIso = dias.map(dataParaIsoLocal);
+  const rotuloSemana = `${dias[0].toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} – ${dias[6].toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`;
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -91,79 +100,133 @@ export default function Escalas() {
     }
   }
 
+  async function handleCopiarSemanaAnterior() {
+    const diasSemanaAnterior = dias.map((d) => {
+      const anterior = new Date(d);
+      anterior.setDate(anterior.getDate() - 7);
+      return dataParaIsoLocal(anterior);
+    });
+    const turnosParaCopiar = turnos.filter((t) => diasSemanaAnterior.includes(t.shift_date));
+    if (turnosParaCopiar.length === 0) {
+      notificarErro("Nada pra copiar", "A semana anterior não tem nenhum turno escalado.");
+      return;
+    }
+    if (!window.confirm(`Copiar ${turnosParaCopiar.length} turno(s) da semana anterior pra esta semana (${rotuloSemana})?`)) return;
+    setCopiando(true);
+    try {
+      let criados = 0;
+      for (const t of turnosParaCopiar) {
+        const indice = diasSemanaAnterior.indexOf(t.shift_date);
+        const novaData = diasIso[indice];
+        // Não duplica se já existir turno desse fisio nesse dia — a pessoa
+        // pode ter ajustado manualmente antes de copiar o resto.
+        const jaExiste = turnos.some((x) => x.physiotherapist_id === t.physiotherapist_id && x.shift_date === novaData);
+        if (jaExiste) continue;
+        await repository.shifts.create({
+          physiotherapist_id: t.physiotherapist_id,
+          unit_id: t.unit_id,
+          shift_date: novaData,
+          period: t.period,
+          company_id: t.company_id,
+        });
+        criados += 1;
+      }
+      notificarSucesso(`${criados} turno(s) copiado(s) da semana anterior.`);
+    } catch (erro) {
+      notificarErro("Não foi possível copiar a semana", erro);
+    } finally {
+      setCopiando(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Escalas"
         description="Escalas de trabalho dos fisioterapeutas por unidade e turno."
         actions={
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <Button size="sm">
-                <Plus className="h-4 w-4" /> Novo turno
-              </Button>
-            </SheetTrigger>
-            <SheetContent>
-              <form className="flex h-full flex-col" onSubmit={handleSubmit}>
-                <SheetHeader>
-                  <SheetTitle>Novo turno</SheetTitle>
-                  <SheetDescription>Escale um fisioterapeuta em uma unidade, data e período.</SheetDescription>
-                </SheetHeader>
-                <div className="flex flex-1 flex-col gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Fisioterapeuta</Label>
-                    <Select value={fisioId} onValueChange={setFisioId}>
-                      <SelectTrigger><SelectValue placeholder="Selecione o fisioterapeuta" /></SelectTrigger>
-                      <SelectContent>
-                        {fisioterapeutas.map((f) => (
-                          <SelectItem key={f.id} value={f.id}>{f.full_name}</SelectItem>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={handleCopiarSemanaAnterior} disabled={copiando}>
+              <CopyPlus className="h-3.5 w-3.5" /> {copiando ? "Copiando…" : "Copiar semana anterior"}
+            </Button>
+            <Sheet open={open} onOpenChange={setOpen}>
+              <SheetTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4" /> Novo turno
+                </Button>
+              </SheetTrigger>
+              <SheetContent>
+                <form className="flex h-full flex-col" onSubmit={handleSubmit}>
+                  <SheetHeader>
+                    <SheetTitle>Novo turno</SheetTitle>
+                    <SheetDescription>Escale um fisioterapeuta em uma unidade, data e período.</SheetDescription>
+                  </SheetHeader>
+                  <div className="flex flex-1 flex-col gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Fisioterapeuta</Label>
+                      <Select value={fisioId} onValueChange={setFisioId}>
+                        <SelectTrigger><SelectValue placeholder="Selecione o fisioterapeuta" /></SelectTrigger>
+                        <SelectContent>
+                          {fisioterapeutas.map((f) => (
+                            <SelectItem key={f.id} value={f.id}>{f.full_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Unidade</Label>
+                      <Select value={unidadeId} onValueChange={setUnidadeId}>
+                        <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
+                        <SelectContent>
+                          {unidades.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="shift_date">Data</Label>
+                      <Input id="shift_date" name="shift_date" type="date" required />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Período</Label>
+                      <div className="flex gap-1.5">
+                        {(["manha", "tarde", "noite"] as ShiftPeriod[]).map((p) => (
+                          <Button
+                            key={p}
+                            type="button"
+                            size="sm"
+                            variant={periodo === p ? "primary" : "secondary"}
+                            onClick={() => setPeriodo(p)}
+                          >
+                            {periodoLabel[p]}
+                          </Button>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Unidade</Label>
-                    <Select value={unidadeId} onValueChange={setUnidadeId}>
-                      <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
-                      <SelectContent>
-                        {unidades.map((u) => (
-                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="shift_date">Data</Label>
-                    <Input id="shift_date" name="shift_date" type="date" required />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Período</Label>
-                    <div className="flex gap-1.5">
-                      {(["manha", "tarde", "noite"] as ShiftPeriod[]).map((p) => (
-                        <Button
-                          key={p}
-                          type="button"
-                          size="sm"
-                          variant={periodo === p ? "primary" : "secondary"}
-                          onClick={() => setPeriodo(p)}
-                        >
-                          {periodoLabel[p]}
-                        </Button>
-                      ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <SheetFooter>
-                  <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
-                  <Button type="submit" disabled={salvando || !fisioId}>
-                    {salvando ? "Salvando…" : "Escalar turno"}
-                  </Button>
-                </SheetFooter>
-              </form>
-            </SheetContent>
-          </Sheet>
+                  <SheetFooter>
+                    <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
+                    <Button type="submit" disabled={salvando || !fisioId}>
+                      {salvando ? "Salvando…" : "Escalar turno"}
+                    </Button>
+                  </SheetFooter>
+                </form>
+              </SheetContent>
+            </Sheet>
+          </div>
         }
       />
+
+      <div className="flex items-center justify-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => setSemanaOffset((v) => v - 1)} aria-label="Semana anterior">
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-sm font-medium text-ink">{rotuloSemana}{semanaOffset === 0 && " (próxima semana)"}</span>
+        <Button variant="ghost" size="icon" onClick={() => setSemanaOffset((v) => v + 1)} aria-label="Próxima semana">
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
 
       <Card>
         <div className="overflow-x-auto">
@@ -171,8 +234,8 @@ export default function Escalas() {
             <thead>
               <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-soft">
                 <th className="px-4 py-3 font-medium">Fisioterapeuta</th>
-                {dias.map((d) => (
-                  <th key={d.toISOString()} className="px-2 py-3 text-center font-medium">
+                {dias.map((d, idx) => (
+                  <th key={diasIso[idx]} className="px-2 py-3 text-center font-medium">
                     {d.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "")}
                   </th>
                 ))}
@@ -184,8 +247,8 @@ export default function Escalas() {
                   <td className="px-4 py-3">
                     <p className="font-medium text-ink">{f.full_name}</p>
                   </td>
-                  {dias.map((d) => {
-                    const dataIso = dataParaIsoLocal(d);
+                  {dias.map((_d, idx) => {
+                    const dataIso = diasIso[idx];
                     const turnoDoDia = turnos.find((t) => t.physiotherapist_id === f.id && t.shift_date === dataIso);
                     return (
                       <td key={dataIso} className="px-2 py-3 text-center">

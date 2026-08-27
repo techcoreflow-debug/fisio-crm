@@ -183,12 +183,17 @@ export default function Internacoes() {
 
   // --- Transferência (ex.: UTI de outra empresa) ---
   const [internacaoParaTransferir, setInternacaoParaTransferir] = useState<Admission | null>(null);
-  const [destinoTransferencia, setDestinoTransferencia] = useState("");
+  const [setorTransferencia, setSetorTransferencia] = useState("");
+  const [detalheTransferencia, setDetalheTransferencia] = useState("");
   const [salvandoTransferencia, setSalvandoTransferencia] = useState(false);
+
+  const SETORES_TRANSFERENCIA = ["UTI Coronária (Ext)", "UTI Geral", "Outro Hospital", "Outras"];
+  const destinoTransferencia = setorTransferencia === "Outras" ? detalheTransferencia.trim() : setorTransferencia;
 
   function abrirTransferencia(internacao: Admission) {
     setInternacaoParaTransferir(internacao);
-    setDestinoTransferencia("");
+    setSetorTransferencia("");
+    setDetalheTransferencia("");
   }
 
   async function handleConfirmarTransferencia(e: FormEvent<HTMLFormElement>) {
@@ -237,6 +242,7 @@ export default function Internacoes() {
   }
   const [etapaAlta, setEtapaAlta] = useState<"data" | "lancar">("data");
   const [dataHoraAlta, setDataHoraAlta] = useState(agoraParaInputDatetime());
+  const [tipoAlta, setTipoAlta] = useState<"hospitalar" | "obito">("hospitalar");
   const [salvandoAlta, setSalvandoAlta] = useState(false);
   const [fisioAltaId, setFisioAltaId] = useState("");
   const [procedimentoAltaId, setProcedimentoAltaId] = useState("");
@@ -567,6 +573,7 @@ export default function Internacoes() {
     setInternacaoParaAlta(internacao);
     setEtapaAlta("data");
     setDataHoraAlta(agoraParaInputDatetime());
+    setTipoAlta("hospitalar");
     setFisioAltaId("");
     setProcedimentoAltaId("");
     setDataLancarAlta(hojeIso);
@@ -593,7 +600,7 @@ export default function Internacoes() {
       // O aviso já fica sempre visível nesta tela (nunca escondido atrás
       // de uma etapa separada), então quem confirma já viu a informação.
       const semAtendimento = procedimentosDeHojeNaAlta.length === 0;
-      await repository.admissions.discharge(internacaoParaAlta.id, iso, semAtendimento);
+      await repository.admissions.discharge(internacaoParaAlta.id, iso, semAtendimento, tipoAlta);
       notificarSucesso("Alta registrada. O leito foi liberado para higienização.");
       setInternacaoParaAlta(null);
     } catch (erro) {
@@ -1087,6 +1094,36 @@ export default function Internacoes() {
                     onChange={(e) => setDataHoraAlta(e.target.value)}
                   />
                 </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Tipo de alta</Label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTipoAlta("hospitalar")}
+                      className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                        tipoAlta === "hospitalar"
+                          ? "border-clinical-400 bg-clinical-50 text-clinical-700"
+                          : "border-line-strong text-ink-soft hover:bg-surface-sunken"
+                      }`}
+                    >
+                      Alta hospitalar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTipoAlta("obito")}
+                      className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                        tipoAlta === "obito"
+                          ? "border-critical-400 bg-critical-50 text-critical-700"
+                          : "border-line-strong text-ink-soft hover:bg-surface-sunken"
+                      }`}
+                    >
+                      Óbito
+                    </button>
+                  </div>
+                  <p className="text-xs text-ink-soft">
+                    Usado no indicador de efetividade assistencial (controle de óbitos).
+                  </p>
+                </div>
               </div>
               <SheetFooter>
                 <Button type="button" variant="secondary" onClick={() => setInternacaoParaAlta(null)}>Cancelar</Button>
@@ -1322,15 +1359,30 @@ export default function Internacoes() {
                 depois.
               </DialogDescription>
             </DialogHeader>
-            <div className="flex flex-col gap-1.5 py-2">
-              <Label htmlFor="destino_transferencia">Pra onde vai</Label>
-              <Input
-                id="destino_transferencia"
-                value={destinoTransferencia}
-                onChange={(e) => setDestinoTransferencia(e.target.value)}
-                required
-                placeholder="Ex.: UTI (outra empresa)"
-              />
+            <div className="flex flex-col gap-3 py-2">
+              <div className="flex flex-col gap-1.5">
+                <Label>Pra onde vai</Label>
+                <Select value={setorTransferencia} onValueChange={setSetorTransferencia}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                  <SelectContent>
+                    {SETORES_TRANSFERENCIA.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {setorTransferencia === "Outras" && (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="detalhe_transferencia">Detalhe de onde transferiu</Label>
+                  <Input
+                    id="detalhe_transferencia"
+                    value={detalheTransferencia}
+                    onChange={(e) => setDetalheTransferencia(e.target.value)}
+                    required
+                    placeholder="Ex.: Hospital São Lucas — UTI Pediátrica"
+                  />
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button type="button" variant="secondary" onClick={() => setInternacaoParaTransferir(null)}>Cancelar</Button>

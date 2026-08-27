@@ -136,25 +136,52 @@ export default function Relatorios() {
           const internacao = internacoes.find((i) => i.id === p.admission_id);
           const leito = leitos.find((l) => l.id === internacao?.bed_id);
           const quarto = quartos.find((q) => q.id === leito?.room_id);
-          const paciente = pacientes.find((pa) => pa.id === internacao?.patient_id);
-          const idadeCalc = calcularIdade(paciente?.birth_date ?? null);
           return {
             Data: formatarData(p.production_date),
             Hora: p.production_time?.slice(0, 5) ?? "—",
             "Nr. Atendimento": internacao?.external_reference ?? "—",
+            "Data da Internação": internacao ? formatarData(internacao.admission_date) : "—",
             Paciente: nomePaciente(p.admission_id),
-            Idade: idadeCalc !== null ? idadeCalc : "—",
             Unidade: unidades.find((u) => u.id === internacao?.unit_id)?.name ?? "—",
             Quarto: quarto?.code ?? "—",
             Leito: leito?.code ?? "—",
             Diagnóstico: internacao?.diagnostico ?? "—",
-            "Status da Internação":
-              internacao?.status === "alta" ? "Alta" : internacao?.status === "transferido" ? "Transferido" : internacao?.status === "internado" ? "Internado" : "—",
-            "Dia da Internação": internacao ? calcularDiasInternacao(internacao.admission_date, internacao.discharge_date) : "—",
             "Código do procedimento": procedimentos.find((pr) => pr.id === p.procedure_id)?.code ?? "—",
             Procedimento: procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—",
             Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
             Conciliação: p.confirmado_tasy ? "Confirmado" : "Não confirmado",
+          };
+        }),
+    },
+    {
+      nome: "Pacientes Internados",
+      categoria: "Assistencial",
+      descricao: "Todas as internações do período (filtro geral acima), com hospital, ala, status e dias internado — pra conferência e cruzamento.",
+      arquivo: "pacientes-internados",
+      gerar: () =>
+        internacoes.map((i) => {
+          const unidade = unidades.find((u) => u.id === i.unit_id);
+          const leito = leitos.find((l) => l.id === i.bed_id);
+          const paciente = pacientes.find((p) => p.id === i.patient_id);
+          return {
+            Paciente: paciente?.full_name ?? "—",
+            Idade: calcularIdade(paciente?.birth_date ?? null) ?? "—",
+            "Nr. Atendimento": i.external_reference ?? "—",
+            "Data da Internação": formatarData(i.admission_date),
+            Hospital: hospitais.find((h) => h.id === i.hospital_id)?.name ?? "—",
+            Ala: unidade?.name ?? "—",
+            Leito: leito?.code ?? "—",
+            Convênio: convenios.find((c) => c.id === i.health_insurance_id)?.name ?? "—",
+            Status:
+              i.status === "alta"
+                ? i.discharge_type === "obito"
+                  ? "Alta (Óbito)"
+                  : "Alta"
+                : i.status === "transferido"
+                  ? `Transferido (${i.transfer_destino ?? "—"})`
+                  : "Internado",
+            "Dias de Internação": calcularDiasInternacao(i.admission_date, i.discharge_date),
+            Diagnóstico: i.diagnostico ?? "—",
           };
         }),
     },

@@ -50,7 +50,7 @@ export function permissaoPadrao(role: UserRole, moduleSlug: string): Permissao {
   if (role === "supervisor") {
     if (MODULOS_FISIOTERAPEUTA.includes(moduleSlug)) return VER_E_LANCAR;
     if (MODULOS_SUPERVISOR_OPERACIONAL.includes(moduleSlug)) return TUDO;
-    return NADA; // nada de financeiro/faturamento, nem cadastros administrativos
+    return NADA;
   }
   if (role === "financeiro") {
     return MODULOS_FINANCEIRO_COMPLETO.includes(moduleSlug) ? TUDO : SO_VER;

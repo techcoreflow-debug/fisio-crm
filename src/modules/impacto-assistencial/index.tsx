@@ -51,7 +51,7 @@ function inicioDaSemanaIso(dataIso: string) {
   return dataParaIsoLocal(d);
 }
 function mesIso(dataIso: string) {
-  return dataIso.slice(0, 7); // YYYY-MM
+  return dataIso.slice(0, 7);
 }
 function rotuloMes(mesIsoStr: string) {
   const [ano, mes] = mesIsoStr.split("-");
@@ -86,8 +86,6 @@ export default function ImpactoAssistencial() {
     [producao, periodoDe, periodoAte, filtroHospital, internacoes]
   );
 
-  // 1) Tempo médio até o 1º atendimento pós-internação — combina data+hora
-  // de verdade (não só a data) pra dar um número de horas que faz sentido.
   const tempoMedioResposta = useMemo(() => {
     const internacoesNoPeriodo = internacoes.filter(
       (i) => i.admission_date >= periodoDe && i.admission_date <= periodoAte && (filtroHospital === TODOS || i.hospital_id === filtroHospital)
@@ -109,7 +107,6 @@ export default function ImpactoAssistencial() {
     return horas.reduce((a, b) => a + b, 0) / horas.length;
   }, [internacoes, producao, periodoDe, periodoAte, filtroHospital]);
 
-  // 2) Cobertura diária — dos internados HOJE, quantos já foram atendidos hoje
   const coberturaHoje = useMemo(() => {
     const internadosAgora = internacoes.filter(
       (i) => i.status === "internado" && (filtroHospital === TODOS || i.hospital_id === filtroHospital)
@@ -119,14 +116,12 @@ export default function ImpactoAssistencial() {
     return { taxa: Math.round((atendidosHoje.length / internadosAgora.length) * 100), total: internadosAgora.length, atendidos: atendidosHoje.length };
   }, [internacoes, producao, hoje, filtroHospital]);
 
-  // 3) Intensidade terapêutica — procedimentos por paciente-dia atendido
   const intensidadeTerapeutica = useMemo(() => {
     const diasComAtendimento = new Set(producaoPeriodo.map((p) => `${p.admission_id}|${p.production_date}`));
     if (diasComAtendimento.size === 0) return null;
     return producaoPeriodo.length / diasComAtendimento.size;
   }, [producaoPeriodo]);
 
-  // 4) Mix de categoria por semana
   const mixPorSemana = useMemo(() => {
     const categorias = [...new Set(procedimentos.map((p) => p.category).filter(Boolean))] as string[];
     const porSemana = new Map<string, Record<string, number>>();
@@ -145,7 +140,6 @@ export default function ImpactoAssistencial() {
     };
   }, [producaoPeriodo, procedimentos]);
 
-  // 5) Comparativo entre hospitais
   const comparativoHospitais = useMemo(() => {
     return hospitais.map((h) => {
       const internacoesDoHospital = internacoes.filter((i) => i.hospital_id === h.id);
@@ -164,13 +158,11 @@ export default function ImpactoAssistencial() {
     }).filter((h) => internacoes.some((i) => i.hospital_id && hospitais.find((hh) => hh.id === i.hospital_id)?.name === h.hospital));
   }, [hospitais, internacoes, producao, producaoPeriodo, hoje]);
 
-  // 6) Números de impacto
   const pacientesAtendidos = new Set(
     producaoPeriodo.map((p) => internacoes.find((i) => i.id === p.admission_id)?.patient_id).filter(Boolean)
   ).size;
   const diasAcompanhados = new Set(producaoPeriodo.map((p) => `${p.admission_id}|${p.production_date}`)).size;
 
-  // 7) Efetividade Motora × Respiratória — mensal, por unidade/hospital
   const [filtroUnidadeEfetividade, setFiltroUnidadeEfetividade] = useState(TODOS);
   const efetividadeMensal = useMemo(() => {
     const producaoDaUnidade = producaoPeriodo.filter((p) => {
@@ -192,7 +184,6 @@ export default function ImpactoAssistencial() {
       .map(([mes, valores]) => ({ mes: rotuloMes(mes), Motora: valores.motora, Respiratória: valores.respiratoria }));
   }, [producaoPeriodo, internacoes, procedimentos, filtroUnidadeEfetividade]);
 
-  // 8) Altas — diário (últimos 14 dias) e mensal (últimos 6 meses), com percentual sobre internações do período
   const altasPorDia = useMemo(() => {
     const dias: { data: string; total: number }[] = [];
     for (let i = 13; i >= 0; i--) {
@@ -225,7 +216,16 @@ export default function ImpactoAssistencial() {
     return { taxa: Math.round((comAlta / internacoesNoPeriodo.length) * 100), total: internacoesNoPeriodo.length, comAlta };
   }, [internacoes, periodoDe, periodoAte]);
 
-  // 9) Distribuição por convênio no período
+  // Efetividade assistencial (indicador ONA) — taxa de óbito sobre as altas do período
+  const taxaObitoNoPeriodo = useMemo(() => {
+    const altasNoPeriodo = internacoes.filter(
+      (int) => int.status === "alta" && int.discharge_date && int.discharge_date >= periodoDe && int.discharge_date <= periodoAte
+    );
+    if (altasNoPeriodo.length === 0) return null;
+    const obitos = altasNoPeriodo.filter((int) => int.discharge_type === "obito").length;
+    return { taxa: Math.round((obitos / altasNoPeriodo.length) * 100), total: altasNoPeriodo.length, obitos };
+  }, [internacoes, periodoDe, periodoAte]);
+
   const distribuicaoConvenio = useMemo(() => {
     const porConvenio = new Map<string, number>();
     const idsVistos = new Set<string>();
@@ -239,7 +239,6 @@ export default function ImpactoAssistencial() {
     return Array.from(porConvenio.entries()).map(([name, value]) => ({ name, value }));
   }, [producaoPeriodo, internacoes, convenios]);
 
-  // 10) Perfil por sexo no período
   const distribuicaoSexo = useMemo(() => {
     const idsVistos = new Set<string>();
     let masculino = 0;
@@ -258,13 +257,11 @@ export default function ImpactoAssistencial() {
     ].filter((d) => d.value > 0);
   }, [producaoPeriodo, internacoes, pacientes]);
 
-  // 11) Cobertura sobre o total do hospital — depende do censo lançado
-  // manualmente (o sistema só sabe quantos pacientes A EQUIPE atende,
-  // não quantos o hospital tem internados no total).
   const [filtroHospitalCenso, setFiltroHospitalCenso] = useState(hospitais[0]?.id ?? "");
   useEffect(() => {
     if (!filtroHospitalCenso && hospitais.length > 0) setFiltroHospitalCenso(hospitais[0].id);
   }, [hospitais, filtroHospitalCenso]);
+
   const censoHospitalHoje = censo.find((c) => c.hospital_id === filtroHospitalCenso && c.census_date === hoje);
   const internadosComFisioHoje = internacoes.filter(
     (i) => i.status === "internado" && i.hospital_id === filtroHospitalCenso
@@ -273,7 +270,30 @@ export default function ImpactoAssistencial() {
     ? Math.round((internadosComFisioHoje / censoHospitalHoje.total_internados) * 100)
     : null;
 
-  // 12) Quantitativo de procedimentos por faixa etária
+  const [openLancarCenso, setOpenLancarCenso] = useState(false);
+  const [salvandoCenso, setSalvandoCenso] = useState(false);
+
+  async function handleLancarCenso(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!empresaId || !filtroHospitalCenso) return;
+    const form = new FormData(e.currentTarget);
+    const total = Number(form.get("total_internados"));
+    if (!total || total < 0) {
+      notificarErro("Valor inválido", "Informe o total de internados do hospital hoje.");
+      return;
+    }
+    setSalvandoCenso(true);
+    try {
+      await repository.hospitalCensus.salvar(empresaId, filtroHospitalCenso, hoje, total);
+      notificarSucesso("Total de internados do hospital registrado.");
+      setOpenLancarCenso(false);
+    } catch (erro) {
+      notificarErro("Não foi possível salvar", erro);
+    } finally {
+      setSalvandoCenso(false);
+    }
+  }
+
   const FAIXAS_ETARIAS = [
     { rotulo: "0–17", min: 0, max: 17 },
     { rotulo: "18–39", min: 18, max: 39 },
@@ -301,30 +321,6 @@ export default function ImpactoAssistencial() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [producaoPeriodo, internacoes, pacientes]);
-
-  const [openLancarCenso, setOpenLancarCenso] = useState(false);
-  const [salvandoCenso, setSalvandoCenso] = useState(false);
-
-  async function handleLancarCenso(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!empresaId || !filtroHospitalCenso) return;
-    const form = new FormData(e.currentTarget);
-    const total = Number(form.get("total_internados"));
-    if (!total || total < 0) {
-      notificarErro("Valor inválido", "Informe o total de internados do hospital hoje.");
-      return;
-    }
-    setSalvandoCenso(true);
-    try {
-      await repository.hospitalCensus.salvar(empresaId, filtroHospitalCenso, hoje, total);
-      notificarSucesso("Total de internados do hospital registrado.");
-      setOpenLancarCenso(false);
-    } catch (erro) {
-      notificarErro("Não foi possível salvar", erro);
-    } finally {
-      setSalvandoCenso(false);
-    }
-  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -387,43 +383,6 @@ export default function ImpactoAssistencial() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Users className="h-4.5 w-4.5" /> Cobertura sobre o total do hospital</CardTitle>
-          <p className="text-sm text-ink-soft mt-0.5">
-            "Hoje temos X internados no hospital... Y com fisioterapia, o que representa Z% dos internados com
-            fisio." Depende de lançar o total geral do hospital (dado que só o hospital tem, não vem do nosso
-            sistema).
-          </p>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <Select value={filtroHospitalCenso} onValueChange={setFiltroHospitalCenso}>
-            <SelectTrigger className="w-56"><SelectValue placeholder="Selecione o hospital" /></SelectTrigger>
-            <SelectContent>
-              {hospitais.map((h) => (
-                <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex flex-1 flex-col items-center gap-1">
-            <GoniometerGauge
-              value={coberturaHospitalar ?? 0}
-              displayValue={coberturaHospitalar === null ? "—" : `${coberturaHospitalar}%`}
-              label="Internados com fisio, sobre o total"
-              sublabel={
-                censoHospitalHoje
-                  ? `${internadosComFisioHoje} de ${censoHospitalHoje.total_internados} internados no hospital`
-                  : "total geral de hoje ainda não foi lançado"
-              }
-              tone="clinical"
-            />
-          </div>
-          <Button variant="secondary" size="sm" onClick={() => setOpenLancarCenso(true)} disabled={!filtroHospitalCenso}>
-            <ClipboardEdit className="h-3.5 w-3.5" /> {censoHospitalHoje ? "Atualizar total de hoje" : "Lançar total de hoje"}
-          </Button>
-        </CardContent>
-      </Card>
-
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
           <CardContent className="flex items-center gap-3 pt-5">
@@ -482,8 +441,8 @@ export default function ImpactoAssistencial() {
                     type="monotone"
                     dataKey={cat}
                     stackId="1"
-                    stroke={["#2f80ed", "#4f8f5f", "#e0a030", "#a05fe0", "#e05f7a"][idx % 5]}
-                    fill={["#2f80ed", "#4f8f5f", "#e0a030", "#a05fe0", "#e05f7a"][idx % 5]}
+                    stroke={CORES[idx % CORES.length]}
+                    fill={CORES[idx % CORES.length]}
                     fillOpacity={0.5}
                   />
                 ))}
@@ -601,6 +560,22 @@ export default function ImpactoAssistencial() {
         </Card>
       </div>
 
+      <Card className="border-critical-400/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><HeartPulse className="h-4.5 w-4.5" /> Efetividade Assistencial — Controle de Óbitos</CardTitle>
+          <p className="text-sm text-ink-soft mt-0.5">Indicador de acompanhamento assistencial (ONA) — % de óbitos sobre o total de altas do período.</p>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center gap-1 pt-2 pb-6">
+          <GoniometerGauge
+            value={taxaObitoNoPeriodo?.taxa ?? 0}
+            displayValue={`${taxaObitoNoPeriodo?.taxa ?? 0}%`}
+            label="Taxa de óbito"
+            sublabel={taxaObitoNoPeriodo ? `${taxaObitoNoPeriodo.obitos} de ${taxaObitoNoPeriodo.total} altas no período` : "sem altas no período"}
+            tone="attention"
+          />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Altas por mês — últimos 6 meses</CardTitle>
@@ -668,6 +643,43 @@ export default function ImpactoAssistencial() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Users className="h-4.5 w-4.5" /> Cobertura sobre o total do hospital</CardTitle>
+          <p className="text-sm text-ink-soft mt-0.5">
+            "Hoje temos X internados no hospital... Y com fisioterapia, o que representa Z% dos internados com
+            fisio." Depende de lançar o total geral do hospital (dado que só o hospital tem, não vem do nosso
+            sistema).
+          </p>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <Select value={filtroHospitalCenso} onValueChange={setFiltroHospitalCenso}>
+            <SelectTrigger className="w-56"><SelectValue placeholder="Selecione o hospital" /></SelectTrigger>
+            <SelectContent>
+              {hospitais.map((h) => (
+                <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex flex-1 flex-col items-center gap-1">
+            <GoniometerGauge
+              value={coberturaHospitalar ?? 0}
+              displayValue={coberturaHospitalar === null ? "—" : `${coberturaHospitalar}%`}
+              label="Internados com fisio, sobre o total"
+              sublabel={
+                censoHospitalHoje
+                  ? `${internadosComFisioHoje} de ${censoHospitalHoje.total_internados} internados no hospital`
+                  : "total geral de hoje ainda não foi lançado"
+              }
+              tone="clinical"
+            />
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => setOpenLancarCenso(true)} disabled={!filtroHospitalCenso}>
+            <ClipboardEdit className="h-3.5 w-3.5" /> {censoHospitalHoje ? "Atualizar total de hoje" : "Lançar total de hoje"}
+          </Button>
+        </CardContent>
+      </Card>
 
       <Dialog open={openLancarCenso} onOpenChange={setOpenLancarCenso}>
         <DialogContent>
