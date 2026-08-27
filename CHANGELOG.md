@@ -20,6 +20,33 @@ Antes de subir um deploy:
 
 ---
 
+## v0.45.0 — 27/08/2026
+
+**Pesquisa de Satisfação — item 5, completo.** Migration `0033`
+(telefone/e-mail no paciente, modelos e envios de pesquisa).
+
+- **Modelos cadastráveis**, com 3 sugestões prontas (NPS simples,
+  Avaliação detalhada, Só um comentário) — cria, edita, ativa/desativa
+  os seus. Perguntas em 3 formatos: nota 0-10 (NPS), estrelas (1-5) ou
+  texto livre.
+- **Envio após a alta** — botão "Pesquisa" na internação já com status
+  Alta (Pacientes Internados). Escolhe o modelo e o canal (WhatsApp ou
+  e-mail, mesmo formato do orçamento de vet/oficina — abre o WhatsApp
+  Web ou o e-mail já com a mensagem e o link prontos).
+- **Página de resposta pública**, sem exigir login — o paciente/família
+  responde só com o link. Nova Edge Function `pesquisa-satisfacao`
+  cuida disso com segurança (nunca expõe a lista de pesquisas de
+  ninguém, só a que bate com o token do link).
+- **Painel de resultados**: pesquisas enviadas, taxa de resposta, nota
+  média (NPS) e últimas respostas.
+
+Precisa rodar a migration `0033` **e fazer deploy da Edge Function**
+`pesquisa-satisfacao`.
+
+**Segue pro próximo round**: item 4 (eficácia tratamento × procedimento).
+
+---
+
 ## v0.44.0 — 26/08/2026
 
 **Relatório e apontamento de divergências, direto na Conciliação Tasy**

@@ -304,6 +304,24 @@ CSV — abre direto no Excel.
 
 ---
 
+# Pesquisa de Satisfação
+
+**Modelos**: em Pesquisa de Satisfação, cadastra/edita perguntas (nota
+0-10, estrelas ou texto livre) — vem com 3 modelos prontos pra usar ou
+adaptar. Só modelos **ativos** aparecem na hora de enviar.
+
+**Enviar**: na internação já com status Alta (Pacientes Internados),
+botão "Pesquisa" — escolhe o modelo e o canal (WhatsApp ou e-mail).
+Gera um link único e já abre o WhatsApp/e-mail com a mensagem pronta —
+mesmo formato do orçamento de vet e oficina.
+
+**Resposta**: o paciente/família abre o link e responde sem precisar
+de login nem conta no sistema. Cada link só funciona uma vez.
+
+**Resultados**: painel próprio mostra quantas pesquisas foram
+enviadas, taxa de resposta e nota média (NPS) — junto das últimas
+respostas recebidas.
+
 # Conciliação Tasy
 
 **Não é carga por padrão** — a equipe lança o procedimento manualmente

@@ -62,6 +62,9 @@ MARCADORES = [
     ("Escalas — copiar semana anterior (v0.43.0)", "src/modules/escalas/index.tsx", "handleCopiarSemanaAnterior"),
     ("Tasy Modelo 2 — CSV com vírgula, acentos corrompidos tolerados (v0.43.0)", "src/lib/tasy-parser.ts", "detectarModeloTasy"),
     ("Relatório de pendências Tasy com motivo + exportar (v0.44.0)", "src/modules/importacao-tasy/index.tsx", "MOTIVO_LABEL"),
+    ("Pesquisa de satisfação — página pública sem login (v0.45.0)", "src/modules/pesquisa-satisfacao/publica.tsx", "pesquisa-satisfacao"),
+    ("Pesquisa de satisfação — gestão de modelos e resultados (v0.45.0)", "src/modules/pesquisa-satisfacao/index.tsx", "handleSalvar"),
+    ("Pesquisa de satisfação — envio após a alta (v0.45.0)", "src/modules/internacoes/index.tsx", "abrirEnviarPesquisa"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [

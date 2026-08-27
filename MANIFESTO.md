@@ -8,17 +8,16 @@ verificada** — não um pedaço, não uma reconstrução parcial.
 
 ## Este pacote
 
-- **Versão:** 0.44.0
-- **Gerado em:** 26/08/2026
+- **Versão:** 0.45.0
+- **Gerado em:** 27/08/2026
 - **Tipo:** projeto completo (não é um delta/incremento)
-- **Arquivos de código:** 111 (.ts, .tsx, .sql)
+- **Arquivos de código:** 111+ (.ts, .tsx, .sql)
 
 ## Verificação feita antes de empacotar
 
 - [x] `npx tsc --noEmit` — zero erros de tipo
 - [x] `npm run build` — build de produção concluído sem erros
-- [x] `python3 scripts/auditoria_funcionalidades.py` — **38/38 funcionalidades OK, 5/5 arquivos livres do bug de fuso horário**
-- [x] Parser Tasy Modelo 2 testado contra o arquivo real da Dra. Monika (846 linhas extraídas corretamente)
+- [x] `python3 scripts/auditoria_funcionalidades.py` — **41/41 funcionalidades OK, 5/5 arquivos livres do bug de fuso horário**
 
 ## Prática a partir de agora
 
