@@ -30,6 +30,7 @@ import {
   Workflow,
   ClipboardCheck,
   ShieldCheck,
+  Star,
   Receipt,
   ListOrdered,
 } from "lucide-react";
@@ -141,6 +142,7 @@ export const moduleGroups: ModuleGroup[] = [
       { slug: "faturamento", path: "/faturamento", label: "Faturamento", icon: Receipt, description: "Lançamento manual do relatório de repasse do Tasy — o que o hospital de fato pagou.", status: "pronto" },
       { slug: "auditoria", path: "/auditoria", label: "Auditoria", icon: ShieldAlert, description: "Trilha de auditoria de lançamentos, importações e alterações sensíveis.", status: "pronto" },
       { slug: "diagnostico", path: "/diagnostico", label: "Diagnóstico", icon: ShieldCheck, description: "Checagens automáticas contra os dados reais — leitos travados, internações sem unidade, fisios sem login, e mais.", status: "pronto" },
+      { slug: "pesquisa-satisfacao", path: "/pesquisa-satisfacao", label: "Pesquisa de Satisfação", icon: Star, description: "Modelos de pesquisa, envio após a alta e resultados (NPS).", status: "pronto" },
     ],
   },
   {

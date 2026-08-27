@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { hojeLocalIso, calcularIdade, calcularDiasInternacao } from "@/lib/data-local";
 import { supabase } from "@/lib/supabase";
-import { Search, Plus, Pencil, BedDouble, LogOut, AlertTriangle, ClipboardPlus, Printer, Users, X, ArrowRightLeft, CornerDownLeft } from "lucide-react";
+import { Search, Plus, Pencil, BedDouble, LogOut, AlertTriangle, ClipboardPlus, Printer, Users, X, ArrowRightLeft, CornerDownLeft, Star } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ import {
   usePhysiotherapists,
   useProcedures,
   useDailyProduction,
+  useSatisfactionSurveyTemplates,
   repository,
 } from "@/data/repository";
 import { Combobox } from "@/components/ui/combobox";
@@ -178,6 +179,53 @@ export default function Internacoes() {
     return !internacoes.some((i) => i.bed_id === leito.id && i.status === "internado");
   }
   const leitosDaUnidade = leitos.filter((l) => l.unit_id === unidadeId && leitoEstaLivre(l));
+
+  // --- Pesquisa de satisfação (após a alta) ---
+  const templates = useSatisfactionSurveyTemplates();
+  const [internacaoParaPesquisa, setInternacaoParaPesquisa] = useState<Admission | null>(null);
+  const [templateIdPesquisa, setTemplateIdPesquisa] = useState("");
+  const [canalPesquisa, setCanalPesquisa] = useState<"email" | "whatsapp">("whatsapp");
+  const [destinoPesquisa, setDestinoPesquisa] = useState("");
+  const [enviandoPesquisa, setEnviandoPesquisa] = useState(false);
+  const [linkPesquisaGerado, setLinkPesquisaGerado] = useState<string | null>(null);
+
+  function abrirEnviarPesquisa(internacao: Admission) {
+    setInternacaoParaPesquisa(internacao);
+    const paciente = pacientes.find((p) => p.id === internacao.patient_id);
+    setTemplateIdPesquisa(templates.find((t) => t.ativo)?.id ?? "");
+    setCanalPesquisa("whatsapp");
+    setDestinoPesquisa(paciente?.phone ?? paciente?.email ?? "");
+    setLinkPesquisaGerado(null);
+  }
+
+  async function handleEnviarPesquisa() {
+    if (!internacaoParaPesquisa || !templateIdPesquisa || !empresaId) return;
+    setEnviandoPesquisa(true);
+    try {
+      const pesquisa = await repository.satisfactionSurveys.enviar({
+        companyId: empresaId,
+        admissionId: internacaoParaPesquisa.id,
+        templateId: templateIdPesquisa,
+        canal: canalPesquisa,
+        destino: destinoPesquisa || null,
+      });
+      const link = `${window.location.origin}/pesquisa/${pesquisa.token}`;
+      setLinkPesquisaGerado(link);
+      const paciente = pacientes.find((p) => p.id === internacaoParaPesquisa.patient_id);
+      const mensagem = `Olá${paciente ? `, ${paciente.full_name.split(" ")[0]}` : ""}! Gostaríamos de saber como foi sua experiência com a fisioterapia. Responda nossa pesquisa rapidinha: ${link}`;
+      if (canalPesquisa === "whatsapp" && destinoPesquisa) {
+        const numero = destinoPesquisa.replace(/\D/g, "");
+        window.open(`https://wa.me/55${numero}?text=${encodeURIComponent(mensagem)}`, "_blank");
+      } else if (canalPesquisa === "email" && destinoPesquisa) {
+        window.open(`mailto:${destinoPesquisa}?subject=${encodeURIComponent("Pesquisa de satisfação")}&body=${encodeURIComponent(mensagem)}`, "_blank");
+      }
+      notificarSucesso("Pesquisa criada — link pronto pra enviar.");
+    } catch (erro) {
+      notificarErro("Não foi possível criar a pesquisa", erro);
+    } finally {
+      setEnviandoPesquisa(false);
+    }
+  }
 
   const [internacaoParaAlta, setInternacaoParaAlta] = useState<Admission | null>(null);
 
@@ -1018,6 +1066,11 @@ export default function Internacoes() {
                         <CornerDownLeft className="h-3.5 w-3.5" /> Retornou
                       </Button>
                     )}
+                    {i.status === "alta" && (
+                      <Button variant="ghost" size="sm" onClick={() => abrirEnviarPesquisa(i)} title="Enviar pesquisa de satisfação">
+                        <Star className="h-3.5 w-3.5" /> Pesquisa
+                      </Button>
+                    )}
                     {podeExcluirInternacao && (
                       <DeleteButton itemLabel={`internação de ${paciente}`} onConfirm={() => repository.admissions.remove(i.id)} moduleSlug="internacoes" />
                     )}
@@ -1441,6 +1494,77 @@ export default function Internacoes() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={internacaoParaPesquisa !== null} onOpenChange={(v) => !v && setInternacaoParaPesquisa(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar pesquisa de satisfação</DialogTitle>
+            <DialogDescription>
+              {internacaoParaPesquisa && (pacientes.find((p) => p.id === internacaoParaPesquisa.patient_id)?.full_name ?? "—")}
+            </DialogDescription>
+          </DialogHeader>
+          {linkPesquisaGerado ? (
+            <div className="flex flex-col gap-3 py-2">
+              <p className="text-sm text-recovery-700">
+                Pesquisa criada! {canalPesquisa === "whatsapp" ? "O WhatsApp deve ter aberto numa aba nova." : "O e-mail deve ter aberto no seu programa padrão."}
+              </p>
+              <div className="flex flex-col gap-1.5">
+                <Label>Link (se precisar copiar manualmente)</Label>
+                <Input readOnly value={linkPesquisaGerado} onFocus={(e) => e.target.select()} />
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 py-2">
+              <div className="flex flex-col gap-1.5">
+                <Label>Modelo</Label>
+                <Select value={templateIdPesquisa} onValueChange={setTemplateIdPesquisa}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
+                  <SelectContent>
+                    {templates.filter((t) => t.ativo).map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {templates.filter((t) => t.ativo).length === 0 && (
+                  <p className="text-xs text-attention-600">Nenhum modelo ativo — cadastre em Pesquisa de Satisfação.</p>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Canal</Label>
+                <div className="flex gap-2">
+                  <Button type="button" variant={canalPesquisa === "whatsapp" ? "primary" : "secondary"} size="sm" onClick={() => setCanalPesquisa("whatsapp")} className="flex-1">
+                    WhatsApp
+                  </Button>
+                  <Button type="button" variant={canalPesquisa === "email" ? "primary" : "secondary"} size="sm" onClick={() => setCanalPesquisa("email")} className="flex-1">
+                    E-mail
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="destino_pesquisa">{canalPesquisa === "whatsapp" ? "Telefone (com DDD)" : "E-mail"}</Label>
+                <Input
+                  id="destino_pesquisa"
+                  value={destinoPesquisa}
+                  onChange={(e) => setDestinoPesquisa(e.target.value)}
+                  placeholder={canalPesquisa === "whatsapp" ? "Ex.: 11987654321" : "Ex.: nome@email.com"}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            {linkPesquisaGerado ? (
+              <Button onClick={() => setInternacaoParaPesquisa(null)}>Fechar</Button>
+            ) : (
+              <>
+                <Button type="button" variant="secondary" onClick={() => setInternacaoParaPesquisa(null)}>Cancelar</Button>
+                <Button onClick={handleEnviarPesquisa} disabled={enviandoPesquisa || !templateIdPesquisa}>
+                  {enviandoPesquisa ? "Gerando…" : "Gerar e enviar"}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

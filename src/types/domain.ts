@@ -128,6 +128,40 @@ export interface Patient {
   document: string | null;
   sexo: "M" | "F" | null;
   health_insurance_id: string | null;
+  phone: string | null;
+  email: string | null;
+  created_at: string;
+}
+
+export type TipoPerguntaSatisfacao = "nps" | "estrelas" | "texto";
+
+export interface PerguntaSatisfacao {
+  id: string;
+  tipo: TipoPerguntaSatisfacao;
+  texto: string;
+}
+
+export interface SatisfactionSurveyTemplate {
+  id: string;
+  company_id: string;
+  name: string;
+  questions: PerguntaSatisfacao[];
+  ativo: boolean;
+  created_at: string;
+}
+
+export interface SatisfactionSurvey {
+  id: string;
+  company_id: string;
+  admission_id: string | null;
+  template_id: string;
+  token: string;
+  canal: "email" | "whatsapp" | "link";
+  destino: string | null;
+  enviado_em: string;
+  respondido_em: string | null;
+  respostas: Record<string, unknown> | null;
+  nps_score: number | null;
   created_at: string;
 }
 

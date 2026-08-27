@@ -43,6 +43,8 @@ import type {
   BillingEntry,
   PatientQueueItem,
   HospitalCensus,
+  SatisfactionSurveyTemplate,
+  SatisfactionSurvey,
   ProcedureCategory,
   ActivityLog,
   Receivable,
@@ -162,6 +164,12 @@ export function usePatientQueue(): PatientQueueItem[] {
 }
 export function useHospitalCensus(): HospitalCensus[] {
   return useSupabaseCollection<HospitalCensus>("hospital_census", { company_id: useActiveCompanyId() }, "census_date", true);
+}
+export function useSatisfactionSurveyTemplates(): SatisfactionSurveyTemplate[] {
+  return useSupabaseCollection<SatisfactionSurveyTemplate>("satisfaction_survey_templates", { company_id: useActiveCompanyId() });
+}
+export function useSatisfactionSurveys(): SatisfactionSurvey[] {
+  return useSupabaseCollection<SatisfactionSurvey>("satisfaction_surveys", { company_id: useActiveCompanyId() }, "enviado_em", true);
 }
 export function useProcedureCategories(): ProcedureCategory[] {
   return useSupabaseCollection<ProcedureCategory>("procedure_categories", { company_id: useActiveCompanyId() }, "name");
@@ -679,6 +687,35 @@ export const repository = {
         );
       if (error) throw new Error(error.message);
     },
+  },
+
+  satisfactionSurveyTemplates: {
+    create: async (data: Pick<SatisfactionSurveyTemplate, "company_id" | "name" | "questions">): Promise<SatisfactionSurveyTemplate> =>
+      inserirLinha<SatisfactionSurveyTemplate>("satisfaction_survey_templates", data),
+    update: async (id: string, patch: Partial<Pick<SatisfactionSurveyTemplate, "name" | "questions" | "ativo">>): Promise<void> =>
+      atualizarLinha("satisfaction_survey_templates", id, patch),
+    remove: async (id: string): Promise<void> => {
+      const { error } = await supabase.from("satisfaction_survey_templates").delete().eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+  },
+
+  satisfactionSurveys: {
+    /** Cria o envio (gera o token sozinho) — devolve a pesquisa criada, com o link pronto pra mandar. */
+    enviar: async (data: {
+      companyId: string;
+      admissionId: string | null;
+      templateId: string;
+      canal: "email" | "whatsapp" | "link";
+      destino: string | null;
+    }): Promise<SatisfactionSurvey> =>
+      inserirLinha<SatisfactionSurvey>("satisfaction_surveys", {
+        company_id: data.companyId,
+        admission_id: data.admissionId,
+        template_id: data.templateId,
+        canal: data.canal,
+        destino: data.destino,
+      }),
   },
 
   procedureCategories: {

@@ -10,6 +10,7 @@ import { Toaster } from "@/components/shared/toaster";
 import Login from "@/modules/auth/login";
 import { Button } from "@/components/ui/button";
 import { isSupabaseConfigured } from "@/lib/supabase";
+const PesquisaPublica = lazy(() => import("@/modules/pesquisa-satisfacao/publica"));
 
 // Cada módulo vira um chunk próprio, carregado sob demanda ao navegar até
 // ele — evita que o usuário baixe os 25 módulos do Fisio de uma vez só.
@@ -44,6 +45,7 @@ const pageComponents: Record<string, ComponentType> = {
   financeiro: lazy(() => import("@/modules/financeiro")),
   auditoria: lazy(() => import("@/modules/auditoria")),
   diagnostico: lazy(() => import("@/modules/diagnostico")),
+  "pesquisa-satisfacao": lazy(() => import("@/modules/pesquisa-satisfacao")),
   relatorios: lazy(() => import("@/modules/relatorios")),
   bi: lazy(() => import("@/modules/bi")),
   configuracoes: lazy(() => import("@/modules/configuracoes")),
@@ -104,31 +106,29 @@ function AuthGate() {
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<AppShell />}>
-          {allModules.map((mod) => {
-            const Component = pageComponents[mod.slug];
-            const bloqueado = !podeVer(mod.slug);
-            return (
-              <Route
-                key={mod.slug}
-                path={mod.path}
-                element={
-                  bloqueado ? (
-                    <Navigate to={ROTA_PADRAO_LANCADOR} replace />
-                  ) : (
-                    <Suspense fallback={<PageFallback />}>
-                      <Component />
-                    </Suspense>
-                  )
-                }
-              />
-            );
-          })}
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <Routes>
+      <Route element={<AppShell />}>
+        {allModules.map((mod) => {
+          const Component = pageComponents[mod.slug];
+          const bloqueado = !podeVer(mod.slug);
+          return (
+            <Route
+              key={mod.slug}
+              path={mod.path}
+              element={
+                bloqueado ? (
+                  <Navigate to={ROTA_PADRAO_LANCADOR} replace />
+                ) : (
+                  <Suspense fallback={<PageFallback />}>
+                    <Component />
+                  </Suspense>
+                )
+              }
+            />
+          );
+        })}
+      </Route>
+    </Routes>
   );
 }
 
@@ -150,9 +150,27 @@ export default function App() {
   if (!isSupabaseConfigured) return <TelaConfiguracaoAusente />;
 
   return (
-    <AuthProvider>
-      <AuthGate />
-      <Toaster />
-    </AuthProvider>
+    <BrowserRouter>
+      <Routes>
+        {/* Rota pública — paciente/família responde sem login, por link com token. */}
+        <Route
+          path="/pesquisa/:token"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <PesquisaPublica />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/*"
+          element={
+            <AuthProvider>
+              <AuthGate />
+              <Toaster />
+            </AuthProvider>
+          }
+        />
+      </Routes>
+    </BrowserRouter>
   );
 }

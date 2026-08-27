@@ -24,6 +24,8 @@ import type {
   BillingEntry,
   PatientQueueItem,
   HospitalCensus,
+  SatisfactionSurveyTemplate,
+  SatisfactionSurvey,
   ProcedureCategory,
   Shift,
   ActivityLog,
@@ -80,6 +82,8 @@ export interface Database {
       billing_entries: TableDef<BillingEntry>;
       patient_queue: TableDef<PatientQueueItem>;
       hospital_census: TableDef<HospitalCensus>;
+      satisfaction_survey_templates: TableDef<SatisfactionSurveyTemplate>;
+      satisfaction_surveys: TableDef<SatisfactionSurvey>;
       procedure_categories: TableDef<ProcedureCategory>;
       shifts: TableDef<Shift>;
       activity_log: TableDef<ActivityLog>;
