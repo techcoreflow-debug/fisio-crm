@@ -157,7 +157,10 @@ rápido, já pré-preenchido com a sugestão, e lança direto, marcando o
 item da fila como concluído sozinho. Depois de concluído, ainda dá pra
 lançar mais um procedimento pro mesmo paciente (igual o fluxo de Novo
 Atendimento). É a primeira tela que o fisioterapeuta vê ao logar
-(inclusive no modo tablet).
+(inclusive no modo tablet). Se a internação tiver **pré-lançamento**
+definido na triagem, o código sugerido (Motora/Respiratória) aparece
+destacado na tela de lançar, bem acima do campo de busca — reduz erro
+de digitar o código errado.
 
 ## Novo Atendimento (fluxo guiado)
 
@@ -303,6 +306,17 @@ não fazem sentido filtrados por período passado. Tudo exportável em
 CSV — abre direto no Excel.
 
 ---
+
+# Desempenho da Fila de Distribuição
+
+Rastreia se a distribuição de pacientes virou atendimento de verdade.
+Importante: "Concluir" na fila (Minha Fila) é uma ação **manual**,
+separada de lançar o procedimento — dá pra marcar concluído sem ter
+atendido. O painel cruza cada item concluído com a produção lançada
+naquele dia, e mostra por fisioterapeuta: distribuído, concluído com
+lançamento, **concluído sem lançamento** (o dado mais importante — é
+onde alguém marcou como feito sem ter feito), e pendente. Também avisa
+sobre itens de dias passados que ficaram parados. Filtro de período.
 
 # Pesquisa de Satisfação
 

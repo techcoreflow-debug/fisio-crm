@@ -254,6 +254,23 @@ export default function MinhaFila() {
                     </div>
                   );
                 })()}
+                {itemLancando && (() => {
+                  const internacaoDoLancamento = internacaoDoItem(itemLancando.admission_id);
+                  if (!internacaoDoLancamento || (!internacaoDoLancamento.pre_lancamento_motora_id && !internacaoDoLancamento.pre_lancamento_respiratoria_id)) return null;
+                  return (
+                    <div className="flex flex-col gap-1 rounded-md border border-recovery-400/40 bg-recovery-100 px-3 py-2.5 text-sm text-recovery-700">
+                      <span className="font-medium">Código sugerido na triagem — confira antes de lançar:</span>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                        {internacaoDoLancamento.pre_lancamento_motora_id && (
+                          <span>Motora: <span className="font-mono font-semibold">{procedimentos.find((p) => p.id === internacaoDoLancamento.pre_lancamento_motora_id)?.code ?? "—"}</span></span>
+                        )}
+                        {internacaoDoLancamento.pre_lancamento_respiratoria_id && (
+                          <span>Respiratória: <span className="font-mono font-semibold">{procedimentos.find((p) => p.id === internacaoDoLancamento.pre_lancamento_respiratoria_id)?.code ?? "—"}</span></span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div className="flex flex-col gap-1.5">
                   <Label>Procedimento</Label>
                   <Combobox

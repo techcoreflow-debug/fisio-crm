@@ -20,6 +20,34 @@ Antes de subir um deploy:
 
 ---
 
+## v0.46.0 — 28/08/2026
+
+**Validação da lista de 20/08**: os 6 primeiros itens (idade/dias
+internação nos exports, data da internação, relatório de pacientes
+internados, combo de setor na transferência, Tasy Modelo 2, tipo de
+alta/óbito) já estavam entregues e testados — confirmados de novo
+nesta rodada. Os 2 itens novos:
+
+**Pré-lançamento como guia, direto na tela de lançar** — o código
+sugerido na triagem só aparecia como selo na listagem, não onde a
+pessoa realmente escolhe o procedimento. Agora aparece destacado logo
+acima do campo de busca, em Minha Fila, no lançamento avulso (Pacientes
+Internados) e na tela de Alta — exatamente o motivo de existir (reduzir
+erro de codificação).
+
+**Desempenho da Fila de Distribuição**, painel novo — rastreia se a
+distribuição virou atendimento de verdade. Achado importante durante a
+investigação: "Concluir" na fila é uma ação manual e independente de
+lançar procedimento — dá pra marcar concluído sem ter atendido. O
+painel cruza isso com a produção lançada e mostra, por fisioterapeuta:
+distribuído, concluído com lançamento, **concluído sem lançamento**
+(o número que mais importa) e pendente. Também avisa sobre itens de
+dias passados que ficaram parados sem conclusão nem lançamento.
+
+Sem migration — só código.
+
+---
+
 ## v0.45.0 — 27/08/2026
 
 **Pesquisa de Satisfação — item 5, completo.** Migration `0033`

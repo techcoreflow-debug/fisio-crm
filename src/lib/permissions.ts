@@ -34,6 +34,7 @@ const MODULOS_SUPERVISOR_OPERACIONAL = [
   "procedimentos",
   "relatorios",
   "diagnostico",
+  "desempenho-fila",
 ];
 
 /**

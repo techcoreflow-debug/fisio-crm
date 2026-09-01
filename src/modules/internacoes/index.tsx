@@ -1208,6 +1208,19 @@ export default function Internacoes() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label>Procedimento</Label>
+                  {internacaoParaAlta && (internacaoParaAlta.pre_lancamento_motora_id || internacaoParaAlta.pre_lancamento_respiratoria_id) && (
+                    <div className="flex flex-col gap-1 rounded-md border border-recovery-400/40 bg-recovery-100 px-3 py-2 text-xs text-recovery-700">
+                      <span className="font-medium">Código sugerido na triagem:</span>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1">
+                        {internacaoParaAlta.pre_lancamento_motora_id && (
+                          <span>Motora: <span className="font-mono font-semibold">{procedimentos.find((p) => p.id === internacaoParaAlta.pre_lancamento_motora_id)?.code ?? "—"}</span></span>
+                        )}
+                        {internacaoParaAlta.pre_lancamento_respiratoria_id && (
+                          <span>Respiratória: <span className="font-mono font-semibold">{procedimentos.find((p) => p.id === internacaoParaAlta.pre_lancamento_respiratoria_id)?.code ?? "—"}</span></span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <Combobox
                     value={procedimentoAltaId}
                     onValueChange={setProcedimentoAltaId}
@@ -1275,6 +1288,23 @@ export default function Internacoes() {
                   </div>
                 );
               })()}
+              {internacaoParaLancar && (internacaoParaLancar.pre_lancamento_motora_id || internacaoParaLancar.pre_lancamento_respiratoria_id) && (
+                <div className="flex flex-col gap-1 rounded-md border border-recovery-400/40 bg-recovery-100 px-3 py-2.5 text-sm text-recovery-700">
+                  <span className="font-medium">Código sugerido na triagem — confira antes de lançar:</span>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    {internacaoParaLancar.pre_lancamento_motora_id && (
+                      <span>
+                        Motora: <span className="font-mono font-semibold">{procedimentos.find((p) => p.id === internacaoParaLancar.pre_lancamento_motora_id)?.code ?? "—"}</span>
+                      </span>
+                    )}
+                    {internacaoParaLancar.pre_lancamento_respiratoria_id && (
+                      <span>
+                        Respiratória: <span className="font-mono font-semibold">{procedimentos.find((p) => p.id === internacaoParaLancar.pre_lancamento_respiratoria_id)?.code ?? "—"}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="flex flex-col gap-1.5">
                 <Label>Fisioterapeuta</Label>
                 <Combobox

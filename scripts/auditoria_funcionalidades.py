@@ -65,6 +65,8 @@ MARCADORES = [
     ("Pesquisa de satisfação — página pública sem login (v0.45.0)", "src/modules/pesquisa-satisfacao/publica.tsx", "pesquisa-satisfacao"),
     ("Pesquisa de satisfação — gestão de modelos e resultados (v0.45.0)", "src/modules/pesquisa-satisfacao/index.tsx", "handleSalvar"),
     ("Pesquisa de satisfação — envio após a alta (v0.45.0)", "src/modules/internacoes/index.tsx", "abrirEnviarPesquisa"),
+    ("Pré-lançamento como guia na tela de lançar (v0.46.0)", "src/modules/minha-fila/index.tsx", "Código sugerido na triagem"),
+    ("Desempenho da fila de distribuição (v0.46.0)", "src/modules/desempenho-fila/index.tsx", "concluidoSemLancamento"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [

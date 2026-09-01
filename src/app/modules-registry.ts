@@ -31,6 +31,7 @@ import {
   ClipboardCheck,
   ShieldCheck,
   Star,
+  Gauge,
   Receipt,
   ListOrdered,
 } from "lucide-react";
@@ -143,6 +144,7 @@ export const moduleGroups: ModuleGroup[] = [
       { slug: "auditoria", path: "/auditoria", label: "Auditoria", icon: ShieldAlert, description: "Trilha de auditoria de lançamentos, importações e alterações sensíveis.", status: "pronto" },
       { slug: "diagnostico", path: "/diagnostico", label: "Diagnóstico", icon: ShieldCheck, description: "Checagens automáticas contra os dados reais — leitos travados, internações sem unidade, fisios sem login, e mais.", status: "pronto" },
       { slug: "pesquisa-satisfacao", path: "/pesquisa-satisfacao", label: "Pesquisa de Satisfação", icon: Star, description: "Modelos de pesquisa, envio após a alta e resultados (NPS).", status: "pronto" },
+      { slug: "desempenho-fila", path: "/desempenho-fila", label: "Desempenho da Fila", icon: Gauge, description: "Rastreia se a distribuição de pacientes virou atendimento de verdade — concluído sem lançamento, pendências atrasadas.", status: "pronto" },
     ],
   },
   {
