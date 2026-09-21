@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Activity, LogOut, KeyRound, Monitor } from "lucide-react";
+import { Activity, LogOut, KeyRound, Monitor, ExternalLink } from "lucide-react";
 import { moduleGroups } from "@/app/modules-registry";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/auth/auth-provider";
@@ -87,6 +87,14 @@ export function TabletShell({ children }: { children: React.ReactNode }) {
             aria-label="Trocar senha"
           >
             <KeyRound className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => window.open("https://risco.inovaretech.com", "_blank", "noopener,noreferrer")}
+            className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-ink-soft hover:bg-surface-sunken"
+            aria-label="Ir para inovare.risco"
+            title="Ir para inovare.risco"
+          >
+            <ExternalLink className="h-4 w-4" />
           </button>
           <button
             onClick={() => signOut()}

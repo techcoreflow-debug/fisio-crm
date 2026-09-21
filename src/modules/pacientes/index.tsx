@@ -46,6 +46,8 @@ export default function Pacientes() {
   const [sexo, setSexo] = useState<string>("");
   const [convenioId, setConvenioId] = useState<string>("");
   const [pacienteTimeline, setPacienteTimeline] = useState<Patient | null>(null);
+  const [nomeForm, setNomeForm] = useState("");
+  const [documentoForm, setDocumentoForm] = useState("");
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -55,10 +57,42 @@ export default function Pacientes() {
 
   const { pagina: paginaAtual, totalPaginas, paginaValida } = usarPaginacao(filtrados, 25, pagina);
 
+  // Prevenção de cadastro duplicado — mesmo padrão do módulo Novo
+  // Atendimento: aviso por nome parecido (não bloqueia), bloqueio duro por
+  // CPF exato (ignora o próprio registro quando está editando).
+  function normalizarNome(nome: string): string[] {
+    return nome
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length > 1);
+  }
+
+  const possiveisDuplicados = useMemo(() => {
+    if (editando) return [];
+    const tokensNovo = normalizarNome(nomeForm);
+    if (tokensNovo.length === 0) return [];
+    return pacientes.filter((p) => {
+      const tokensExistente = normalizarNome(p.full_name);
+      const encontrados = tokensNovo.filter((t) => tokensExistente.includes(t));
+      const minimoNecessario = tokensNovo.length < 2 ? tokensNovo.length : 2;
+      return encontrados.length >= minimoNecessario;
+    });
+  }, [editando, nomeForm, pacientes]);
+
+  const documentoDuplicado = useMemo(() => {
+    const digitos = documentoForm.replace(/\D/g, "");
+    if (digitos.length < 11) return null;
+    return pacientes.find((p) => p.id !== editando?.id && (p.document ?? "").replace(/\D/g, "") === digitos) ?? null;
+  }, [documentoForm, pacientes, editando]);
+
   function abrirNovo() {
     setEditando(null);
     setSexo("");
     setConvenioId("");
+    setNomeForm("");
+    setDocumentoForm("");
     setOpen(true);
   }
 
@@ -66,12 +100,18 @@ export default function Pacientes() {
     setEditando(paciente);
     setSexo(paciente.sexo ?? "");
     setConvenioId(paciente.health_insurance_id ?? "");
+    setNomeForm(paciente.full_name);
+    setDocumentoForm(paciente.document ?? "");
     setOpen(true);
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
+    if (documentoDuplicado) {
+      notificarErro("CPF já cadastrado", `Este CPF já pertence a ${documentoDuplicado.full_name}.`);
+      return;
+    }
     const dados = {
       full_name: String(form.get("full_name") ?? ""),
       birth_date: String(form.get("birth_date") ?? "") || null,
@@ -119,8 +159,28 @@ export default function Pacientes() {
                 <div className="flex flex-1 flex-col gap-4">
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="full_name">Nome completo</Label>
-                    <Input id="full_name" name="full_name" required placeholder="Ex.: Marina Salgado Costa" defaultValue={editando?.full_name} />
+                    <Input
+                      id="full_name"
+                      name="full_name"
+                      required
+                      placeholder="Ex.: Marina Salgado Costa"
+                      value={nomeForm}
+                      onChange={(e) => setNomeForm(e.target.value)}
+                    />
                   </div>
+                  {possiveisDuplicados.length > 0 && (
+                    <div className="flex flex-col gap-2 rounded-md border border-attention-400/40 bg-attention-100 p-3 text-sm">
+                      <span className="font-medium text-attention-700">
+                        {possiveisDuplicados.length === 1 ? "Já existe um paciente com nome parecido:" : "Já existem pacientes com nome parecido:"}
+                      </span>
+                      <ul className="flex flex-col gap-1">
+                        {possiveisDuplicados.slice(0, 5).map((p) => (
+                          <li key={p.id} className="text-attention-700">{p.full_name}</li>
+                        ))}
+                      </ul>
+                      <p className="text-xs text-attention-700">Confira antes de criar um novo cadastro.</p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="birth_date">Data de nascimento</Label>
@@ -155,14 +215,25 @@ export default function Pacientes() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="document">CPF (opcional)</Label>
-                    <Input id="document" name="document" placeholder="000.000.000-00" defaultValue={editando?.document ?? ""} />
+                    <Input
+                      id="document"
+                      name="document"
+                      placeholder="000.000.000-00"
+                      value={documentoForm}
+                      onChange={(e) => setDocumentoForm(e.target.value)}
+                    />
+                    {documentoDuplicado && (
+                      <p className="text-xs font-medium text-critical-600">
+                        Este CPF já pertence a {documentoDuplicado.full_name} — não é possível salvar.
+                      </p>
+                    )}
                   </div>
                 </div>
                 <SheetFooter>
                   <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={salvando || !empresaId}>
+                  <Button type="submit" disabled={salvando || !empresaId || !!documentoDuplicado}>
                     {salvando ? "Salvando…" : editando ? "Salvar alterações" : "Criar paciente"}
                   </Button>
                 </SheetFooter>

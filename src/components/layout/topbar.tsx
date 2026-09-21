@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, Search, ChevronsUpDown, LogOut, Settings, Moon, Sun, ShieldCheck, KeyRound, Tablet } from "lucide-react";
+import { Menu, Search, ChevronsUpDown, LogOut, Settings, Moon, Sun, ShieldCheck, KeyRound, Tablet, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/store/app-store";
 import { useCompanies } from "@/data/repository";
@@ -152,6 +152,10 @@ export function Topbar() {
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setModoExibicao("tablet")}>
               <Tablet className="h-4 w-4" /> Usar layout tablet
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => window.open("https://risco.inovaretech.com", "_blank", "noopener,noreferrer")}>
+              <ExternalLink className="h-4 w-4" /> Ir para inovare.risco
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={handleSignOut}>
               <LogOut className="h-4 w-4" /> Sair

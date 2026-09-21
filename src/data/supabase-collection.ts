@@ -25,6 +25,20 @@ let proximoIdDeCanal = 0;
  * chamada de `.on(...)` depois do `.subscribe()` derruba a aplicação
  * inteira (erro não capturado, tela em branco).
  */
+/**
+ * Filtro simples de coluna=valor, no formato que o Realtime do Supabase
+ * aceita (só suporta UMA condição de igualdade, não várias combinadas).
+ * Como quase toda tabela filtra só por company_id, isso já cobre o caso
+ * comum — reduz o volume de eventos que chegam pelo canal (não só de
+ * buscas feitas), já que o servidor só manda o que interessa.
+ */
+function construirFiltroRealtime(filtros: Record<string, string | null | undefined>): string | undefined {
+  const entradas = Object.entries(filtros).filter(([, v]) => v !== undefined && v !== null && v !== "");
+  if (entradas.length !== 1) return undefined;
+  const [campo, valor] = entradas[0];
+  return `${campo}=eq.${valor}`;
+}
+
 export function useSupabaseCollection<T>(
   table: TableName,
   filtros: Record<string, string | null | undefined>,
@@ -46,7 +60,21 @@ export function useSupabaseCollection<T>(
     }
 
     let ativo = true;
-    let timeoutDebounce: ReturnType<typeof setTimeout> | null = null;
+
+    function ordenarLista(lista: T[]): T[] {
+      if (!ordenarPor) return lista;
+      const copia = [...lista];
+      copia.sort((a, b) => {
+        const va = (a as Record<string, unknown>)[ordenarPor];
+        const vb = (b as Record<string, unknown>)[ordenarPor];
+        if (va === vb) return 0;
+        if (va === null || va === undefined) return 1;
+        if (vb === null || vb === undefined) return -1;
+        const cmp = va < vb ? -1 : 1;
+        return ordemDecrescente ? -cmp : cmp;
+      });
+      return copia;
+    }
 
     async function carregar() {
       let query = supabase.from(table).select("*");
@@ -69,30 +97,88 @@ export function useSupabaseCollection<T>(
       setLinhas((data ?? []) as T[]);
     }
 
-    // Operações em massa (ex.: conciliação Tasy) disparam um evento de
-    // Realtime POR LINHA — sem isso, uma importação de milhares de linhas
-    // dispararia milhares de buscas simultâneas e sobrecarregaria o
-    // navegador ("Failed to fetch"). Junta tudo que chegar num intervalo
-    // curto numa única busca, feita só quando as mudanças pararem.
-    function agendarRecarga() {
-      if (timeoutDebounce) clearTimeout(timeoutDebounce);
-      timeoutDebounce = setTimeout(carregar, 400);
+    // Aplica o payload do evento Realtime direto no estado local, sem
+    // buscar a tabela de novo — é a diferença entre transferir 1 linha
+    // ou a tabela inteira (já passou de 1.500 linhas em daily_production)
+    // toda vez que QUALQUER pessoa lança QUALQUER procedimento em
+    // QUALQUER lugar. Isso sozinho já foi o maior consumo de egress do
+    // projeto. O filtro do canal (`construirFiltroRealtime`) já garante
+    // que só chegam eventos da própria empresa quando o filtro é simples
+    // (company_id, o caso mais comum); pra filtros compostos, confere de
+    // novo aqui antes de aplicar, pra nunca misturar dado de fora do
+    // filtro atual.
+    function linhaPertenceAoFiltro(linha: Record<string, unknown>): boolean {
+      return Object.entries(filtros).every(([campo, valor]) => {
+        if (valor === undefined) return true;
+        return linha[campo] === valor;
+      });
+    }
+
+    function aplicarEvento(payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) {
+      if (!ativo) return;
+      setLinhas((atual) => {
+        if (payload.eventType === "DELETE") {
+          const idRemovido = payload.old?.id;
+          if (idRemovido === undefined) return atual;
+          return atual.filter((l) => (l as Record<string, unknown>).id !== idRemovido) as T[];
+        }
+
+        const linhaNova = payload.new as Record<string, unknown>;
+        if (!linhaNova || linhaNova.id === undefined) return atual;
+
+        // Update pode ter tirado a linha do filtro atual (ex.: mudou de
+        // empresa) — se não pertence mais, remove; senão insere/atualiza.
+        if (!linhaPertenceAoFiltro(linhaNova)) {
+          return atual.filter((l) => (l as Record<string, unknown>).id !== linhaNova.id) as T[];
+        }
+
+        const jaExiste = atual.some((l) => (l as Record<string, unknown>).id === linhaNova.id);
+        const proxima = jaExiste
+          ? atual.map((l) => ((l as Record<string, unknown>).id === linhaNova.id ? (linhaNova as T) : l))
+          : [...atual, linhaNova as T];
+        return ordenarLista(proxima);
+      });
+    }
+
+    // Importações em massa (ex.: conciliação Tasy) disparam um evento de
+    // Realtime POR LINHA em rajada — aplicar cada um na hora, um a um,
+    // dispara centenas de re-renderizações seguidas e pode travar a tela
+    // por alguns segundos. Junta o que chegar num intervalo curto numa
+    // única atualização de estado — continua sem buscar nada do banco de
+    // novo (o ganho de egress continua intacto), só agrupa a aplicação.
+    let eventosPendentes: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }[] = [];
+    let timeoutLote: ReturnType<typeof setTimeout> | null = null;
+    function agendarEvento(payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) {
+      eventosPendentes.push(payload);
+      if (timeoutLote) clearTimeout(timeoutLote);
+      timeoutLote = setTimeout(() => {
+        const lote = eventosPendentes;
+        eventosPendentes = [];
+        for (const evento of lote) aplicarEvento(evento);
+      }, 120);
     }
 
     carregar();
 
+    const filtroRealtime = construirFiltroRealtime(filtros);
     const canal = supabase
       .channel(`${table}:${chaveFiltro}:${idDoCanalRef.current}`)
-      .on("postgres_changes", { event: "*", schema: "public", table }, agendarRecarga)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table, ...(filtroRealtime ? { filter: filtroRealtime } : {}) },
+        agendarEvento
+      )
       .subscribe();
 
     // Rede de segurança — o Realtime pode cair silenciosamente (comum em
     // wifi de hospital) e nunca mais reconectar sozinho, sem avisar
     // ninguém: a tela fica com dado desatualizado, achando que está tudo
     // certo. Já causou lançamento sumindo de tela (não do banco — só da
-    // exibição). Três redes independentes do Realtime:
+    // exibição). Três redes independentes do Realtime — agora bem mais
+    // espaçadas, já que o Realtime normal não depende mais delas pra
+    // pegar mudanças do dia a dia (só recuperar de uma queda de verdade):
     //   1) recarrega ao voltar o foco da aba
-    //   2) recarrega a cada 2 minutos, mesmo sem trocar de aba
+    //   2) recarrega a cada 5 minutos, mesmo sem trocar de aba
     //   3) recarrega na hora, sob demanda (botão "Atualizar agora" em
     //      qualquer tela dispara esse evento global)
     function recarregarAoFocar() {
@@ -101,11 +187,11 @@ export function useSupabaseCollection<T>(
     document.addEventListener("visibilitychange", recarregarAoFocar);
     window.addEventListener("focus", recarregarAoFocar);
     window.addEventListener("fisio:forcar-recarga", carregar);
-    const intervalo = setInterval(carregar, 120_000);
+    const intervalo = setInterval(carregar, 300_000);
 
     return () => {
       ativo = false;
-      if (timeoutDebounce) clearTimeout(timeoutDebounce);
+      if (timeoutLote) clearTimeout(timeoutLote);
       document.removeEventListener("visibilitychange", recarregarAoFocar);
       window.removeEventListener("focus", recarregarAoFocar);
       window.removeEventListener("fisio:forcar-recarga", carregar);

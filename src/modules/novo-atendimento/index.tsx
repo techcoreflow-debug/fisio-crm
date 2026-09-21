@@ -61,6 +61,8 @@ export default function NovoAtendimento() {
   const [pacienteCriado, setPacienteCriado] = useState<Patient | null>(null);
   const [convenioNovoPaciente, setConvenioNovoPaciente] = useState("");
   const [sexoNovoPaciente, setSexoNovoPaciente] = useState("");
+  const [nomeNovoPaciente, setNomeNovoPaciente] = useState("");
+  const [documentoNovoPaciente, setDocumentoNovoPaciente] = useState("");
 
   const [unidadeId, setUnidadeId] = useState("");
   const [leitoId, setLeitoId] = useState("");
@@ -86,6 +88,39 @@ export default function NovoAtendimento() {
     [procedimentos]
   );
 
+  // Prevenção de cadastro duplicado — incidente real: fisio não encontrou o
+  // paciente na busca e cadastrou de novo, gerando internação sem Nr. de
+  // Atendimento e paciente duplicado. Aviso por nome (não bloqueia — nomes
+  // parecidos podem ser pessoas diferentes) + bloqueio duro por CPF exato
+  // (não existe CPF igual de gente diferente).
+  function normalizarNome(nome: string): string[] {
+    return nome
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length > 1);
+  }
+
+  const possiveisDuplicados = useMemo(() => {
+    if (modoPaciente !== "novo") return [];
+    const tokensNovo = normalizarNome(nomeNovoPaciente);
+    if (tokensNovo.length === 0) return [];
+    return pacientes.filter((p) => {
+      const tokensExistente = normalizarNome(p.full_name);
+      const encontrados = tokensNovo.filter((t) => tokensExistente.includes(t));
+      const minimoNecessario = tokensNovo.length < 2 ? tokensNovo.length : 2;
+      return encontrados.length >= minimoNecessario;
+    });
+  }, [modoPaciente, nomeNovoPaciente, pacientes]);
+
+  const documentoDuplicado = useMemo(() => {
+    if (modoPaciente !== "novo") return null;
+    const digitos = documentoNovoPaciente.replace(/\D/g, "");
+    if (digitos.length < 11) return null;
+    return pacientes.find((p) => (p.document ?? "").replace(/\D/g, "") === digitos) ?? null;
+  }, [modoPaciente, documentoNovoPaciente, pacientes]);
+
   function reiniciar() {
     setEtapa("paciente");
     setModoPaciente("existente");
@@ -93,6 +128,8 @@ export default function NovoAtendimento() {
     setPacienteCriado(null);
     setConvenioNovoPaciente("");
     setSexoNovoPaciente("");
+    setNomeNovoPaciente("");
+    setDocumentoNovoPaciente("");
     setUnidadeId("");
     setLeitoId("");
     setQuartoInlineId("");
@@ -112,6 +149,10 @@ export default function NovoAtendimento() {
       return;
     }
     const form = new FormData(e.currentTarget);
+    if (documentoDuplicado) {
+      notificarErro("CPF já cadastrado", `Este CPF já pertence a ${documentoDuplicado.full_name}. Use o paciente existente em vez de cadastrar de novo.`);
+      return;
+    }
     setSalvando(true);
     try {
       const criado = await repository.patients.create({
@@ -137,6 +178,14 @@ export default function NovoAtendimento() {
     const form = new FormData(e.currentTarget);
     const unidade = unidades.find((u) => u.id === unidadeId);
     if (!pacienteAtual || !unidade) return;
+    if (!leitoId) {
+      notificarErro("Leito obrigatório", "Selecione o leito do paciente antes de continuar.");
+      return;
+    }
+    if (!nrAtendimento.trim()) {
+      notificarErro("Nr. Atendimento obrigatório", "Informe o número de atendimento do Tasy antes de continuar — é o que evita internação duplicada e permite confrontar com a importação depois.");
+      return;
+    }
     setSalvando(true);
     try {
       if (leitoId && quartoInlineId) {
@@ -244,8 +293,41 @@ export default function NovoAtendimento() {
                 <>
                   <div className="flex flex-col gap-1.5 sm:w-96">
                     <Label htmlFor="full_name">Nome completo</Label>
-                    <Input id="full_name" name="full_name" required placeholder="Ex.: Marina Salgado Costa" />
+                    <Input
+                      id="full_name"
+                      name="full_name"
+                      required
+                      placeholder="Ex.: Marina Salgado Costa"
+                      value={nomeNovoPaciente}
+                      onChange={(e) => setNomeNovoPaciente(e.target.value)}
+                    />
                   </div>
+                  {possiveisDuplicados.length > 0 && (
+                    <div className="flex flex-col gap-2 rounded-md border border-attention-400/40 bg-attention-100 p-3 text-sm sm:w-96">
+                      <span className="font-medium text-attention-700">
+                        {possiveisDuplicados.length === 1 ? "Já existe um paciente com nome parecido:" : "Já existem pacientes com nome parecido:"}
+                      </span>
+                      <ul className="flex flex-col gap-1">
+                        {possiveisDuplicados.slice(0, 5).map((p) => (
+                          <li key={p.id}>
+                            <button
+                              type="button"
+                              className="text-left text-clinical-600 underline underline-offset-2 hover:text-clinical-700"
+                              onClick={() => {
+                                setModoPaciente("existente");
+                                setPacienteExistenteId(p.id);
+                              }}
+                            >
+                              {p.full_name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-xs text-attention-700">
+                        Confira antes de cadastrar de novo — clique no nome pra usar o paciente já existente.
+                      </p>
+                    </div>
+                  )}
                   <div className="grid gap-3 sm:w-96 sm:grid-cols-2">
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="birth_date">Data de nascimento</Label>
@@ -275,12 +357,26 @@ export default function NovoAtendimento() {
                   </div>
                   <div className="flex flex-col gap-1.5 sm:w-96">
                     <Label htmlFor="document">CPF (opcional)</Label>
-                    <Input id="document" name="document" placeholder="000.000.000-00" />
+                    <Input
+                      id="document"
+                      name="document"
+                      placeholder="000.000.000-00"
+                      value={documentoNovoPaciente}
+                      onChange={(e) => setDocumentoNovoPaciente(e.target.value)}
+                    />
+                    {documentoDuplicado && (
+                      <p className="text-xs font-medium text-critical-600">
+                        Este CPF já pertence a {documentoDuplicado.full_name} — não é possível cadastrar de novo.
+                      </p>
+                    )}
                   </div>
                 </>
               )}
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="submit" disabled={salvando || (modoPaciente === "existente" && !pacienteExistenteId)}>
+                <Button
+                  type="submit"
+                  disabled={salvando || (modoPaciente === "existente" && !pacienteExistenteId) || (modoPaciente === "novo" && !!documentoDuplicado)}
+                >
                   {salvando ? "Salvando…" : "Continuar para internação"} <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -307,7 +403,7 @@ export default function NovoAtendimento() {
                 />
               </div>
               <div className="flex flex-col gap-1.5 sm:w-96">
-                <Label>Leito (opcional)</Label>
+                <Label>Leito</Label>
                 <Select value={leitoId} onValueChange={(v) => { setLeitoId(v); setQuartoInlineId(""); }}>
                   <SelectTrigger><SelectValue placeholder="Selecione um leito livre" /></SelectTrigger>
                   <SelectContent>
@@ -351,12 +447,14 @@ export default function NovoAtendimento() {
                 <Label htmlFor="nr_atendimento_novo">Nr. Atendimento (Tasy)</Label>
                 <Input
                   id="nr_atendimento_novo"
+                  required
                   value={nrAtendimento}
                   onChange={(e) => setNrAtendimento(e.target.value)}
                   placeholder="Ex.: 706065"
                 />
                 <p className="text-xs text-ink-soft">
-                  ID da internação no Tasy — usado pra confrontar com a importação da produção depois.
+                  ID da internação no Tasy — obrigatório. É o que evita internação duplicada e permite confrontar
+                  com a importação da produção depois.
                 </p>
               </div>
               <div className="flex flex-col gap-1.5 sm:w-96">
@@ -384,7 +482,7 @@ export default function NovoAtendimento() {
                 <Button type="button" variant="secondary" onClick={() => setEtapa("concluido")}>
                   Concluir aqui (sem internação)
                 </Button>
-                <Button type="submit" disabled={salvando || !unidadeId}>
+                <Button type="submit" disabled={salvando || !unidadeId || !leitoId || !nrAtendimento.trim()}>
                   {salvando ? "Salvando…" : "Continuar para procedimento"} <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>

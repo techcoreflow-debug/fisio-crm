@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { Suspense, lazy, type ComponentType } from "react";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Suspense, lazy, useEffect, useState, type ComponentType } from "react";
+import { Loader2, AlertTriangle, ExternalLink } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { allModules, ROTA_PADRAO_LANCADOR } from "@/app/modules-registry";
 import { AuthProvider, useAuth } from "@/auth/auth-provider";
@@ -9,7 +9,7 @@ import { permissaoPadrao } from "@/lib/permissions";
 import { Toaster } from "@/components/shared/toaster";
 import Login from "@/modules/auth/login";
 import { Button } from "@/components/ui/button";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 const PesquisaPublica = lazy(() => import("@/modules/pesquisa-satisfacao/publica"));
 
 // Cada módulo vira um chunk próprio, carregado sob demanda ao navegar até
@@ -76,12 +76,45 @@ function TelaCarregando() {
 function AuthGate() {
   const { session, profile, loading, profileLoading, refreshProfile, signOut } = useAuth();
   const permissoes = useRolePermissions();
+  const [somenteRisco, setSomenteRisco] = useState<boolean | null>(null);
+
+  // Sem perfil no fisio: confere se a conta é do inovare.risco (mesmo
+  // login, autorização separada) antes de mostrar o erro genérico —
+  // conta criada só pra risco não deve parecer "conta quebrada" no fisio.
+  useEffect(() => {
+    if (!session || profile) {
+      setSomenteRisco(null);
+      return;
+    }
+    supabase
+      .from("risco_profiles")
+      .select("id")
+      .eq("id", session.user.id)
+      .maybeSingle()
+      .then(({ data }) => setSomenteRisco(!!data));
+  }, [session, profile]);
 
   if (loading) return <TelaCarregando />;
   if (!session) return <Login />;
   if (profileLoading) return <TelaCarregando />;
 
   if (!profile) {
+    if (somenteRisco) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-surface px-4 text-center">
+          <p className="font-display font-semibold text-ink">Essa conta é do inovare.risco</p>
+          <p className="max-w-sm text-sm text-ink-soft">
+            Seu login funciona, mas essa conta não tem acesso ao inovare.fisio — só ao inovare.risco.
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => window.open("https://risco.inovaretech.com", "_blank", "noopener,noreferrer")}>
+              <ExternalLink className="h-4 w-4" /> Ir para inovare.risco
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => signOut()}>Sair</Button>
+          </div>
+        </div>
+      );
+    }
     // Sessão criada, mas o perfil ainda não apareceu (corrida rara logo
     // após o cadastro, ou confirmação de e-mail pendente com o gatilho
     // ainda não processado). Nunca falha silenciosamente: dá a ação certa.
