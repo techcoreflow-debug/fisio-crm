@@ -67,6 +67,14 @@ MARCADORES = [
     ("Pesquisa de satisfação — envio após a alta (v0.45.0)", "src/modules/internacoes/index.tsx", "abrirEnviarPesquisa"),
     ("Pré-lançamento como guia na tela de lançar (v0.46.0)", "src/modules/minha-fila/index.tsx", "Código sugerido na triagem"),
     ("Desempenho da fila de distribuição (v0.46.0)", "src/modules/desempenho-fila/index.tsx", "concluidoSemLancamento"),
+    ("Realtime aplica delta local, sem recarregar tabela inteira (v0.47.0)", "src/data/supabase-collection.ts", "construirFiltroRealtime"),
+    ("Nr. Atendimento e leito obrigatórios em Novo Atendimento (v0.48.0)", "src/modules/novo-atendimento/index.tsx", "Nr. Atendimento obrigatório"),
+    ("Aviso de nome parecido em Novo Atendimento (v0.48.0)", "src/modules/novo-atendimento/index.tsx", "possiveisDuplicados"),
+    ("Bloqueio de CPF duplicado em Novo Atendimento (v0.48.0)", "src/modules/novo-atendimento/index.tsx", "documentoDuplicado"),
+    ("Bloqueio de CPF duplicado em Pacientes (v0.48.0)", "src/modules/pacientes/index.tsx", "documentoDuplicado"),
+    ("Link para inovare.risco — desktop (v0.49.0)", "src/components/layout/topbar.tsx", "risco.inovaretech.com"),
+    ("Link para inovare.risco — tablet (v0.49.0)", "src/components/layout/tablet-shell.tsx", "risco.inovaretech.com"),
+    ("Detecção de conta só-do-risco no login (v0.49.0)", "src/App.tsx", "somenteRisco"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [
