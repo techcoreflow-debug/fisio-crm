@@ -20,6 +20,81 @@ Antes de subir um deploy:
 
 ---
 
+## v0.49.0 — 20/09/2026
+
+**Link cruzado com o inovare.risco** — refeito depois de se perder num
+reset de ambiente (tinha sido feito antes, nunca foi commitado).
+
+- Botão **"Ir para inovare.risco"** no menu do usuário (desktop) e como
+  ícone no topo da tela (tablet), abrindo `risco.inovaretech.com` em nova
+  aba.
+- **Detecção de conta só-do-risco**: se o login funcionar mas não existir
+  perfil no fisio, o sistema confere se a conta tem acesso ao
+  inovare.risco (mesmo login, autorização separada) antes de mostrar o
+  erro genérico de "preparando acesso" — mostra uma tela específica
+  explicando que a conta é do risco, com atalho direto pra lá.
+
+Sem migration — só frontend.
+
+---
+
+## v0.48.0 — 20/09/2026
+
+**Prevenção de cadastro duplicado de paciente** — incidente real de
+produção: ao receber um paciente para a UTI, a equipe não encontrou o
+cadastro dele na busca e criou um paciente novo, junto com uma internação
+sem Nr. de Atendimento (Tasy). Resultado: duplicidade de cadastro e uma
+internação sem como confrontar com a importação depois.
+
+Correções nos módulos **Novo Atendimento** e **Pacientes**:
+- **Nr. Atendimento (Tasy) e Leito agora são obrigatórios** ao registrar
+  uma internação em Novo Atendimento — não dá mais pra concluir sem os
+  dois.
+- **Aviso de nome parecido** — ao digitar o nome de um paciente novo, se
+  já existir alguém com nome semelhante cadastrado (comparação por
+  palavras do nome, tolerante a acento), aparece uma lista clicável com
+  os candidatos; clicar usa o paciente já existente em vez de criar um
+  novo. Não bloqueia — nomes parecidos podem ser pessoas diferentes,
+  então fica como alerta, não impedimento.
+- **Bloqueio duro por CPF** — se o CPF digitado já pertence a outro
+  paciente (comparação só por dígitos, ignora formatação), o cadastro
+  fica bloqueado até trocar o CPF ou usar o paciente existente. Diferente
+  do nome, CPF igual só pode ser a mesma pessoa.
+
+Sem migration — só validação no frontend.
+
+---
+
+## v0.47.0 — 31/08/2026
+
+**Redução de egress do Supabase — mudança estrutural no jeito que o
+app recebe atualizações em tempo real.** Até aqui, qualquer mudança em
+qualquer linha de qualquer tabela (ex.: um lançamento de procedimento)
+fazia **toda tela aberta, de qualquer pessoa**, buscar a tabela inteira
+de novo — com a produção diária já passando de 1.500 linhas, isso
+significava recarregar milhares de linhas a cada lançamento, multiplicado
+por todo mundo com o sistema aberto ao mesmo tempo. Provavelmente o
+maior consumo de egress do projeto.
+
+Agora: cada mudança aplica só o que mudou direto na tela (insere a
+linha nova, atualiza a que mudou, remove a excluída) — sem buscar nada
+do banco de novo. Três reforços:
+- O canal de tempo real agora filtra por empresa direto no servidor
+  (quando o filtro é simples), reduzindo também o volume de eventos
+  recebidos, não só de buscas evitadas.
+- Mudanças em rajada (ex.: conciliação Tasy em massa) continuam
+  agrupadas num intervalo curto, evitando travar a tela — só que agora
+  sem tocar no banco de novo, ganho de egress mantido.
+- O intervalo de segurança (recarrega mesmo sem evento nenhum, caso o
+  Realtime caia) subiu de 2 para 5 minutos — antes era a rede principal
+  de atualização; agora é só um reforço, já que o delta cobre o dia a
+  dia sozinho.
+
+Sem migration — só código, efeito deve aparecer no relatório de uso do
+Supabase nos próximos dias.
+
+---
+
 ## v0.46.0 — 28/08/2026
 
 **Validação da lista de 20/08**: os 6 primeiros itens (idade/dias
