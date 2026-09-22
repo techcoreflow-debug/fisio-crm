@@ -1,5 +1,8 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, useEffect, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Search, Plus, Pencil, UserRound, History } from "lucide-react";
+import { iniciais, corDoAvatar } from "@/lib/iniciais";
+import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +20,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DeleteButton } from "@/components/shared/delete-button";
+import { EmptyState } from "@/components/shared/empty-state";
 import { PatientTimeline } from "@/components/shared/patient-timeline";
 import { Paginacao, usarPaginacao } from "@/components/shared/paginacao";
 import { usePatients, useHealthInsurances, repository } from "@/data/repository";
@@ -38,8 +42,23 @@ export default function Pacientes() {
   const pacientes = usePatients();
   const convenios = useHealthInsurances();
   const empresaId = useAppStore((s) => s.activeCompanyId);
-  const [busca, setBusca] = useState("");
+  const densidade = useAppStore((s) => s.densidade);
+  const compacta = densidade === "compacta";
+  // Busca global (Cmd+K) manda o termo pela URL.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const buscaInicial = searchParams.get("busca") ?? "";
+  const [busca, setBusca] = useState(buscaInicial);
   const [pagina, setPagina] = useState(1);
+
+  useEffect(() => {
+    if (!buscaInicial) return;
+    setSearchParams((atual) => {
+      const novo = new URLSearchParams(atual);
+      novo.delete("busca");
+      return novo;
+    }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [open, setOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [editando, setEditando] = useState<Patient | null>(null);
@@ -258,11 +277,13 @@ export default function Pacientes() {
         </div>
 
         {filtrados.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <UserRound className="h-8 w-8 text-ink-soft" />
-            <p className="font-medium text-ink">Nenhum paciente encontrado</p>
-            <p className="text-sm text-ink-soft">Ajuste os termos da busca ou cadastre um novo paciente.</p>
-          </div>
+          <EmptyState
+            icon={UserRound}
+            title={busca ? "Nenhum paciente encontrado" : "Nenhum paciente cadastrado ainda"}
+            description={busca ? "Ajuste os termos da busca ou cadastre um novo paciente." : "Cadastre o primeiro paciente pra começar a lançar internações e procedimentos."}
+            actionLabel="Cadastrar paciente"
+            onAction={abrirNovo}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -277,22 +298,34 @@ export default function Pacientes() {
                 </tr>
               </thead>
               <tbody>
-                {paginaAtual.map((paciente) => (
-                  <tr key={paciente.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-ink">{paciente.full_name}</p>
+                {paginaAtual.map((paciente) => {
+                  const corAvatar = corDoAvatar(paciente.full_name);
+                  return (
+                  <tr key={paciente.id} className="border-b border-line transition-colors last:border-0 hover:bg-surface-sunken/60">
+                    <td className={compacta ? "px-4 py-1.5" : "px-4 py-3"}>
+                      <div className="flex items-center gap-3">
+                        {!compacta && (
+                          <div
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-display text-xs font-semibold ${corAvatar.bg} ${corAvatar.text}`}
+                            aria-hidden="true"
+                          >
+                            {iniciais(paciente.full_name)}
+                          </div>
+                        )}
+                        <p className="font-medium text-ink">{paciente.full_name}</p>
+                      </div>
                     </td>
-                    <td className="px-4 py-3 text-ink-soft">{idade(paciente.birth_date) ?? "—"}</td>
-                    <td className="px-4 py-3 text-ink-soft">{paciente.sexo === "M" ? "Masculino" : paciente.sexo === "F" ? "Feminino" : "—"}</td>
-                    <td className="px-4 py-3">
+                    <td className={cn("text-ink-soft", compacta ? "px-4 py-1.5" : "px-4 py-3")}>{idade(paciente.birth_date) ?? "—"}</td>
+                    <td className={cn("text-ink-soft", compacta ? "px-4 py-1.5" : "px-4 py-3")}>{paciente.sexo === "M" ? "Masculino" : paciente.sexo === "F" ? "Feminino" : "—"}</td>
+                    <td className={compacta ? "px-4 py-1.5" : "px-4 py-3"}>
                       {paciente.health_insurance_id ? (
                         <Badge variant="clinical">{convenios.find((c) => c.id === paciente.health_insurance_id)?.name ?? "—"}</Badge>
                       ) : (
                         <span className="text-ink-soft">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">{paciente.document ?? "—"}</td>
-                    <td className="px-4 py-3 text-right">
+                    <td className={cn("font-mono text-xs text-ink-soft", compacta ? "px-4 py-1.5" : "px-4 py-3")}>{paciente.document ?? "—"}</td>
+                    <td className={compacta ? "px-4 py-1.5 text-right" : "px-4 py-3 text-right"}>
                       <div className="flex items-center justify-end gap-1">
                         <Button variant="ghost" size="icon" aria-label={`Linha do tempo de ${paciente.full_name}`} onClick={() => setPacienteTimeline(paciente)}>
                           <History className="h-4 w-4" />
@@ -304,7 +337,8 @@ export default function Pacientes() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

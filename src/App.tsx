@@ -56,11 +56,31 @@ const pageComponents: Record<string, ComponentType> = {
 };
 
 function PageFallback() {
+  // Esqueleto que já sugere o formato real da tela (título + cabeçalho,
+  // fileira de KPIs, lista) em vez de dois blocos genéricos — reduz o
+  // "flash" entre trocar de módulo e o conteúdo real aparecer.
   return (
-    <div className="flex flex-col gap-4">
-      <div className="h-7 w-52 animate-pulse rounded-md bg-surface-sunken" />
-      <div className="h-40 w-full animate-pulse rounded-lg bg-surface-sunken" />
-      <div className="h-40 w-full animate-pulse rounded-lg bg-surface-sunken" />
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <div className="h-6 w-56 animate-pulse rounded-md bg-surface-sunken" />
+        <div className="h-3.5 w-80 animate-pulse rounded-md bg-surface-sunken/70" />
+      </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-surface-sunken" style={{ animationDelay: `${i * 75}ms` }} />
+        ))}
+      </div>
+      <div className="flex flex-col gap-2 rounded-xl border border-line bg-surface-raised p-4">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="flex items-center gap-3 py-2">
+            <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-surface-sunken" style={{ animationDelay: `${i * 60}ms` }} />
+            <div className="flex flex-1 flex-col gap-1.5">
+              <div className="h-3.5 w-1/3 animate-pulse rounded bg-surface-sunken" style={{ animationDelay: `${i * 60}ms` }} />
+              <div className="h-3 w-2/3 animate-pulse rounded bg-surface-sunken/70" style={{ animationDelay: `${i * 60}ms` }} />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

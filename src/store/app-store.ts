@@ -14,6 +14,14 @@ function lerRecolhidaSalva(): boolean {
  * papel — a mesma pessoa pode usar tablet no plantão e PC no escritório,
  * então isso fica salvo por APARELHO (localStorage), não por conta.
  */
+function lerDensidadeSalva(): "confortavel" | "compacta" {
+  try {
+    return localStorage.getItem("fisio:densidade") === "compacta" ? "compacta" : "confortavel";
+  } catch {
+    return "confortavel";
+  }
+}
+
 function lerModoExibicaoSalvo(): "tablet" | "desktop" | null {
   try {
     const salvo = localStorage.getItem("fisio:modo-exibicao");
@@ -39,6 +47,12 @@ interface AppState {
   setModoExibicao: (modo: "tablet" | "desktop") => void;
   theme: "light" | "dark";
   toggleTheme: () => void;
+  /** Command palette (Cmd/Ctrl+K) — busca global de módulos e pacientes. */
+  commandPaletteOpen: boolean;
+  setCommandPaletteOpen: (open: boolean) => void;
+  /** Densidade das listas — "confortável" (padrão) ou "compacta" (mais linhas na tela). Por aparelho. */
+  densidade: "confortavel" | "compacta";
+  toggleDensidade: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -72,5 +86,18 @@ export const useAppStore = create<AppState>((set) => ({
       const next = s.theme === "light" ? "dark" : "light";
       document.documentElement.classList.toggle("dark", next === "dark");
       return { theme: next };
+    }),
+  commandPaletteOpen: false,
+  setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+  densidade: lerDensidadeSalva(),
+  toggleDensidade: () =>
+    set((s) => {
+      const next = s.densidade === "confortavel" ? "compacta" : "confortavel";
+      try {
+        localStorage.setItem("fisio:densidade", next);
+      } catch {
+        // sem persistência nesse aparelho, tudo bem
+      }
+      return { densidade: next };
     }),
 }));

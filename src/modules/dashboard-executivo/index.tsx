@@ -19,14 +19,13 @@ import { Badge } from "@/components/ui/badge";
 import {
   useBeds,
   useAdmissions,
-  usePatients,
   useClinicalEvolutions,
   usePhysiotherapists,
   useDailyProduction,
   useContracts,
   useHealthInsurances,
-  useHospitals,
 } from "@/data/repository";
+import { useAlertasOperacionais } from "@/data/alertas-operacionais";
 
 function numeroDaSemanaISO(data: Date) {
   const d = new Date(Date.UTC(data.getFullYear(), data.getMonth(), data.getDate()));
@@ -39,13 +38,11 @@ function numeroDaSemanaISO(data: Date) {
 export default function DashboardExecutivo() {
   const leitos = useBeds();
   const internacoes = useAdmissions();
-  const pacientes = usePatients();
   const evolucoes = useClinicalEvolutions();
   const fisioterapeutas = usePhysiotherapists();
   const producao = useDailyProduction();
   const contratos = useContracts();
   const convenios = useHealthInsurances();
-  const hospitais = useHospitals();
 
   const ocupacaoLeitos = leitos.length > 0 ? Math.round((leitos.filter((l) => l.status === "ocupado").length / leitos.length) * 100) : 0;
 
@@ -91,40 +88,8 @@ export default function DashboardExecutivo() {
     return Array.from(porConvenio.entries()).map(([convenio, valor]) => ({ convenio, valor }));
   }, [contratos, convenios]);
 
-  const contratosVencendo = contratos.filter((c) => {
-    if (!c.end_date || c.status !== "ativo") return false;
-    const dias = (new Date(c.end_date).getTime() - Date.now()) / 86400000;
-    return dias >= 0 && dias <= 60;
-  });
-
-  const unidadesLotadas = useMemo(() => {
-    const porUnidade = new Map<string, { total: number; ocupados: number }>();
-    for (const l of leitos) {
-      const atual = porUnidade.get(l.unit_id) ?? { total: 0, ocupados: 0 };
-      atual.total += 1;
-      if (l.status === "ocupado") atual.ocupados += 1;
-      porUnidade.set(l.unit_id, atual);
-    }
-    return Array.from(porUnidade.entries()).filter(([, v]) => v.total > 0 && v.ocupados / v.total >= 0.9);
-  }, [leitos]);
-
-  const alertas = [
-    ...internacoesSemEvolucao.map((i) => ({
-      titulo: `Internação sem evolução clínica registrada`,
-      detalhe: pacientes.find((p) => p.id === i.patient_id)?.full_name ?? `Internação ${i.id.slice(0, 8)}`,
-      tom: "critical" as const,
-    })),
-    ...contratosVencendo.map((c) => ({
-      titulo: "Contrato vencendo nos próximos 60 dias",
-      detalhe: `${hospitais.find((h) => h.id === c.hospital_id)?.name ?? "—"} · vence em ${new Date(c.end_date!).toLocaleDateString("pt-BR")}`,
-      tom: "attention" as const,
-    })),
-    ...unidadesLotadas.map(([, v]) => ({
-      titulo: "Unidade com ocupação acima de 90%",
-      detalhe: `${v.ocupados} de ${v.total} leitos ocupados`,
-      tom: "attention" as const,
-    })),
-  ];
+  // Mesma lógica de alerta usada no sino de notificações (central única).
+  const alertas = useAlertasOperacionais();
 
   return (
     <div className="flex flex-col gap-6">
@@ -218,8 +183,8 @@ export default function DashboardExecutivo() {
                 <CheckCircle2 className="h-4 w-4 text-recovery-500" /> Nenhum alerta no momento.
               </div>
             ) : (
-              alertas.map((alerta, i) => (
-                <div key={i} className="flex gap-2.5 rounded-md border border-line p-3">
+              alertas.map((alerta) => (
+                <div key={alerta.id} className="flex gap-2.5 rounded-md border border-line p-3">
                   <TriangleAlert
                     className={`h-4 w-4 shrink-0 mt-0.5 ${alerta.tom === "critical" ? "text-critical-400" : "text-attention-400"}`}
                   />

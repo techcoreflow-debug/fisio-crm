@@ -1,5 +1,8 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, useEffect, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import { hojeLocalIso, calcularIdade, calcularDiasInternacao } from "@/lib/data-local";
+import { iniciais, corDoAvatar } from "@/lib/iniciais";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { Search, Plus, Pencil, BedDouble, LogOut, AlertTriangle, ClipboardPlus, Printer, Users, X, ArrowRightLeft, CornerDownLeft, Star } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -35,6 +38,7 @@ import {
 } from "@/data/repository";
 import { Combobox } from "@/components/ui/combobox";
 import { DeleteButton } from "@/components/shared/delete-button";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Paginacao, usarPaginacao } from "@/components/shared/paginacao";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useDraftState } from "@/lib/use-draft-state";
@@ -75,6 +79,8 @@ export default function Internacoes() {
   const { profile } = useAuth();
   const quartos = useRooms();
   const empresaId = useAppStore((s) => s.activeCompanyId);
+  const densidade = useAppStore((s) => s.densidade);
+  const compacta = densidade === "compacta";
   const hojeIsoFila = hojeLocalIso();
 
   async function handleDesfazerDistribuicao(itemId: string, nomePaciente: string) {
@@ -151,10 +157,28 @@ export default function Internacoes() {
     [producao, hojeIso]
   );
 
-  const [busca, setBusca] = useState("");
+  // Busca global (Cmd+K) manda o termo pela URL — chega aqui já filtrado,
+  // e como pode ser um paciente com alta, abre em "todos" pra não sumir.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const buscaInicial = searchParams.get("busca") ?? "";
+  const [busca, setBusca] = useState(buscaInicial);
   const [filtroHospital, setFiltroHospital] = useState<string>("todos");
   const [filtroUnidade, setFiltroUnidade] = useState<string>("todas");
-  const [filtroStatus, setFiltroStatus] = useState<"todos" | "internado" | "alta" | "transferido">("internado");
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "internado" | "alta" | "transferido">(
+    buscaInicial ? "todos" : "internado"
+  );
+
+  useEffect(() => {
+    if (!buscaInicial) return;
+    // Limpa o parâmetro da URL depois de aplicar, pra não sobrescrever
+    // se o usuário mudar a busca manualmente e voltar pra essa tela.
+    setSearchParams((atual) => {
+      const novo = new URLSearchParams(atual);
+      novo.delete("busca");
+      return novo;
+    }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [filtroEntradaDe, setFiltroEntradaDe] = useState("");
   const [filtroEntradaAte, setFiltroEntradaAte] = useState("");
   const [apenasPendentes, setApenasPendentes] = useState(false);
@@ -1029,11 +1053,11 @@ export default function Internacoes() {
         </div>
 
         {filtradas.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <BedDouble className="h-8 w-8 text-ink-soft" />
-            <p className="font-medium text-ink">Nenhum paciente internado encontrado</p>
-            <p className="text-sm text-ink-soft">Ajuste os filtros ou registre uma nova internação.</p>
-          </div>
+          <EmptyState
+            icon={BedDouble}
+            title="Nenhum paciente internado encontrado"
+            description="Ajuste os filtros acima ou registre uma nova internação em Novo Atendimento."
+          />
         ) : (
           <div className="divide-y divide-line">
             {paginaAtual.map((i) => {
@@ -1045,14 +1069,29 @@ export default function Internacoes() {
               const unidade = unidades.find((u) => u.id === i.unit_id)?.name ?? "—";
               const hospital = hospitais.find((h) => h.id === i.hospital_id)?.name ?? "—";
               const convenio = convenios.find((c) => c.id === i.health_insurance_id)?.name ?? "—";
+              const corAvatar = corDoAvatar(paciente);
               return (
-                <div key={i.id} className="flex items-start gap-3 px-4 py-3.5 hover:bg-surface-sunken/60">
+                <div
+                  key={i.id}
+                  className={cn(
+                    "group flex items-start gap-3 px-4 transition-colors hover:bg-surface-sunken/60",
+                    compacta ? "py-1.5" : "py-3.5"
+                  )}
+                >
                   <input
                     type="checkbox"
                     checked={selecionados.has(i.id)}
                     onChange={() => toggleSelecionado(i.id)}
                     className="mt-1 h-4 w-4 shrink-0 rounded border-line-strong accent-clinical-500"
                   />
+                  {!compacta && (
+                    <div
+                      className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-xs font-semibold ${corAvatar.bg} ${corAvatar.text}`}
+                      aria-hidden="true"
+                    >
+                      {iniciais(paciente)}
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <p className="font-medium text-ink">{paciente}</p>

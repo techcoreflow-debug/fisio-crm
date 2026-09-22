@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { Menu, Search, ChevronsUpDown, LogOut, Settings, Moon, Sun, ShieldCheck, KeyRound, Tablet, ExternalLink } from "lucide-react";
+import { Menu, Search, ChevronsUpDown, LogOut, Settings, Moon, Sun, ShieldCheck, KeyRound, Tablet, ExternalLink, Rows3, Rows4 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/store/app-store";
 import { useCompanies } from "@/data/repository";
 import { useAuth } from "@/auth/auth-provider";
 import { supabase } from "@/lib/supabase";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
-import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { SinoNovidades } from "@/components/shared/sino-novidades";
+import { iniciais } from "@/lib/iniciais";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,11 +23,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-function iniciais(nome: string) {
-  const partes = nome.trim().split(" ");
-  return (partes[0]?.[0] ?? "?").concat(partes[1]?.[0] ?? "").toUpperCase();
-}
-
 export function Topbar() {
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
   const activeCompanyId = useAppStore((s) => s.activeCompanyId);
@@ -35,6 +30,9 @@ export function Topbar() {
   const theme = useAppStore((s) => s.theme);
   const toggleTheme = useAppStore((s) => s.toggleTheme);
   const setModoExibicao = useAppStore((s) => s.setModoExibicao);
+  const setCommandPaletteOpen = useAppStore((s) => s.setCommandPaletteOpen);
+  const densidade = useAppStore((s) => s.densidade);
+  const toggleDensidade = useAppStore((s) => s.toggleDensidade);
   const companies = useCompanies();
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
@@ -116,17 +114,28 @@ export function Topbar() {
         </Badge>
       )}
 
-      <div className="relative ml-2 hidden max-w-sm flex-1 md:block">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-        <Input
-          placeholder="Busca global — em breve"
-          className="pl-9"
-          disabled
-          title="Busca global ainda não foi implementada"
-        />
-      </div>
+      <button
+        type="button"
+        onClick={() => setCommandPaletteOpen(true)}
+        className="relative ml-2 hidden max-w-sm flex-1 items-center gap-2 rounded-md border border-line bg-surface px-3 py-2 text-left text-sm text-ink-soft hover:border-line-strong hover:bg-surface-sunken md:flex"
+      >
+        <Search className="h-4 w-4 shrink-0" />
+        <span className="flex-1 truncate">Buscar paciente, nº Tasy, leito…</span>
+        <span className="flex shrink-0 gap-1">
+          <kbd className="rounded border border-line bg-surface-raised px-1.5 py-0.5 font-mono text-[10px]">⌘</kbd>
+          <kbd className="rounded border border-line bg-surface-raised px-1.5 py-0.5 font-mono text-[10px]">K</kbd>
+        </span>
+      </button>
 
       <div className="ml-auto flex items-center gap-1.5">
+        <button
+          className="rounded-md p-2 text-ink-soft hover:bg-surface-sunken"
+          onClick={toggleDensidade}
+          aria-label={densidade === "confortavel" ? "Usar densidade compacta" : "Usar densidade confortável"}
+          title={densidade === "confortavel" ? "Densidade: confortável (clique pra compacta)" : "Densidade: compacta (clique pra confortável)"}
+        >
+          {densidade === "confortavel" ? <Rows3 className="h-4.5 w-4.5" /> : <Rows4 className="h-4.5 w-4.5" />}
+        </button>
         <button
           className="rounded-md p-2 text-ink-soft hover:bg-surface-sunken"
           onClick={toggleTheme}

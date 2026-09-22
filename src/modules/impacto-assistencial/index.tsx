@@ -17,6 +17,7 @@ import {
 import { Clock, Users, ClipboardList, CalendarCheck, Building2, LogOut, HeartPulse, ClipboardEdit } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { GoniometerGauge } from "@/components/shared/goniometer-gauge";
+import { TrendDelta } from "@/components/shared/trend-delta";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,16 @@ function inicioDaSemanaIso(dataIso: string) {
 function mesIso(dataIso: string) {
   return dataIso.slice(0, 7);
 }
+function adicionarDiasIso(dataIso: string, dias: number) {
+  const d = new Date(`${dataIso}T00:00:00`);
+  d.setDate(d.getDate() + dias);
+  return dataParaIsoLocal(d);
+}
+function diferencaDiasIso(deIso: string, ateIso: string) {
+  const de = new Date(`${deIso}T00:00:00`).getTime();
+  const ate = new Date(`${ateIso}T00:00:00`).getTime();
+  return Math.round((ate - de) / 86400000);
+}
 function rotuloMes(mesIsoStr: string) {
   const [ano, mes] = mesIsoStr.split("-");
   const nomes = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -84,6 +95,35 @@ export default function ImpactoAssistencial() {
         return internacao?.hospital_id === filtroHospital;
       }),
     [producao, periodoDe, periodoAte, filtroHospital, internacoes]
+  );
+
+  // Período anterior, mesma duração — pra comparar de verdade (nunca
+  // número inventado). Ex.: período de 15 dias compara com os 15 dias
+  // imediatamente antes dele.
+  const { anteriorDe, anteriorAte } = useMemo(() => {
+    const duracaoDias = diferencaDiasIso(periodoDe, periodoAte) + 1;
+    const ate = adicionarDiasIso(periodoDe, -1);
+    const de = adicionarDiasIso(ate, -(duracaoDias - 1));
+    return { anteriorDe: de, anteriorAte: ate };
+  }, [periodoDe, periodoAte]);
+
+  const producaoPeriodoAnterior = useMemo(
+    () =>
+      producao.filter((p) => {
+        if (p.production_date < anteriorDe || p.production_date > anteriorAte) return false;
+        if (filtroHospital === TODOS) return true;
+        const internacao = internacoes.find((i) => i.id === p.admission_id);
+        return internacao?.hospital_id === filtroHospital;
+      }),
+    [producao, anteriorDe, anteriorAte, filtroHospital, internacoes]
+  );
+
+  const pacientesAtendidosAnterior = useMemo(
+    () =>
+      new Set(
+        producaoPeriodoAnterior.map((p) => internacoes.find((i) => i.id === p.admission_id)?.patient_id).filter(Boolean)
+      ).size,
+    [producaoPeriodoAnterior, internacoes]
   );
 
   const tempoMedioResposta = useMemo(() => {
@@ -255,6 +295,20 @@ export default function ImpactoAssistencial() {
     return { media: Math.round(media * 10) / 10, total: altasNoPeriodo.length };
   }, [internacoes, periodoDe, periodoAte, filtroHospital]);
 
+  const tempoMedioInternacaoAnterior = useMemo(() => {
+    const altasNoPeriodo = internacoes.filter(
+      (int) =>
+        int.status === "alta" &&
+        int.discharge_date &&
+        int.discharge_date >= anteriorDe &&
+        int.discharge_date <= anteriorAte &&
+        (filtroHospital === TODOS || int.hospital_id === filtroHospital)
+    );
+    if (altasNoPeriodo.length === 0) return null;
+    const dias = altasNoPeriodo.map((int) => calcularDiasInternacao(int.admission_date, int.discharge_date));
+    return Math.round((dias.reduce((a, b) => a + b, 0) / dias.length) * 10) / 10;
+  }, [internacoes, anteriorDe, anteriorAte, filtroHospital]);
+
   const distribuicaoConvenio = useMemo(() => {
     const porConvenio = new Map<string, number>();
     const idsVistos = new Set<string>();
@@ -424,6 +478,7 @@ export default function ImpactoAssistencial() {
               <p className="text-[11px] text-ink-soft">
                 Acumulado do período · {internadosAgoraCard} internado(s) agora
               </p>
+              <TrendDelta atual={pacientesAtendidos} anterior={pacientesAtendidosAnterior} className="mt-1" />
             </div>
           </CardContent>
         </Card>
@@ -435,6 +490,7 @@ export default function ImpactoAssistencial() {
             <div>
               <p className="text-xs uppercase tracking-wide text-ink-soft">Procedimentos realizados</p>
               <p className="font-display text-2xl font-semibold text-recovery-600">{producaoPeriodo.length}</p>
+              <TrendDelta atual={producaoPeriodo.length} anterior={producaoPeriodoAnterior.length} className="mt-1" />
             </div>
           </CardContent>
         </Card>
@@ -622,6 +678,13 @@ export default function ImpactoAssistencial() {
               sublabel={tempoMedioInternacao ? `${tempoMedioInternacao.total} alta(s) no período` : "sem altas no período"}
               tone="clinical"
             />
+            {tempoMedioInternacao && (
+              <TrendDelta
+                atual={tempoMedioInternacao.media}
+                anterior={tempoMedioInternacaoAnterior ?? 0}
+                subirEhBom={false}
+              />
+            )}
           </CardContent>
         </Card>
       </div>

@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { TabletShell } from "@/components/layout/tablet-shell";
 import { OfflineBanner } from "@/components/shared/offline-banner";
+import { CommandPalette } from "@/components/shared/command-palette";
 import { useAuth } from "@/auth/auth-provider";
 import { useAppStore } from "@/store/app-store";
 import { useCompanies } from "@/data/repository";
@@ -39,6 +40,7 @@ export function AppShell() {
   if (modoEfetivo === "tablet") {
     return (
       <TabletShell>
+        <CommandPalette />
         <Outlet />
       </TabletShell>
     );
@@ -46,6 +48,7 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface">
+      <CommandPalette />
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar />
