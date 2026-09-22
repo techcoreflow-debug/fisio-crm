@@ -34,7 +34,7 @@ import {
   useHospitalCensus,
   repository,
 } from "@/data/repository";
-import { hojeLocalIso, dataParaIsoLocal, calcularIdade } from "@/lib/data-local";
+import { hojeLocalIso, dataParaIsoLocal, calcularIdade, calcularDiasInternacao } from "@/lib/data-local";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useAppStore } from "@/store/app-store";
 
@@ -161,6 +161,15 @@ export default function ImpactoAssistencial() {
   const pacientesAtendidos = new Set(
     producaoPeriodo.map((p) => internacoes.find((i) => i.id === p.admission_id)?.patient_id).filter(Boolean)
   ).size;
+  // "Internados agora" (censo do momento) é uma métrica DIFERENTE de
+  // "Pacientes atendidos no período" (acumulado de todo mundo que teve
+  // pelo menos 1 procedimento lançado dentro do período escolhido — inclui
+  // quem já teve alta nesse meio tempo, e não inclui internado sem
+  // nenhum lançamento ainda). Não é bug elas não baterem — mas como
+  // confunde, mostramos as duas lado a lado pra ficar claro.
+  const internadosAgoraCard = internacoes.filter(
+    (i) => i.status === "internado" && (filtroHospital === TODOS || i.hospital_id === filtroHospital)
+  ).length;
   const diasAcompanhados = new Set(producaoPeriodo.map((p) => `${p.admission_id}|${p.production_date}`)).size;
 
   const [filtroUnidadeEfetividade, setFiltroUnidadeEfetividade] = useState(TODOS);
@@ -225,6 +234,26 @@ export default function ImpactoAssistencial() {
     const obitos = altasNoPeriodo.filter((int) => int.discharge_type === "obito").length;
     return { taxa: Math.round((obitos / altasNoPeriodo.length) * 100), total: altasNoPeriodo.length, obitos };
   }, [internacoes, periodoDe, periodoAte]);
+
+  // Tempo médio de internação (indicador ONA) — média de dias entre entrada
+  // e alta, considerando as altas do período. Pra quem ainda está
+  // internado, calcularDiasInternacao usa hoje como referência, então só
+  // entram aqui internações já com alta (senão o indicador ficaria subindo
+  // sozinho todo dia sem ninguém ter recebido alta de verdade).
+  const tempoMedioInternacao = useMemo(() => {
+    const altasNoPeriodo = internacoes.filter(
+      (int) =>
+        int.status === "alta" &&
+        int.discharge_date &&
+        int.discharge_date >= periodoDe &&
+        int.discharge_date <= periodoAte &&
+        (filtroHospital === TODOS || int.hospital_id === filtroHospital)
+    );
+    if (altasNoPeriodo.length === 0) return null;
+    const dias = altasNoPeriodo.map((int) => calcularDiasInternacao(int.admission_date, int.discharge_date));
+    const media = dias.reduce((a, b) => a + b, 0) / dias.length;
+    return { media: Math.round(media * 10) / 10, total: altasNoPeriodo.length };
+  }, [internacoes, periodoDe, periodoAte, filtroHospital]);
 
   const distribuicaoConvenio = useMemo(() => {
     const porConvenio = new Map<string, number>();
@@ -392,6 +421,9 @@ export default function ImpactoAssistencial() {
             <div>
               <p className="text-xs uppercase tracking-wide text-ink-soft">Pacientes atendidos no período</p>
               <p className="font-display text-2xl font-semibold text-ink">{pacientesAtendidos}</p>
+              <p className="text-[11px] text-ink-soft">
+                Acumulado do período · {internadosAgoraCard} internado(s) agora
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -560,21 +592,39 @@ export default function ImpactoAssistencial() {
         </Card>
       </div>
 
-      <Card className="border-critical-400/30">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><HeartPulse className="h-4.5 w-4.5" /> Efetividade Assistencial — Controle de Óbitos</CardTitle>
-          <p className="text-sm text-ink-soft mt-0.5">Indicador de acompanhamento assistencial (ONA) — % de óbitos sobre o total de altas do período.</p>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center gap-1 pt-2 pb-6">
-          <GoniometerGauge
-            value={taxaObitoNoPeriodo?.taxa ?? 0}
-            displayValue={`${taxaObitoNoPeriodo?.taxa ?? 0}%`}
-            label="Taxa de óbito"
-            sublabel={taxaObitoNoPeriodo ? `${taxaObitoNoPeriodo.obitos} de ${taxaObitoNoPeriodo.total} altas no período` : "sem altas no período"}
-            tone="attention"
-          />
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card className="border-critical-400/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><HeartPulse className="h-4.5 w-4.5" /> Efetividade Assistencial — Controle de Óbitos</CardTitle>
+            <p className="text-sm text-ink-soft mt-0.5">Indicador de acompanhamento assistencial (ONA) — % de óbitos sobre o total de altas do período.</p>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-1 pt-2 pb-6">
+            <GoniometerGauge
+              value={taxaObitoNoPeriodo?.taxa ?? 0}
+              displayValue={`${taxaObitoNoPeriodo?.taxa ?? 0}%`}
+              label="Taxa de óbito"
+              sublabel={taxaObitoNoPeriodo ? `${taxaObitoNoPeriodo.obitos} de ${taxaObitoNoPeriodo.total} altas no período` : "sem altas no período"}
+              tone="attention"
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Clock className="h-4.5 w-4.5" /> Tempo Médio de Internação</CardTitle>
+            <p className="text-sm text-ink-soft mt-0.5">Indicador ONA — média de dias entre entrada e alta, das altas do período.</p>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-1 pt-2 pb-6">
+            <GoniometerGauge
+              value={tempoMedioInternacao ? Math.min(100, tempoMedioInternacao.media * 5) : 0}
+              displayValue={tempoMedioInternacao ? `${tempoMedioInternacao.media.toFixed(1)}d` : "—"}
+              label="Tempo médio"
+              sublabel={tempoMedioInternacao ? `${tempoMedioInternacao.total} alta(s) no período` : "sem altas no período"}
+              tone="clinical"
+            />
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>

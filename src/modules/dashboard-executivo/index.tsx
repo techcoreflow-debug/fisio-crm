@@ -11,6 +11,7 @@ import {
   Bar,
 } from "recharts";
 import { TriangleAlert, CheckCircle2 } from "lucide-react";
+import { calcularDiasInternacao } from "@/lib/data-local";
 import { PageHeader } from "@/components/shared/page-header";
 import { GoniometerGauge } from "@/components/shared/goniometer-gauge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,6 +59,16 @@ export default function DashboardExecutivo() {
   const produtividadeEquipe = Math.min(100, Math.round((producao.length / metaProducaoDiaria) * 100));
 
   const contratosAtivos = contratos.length > 0 ? Math.round((contratos.filter((c) => c.status === "ativo").length / contratos.length) * 100) : 0;
+
+  // Tempo médio de internação GERAL (indicador ONA) — todas as altas já
+  // registradas, sem recorte de período (diferente do indicador em
+  // Efetividade Assistencial, que é por período escolhido).
+  const tempoMedioInternacaoGeral = useMemo(() => {
+    const altas = internacoes.filter((i) => i.status === "alta" && i.discharge_date);
+    if (altas.length === 0) return null;
+    const dias = altas.map((i) => calcularDiasInternacao(i.admission_date, i.discharge_date));
+    return Math.round((dias.reduce((a, b) => a + b, 0) / dias.length) * 10) / 10;
+  }, [internacoes]);
 
   const producaoPorSemana = useMemo(() => {
     const porSemana = new Map<number, number>();
@@ -123,7 +134,7 @@ export default function DashboardExecutivo() {
       />
 
       {/* KPIs em arco de amplitude — assinatura visual do Fisio */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <Card>
           <CardContent className="flex justify-center pt-6">
             <GoniometerGauge
@@ -147,6 +158,17 @@ export default function DashboardExecutivo() {
         <Card>
           <CardContent className="flex justify-center pt-6">
             <GoniometerGauge value={contratosAtivos} label="Contratos ativos" sublabel="Sobre o total de contratos" tone="clinical" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex justify-center pt-6">
+            <GoniometerGauge
+              value={tempoMedioInternacaoGeral ? Math.min(100, tempoMedioInternacaoGeral * 5) : 0}
+              displayValue={tempoMedioInternacaoGeral ? `${tempoMedioInternacaoGeral.toFixed(1)}d` : "—"}
+              label="Tempo médio de internação"
+              sublabel="Geral — indicador ONA, todas as altas"
+              tone="recovery"
+            />
           </CardContent>
         </Card>
       </div>

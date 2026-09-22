@@ -20,6 +20,24 @@ Antes de subir um deploy:
 
 ---
 
+## v0.51.0 — 21/09/2026
+
+**Mais itens da lista de ajustes** — indicadores e relatórios.
+
+- **Efetividade Assistencial**: o card "Pacientes atendidos no período"
+  agora mostra também "X internado(s) agora" embaixo, deixando claro que
+  são duas contagens diferentes (uma é acumulado do período escolhido,
+  a outra é o censo agora) — resolve a sensação de "não bate".
+- **Tempo Médio de Internação (indicador ONA)**: novo gauge em Efetividade
+  Assistencial (por período) e no Dashboard Executivo (geral, todas as
+  altas) — média de dias entre entrada e alta.
+- **Status da internação nos relatórios de Produção**: "Produção diária
+  consolidada" e "Produção contabilizada" (exportação CSV) agora trazem a
+  coluna "Status da Internação" (Internado / Alta Hospitalar / Alta Óbito
+  / Transferido) — o relatório de Pacientes Internados já tinha isso.
+
+---
+
 ## v0.50.0 — 21/09/2026
 
 **Ajustes pedidos pelo usuário em Pacientes Internados** — a partir de

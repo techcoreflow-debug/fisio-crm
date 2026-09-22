@@ -87,6 +87,16 @@ export default function Relatorios() {
     return pacientes.find((p) => p.id === internacao?.patient_id)?.full_name ?? "—";
   }
 
+  // Status da internação + sub-status da alta (Hospitalar/Óbito), pra usar
+  // nos relatórios de Internação e Produção — pedido explícito: os
+  // relatórios não mostravam isso, só o cadastro na tela.
+  function statusInternacao(internacao: ReturnType<typeof internacoes.find>) {
+    if (!internacao) return "—";
+    if (internacao.status === "alta") return internacao.discharge_type === "obito" ? "Alta (Óbito)" : "Alta (Hospitalar)";
+    if (internacao.status === "transferido") return `Transferido (${internacao.transfer_destino ?? "—"})`;
+    return "Internado";
+  }
+
   const hoje = hojeLocalIso();
   const primeiroDiaMes = `${hoje.slice(0, 7)}-01`;
   const [periodoDe, setPeriodoDe] = useState(primeiroDiaMes);
@@ -117,6 +127,7 @@ export default function Relatorios() {
         Procedimento: procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—",
         Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
         Conciliação: p.confirmado_tasy ? "Confirmado" : "Não confirmado",
+        "Status da Internação": statusInternacao(internacoes.find((i) => i.id === p.admission_id)),
       }));
       exportarCsv("producao-contabilizada", linhas);
       notificarSucesso(`Relatório exportado (${linhas.length} linha(s)).`);
@@ -150,6 +161,7 @@ export default function Relatorios() {
             Procedimento: procedimentos.find((pr) => pr.id === p.procedure_id)?.name ?? "—",
             Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
             Conciliação: p.confirmado_tasy ? "Confirmado" : "Não confirmado",
+            "Status da Internação": statusInternacao(internacao),
           };
         }),
     },
@@ -172,14 +184,7 @@ export default function Relatorios() {
             Ala: unidade?.name ?? "—",
             Leito: leito?.code ?? "—",
             Convênio: convenios.find((c) => c.id === i.health_insurance_id)?.name ?? "—",
-            Status:
-              i.status === "alta"
-                ? i.discharge_type === "obito"
-                  ? "Alta (Óbito)"
-                  : "Alta"
-                : i.status === "transferido"
-                  ? `Transferido (${i.transfer_destino ?? "—"})`
-                  : "Internado",
+            Status: statusInternacao(i),
             "Dias de Internação": calcularDiasInternacao(i.admission_date, i.discharge_date),
             Diagnóstico: i.diagnostico ?? "—",
           };

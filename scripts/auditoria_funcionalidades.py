@@ -81,6 +81,10 @@ MARCADORES = [
     ("Desfazer distribuição da fila (v0.50.0)", "src/modules/internacoes/index.tsx", "handleDesfazerDistribuicao"),
     ("Quebra de alta — só ADM (v0.50.0)", "src/modules/internacoes/index.tsx", "handleQuebrarAlta"),
     ("Quebra de alta — repository (v0.50.0)", "src/data/repository.ts", "cancelarAlta"),
+    ("Internados agora ao lado de Pacientes atendidos, em Efetividade Assistencial (v0.51.0)", "src/modules/impacto-assistencial/index.tsx", "internadosAgoraCard"),
+    ("Tempo Médio de Internação — indicador ONA em Efetividade Assistencial (v0.51.0)", "src/modules/impacto-assistencial/index.tsx", "tempoMedioInternacao"),
+    ("Tempo Médio de Internação — Dashboard Executivo geral (v0.51.0)", "src/modules/dashboard-executivo/index.tsx", "tempoMedioInternacaoGeral"),
+    ("Status da internação nos relatórios de Produção (v0.51.0)", "src/modules/relatorios/index.tsx", "statusInternacao"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [
