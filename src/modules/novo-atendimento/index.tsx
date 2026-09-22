@@ -121,6 +121,15 @@ export default function NovoAtendimento() {
     return pacientes.find((p) => (p.document ?? "").replace(/\D/g, "") === digitos) ?? null;
   }, [modoPaciente, documentoNovoPaciente, pacientes]);
 
+  // Nr. Atendimento Tasy duplicado — mesmo incidente relatado: fisio criando
+  // uma internação nova com o Nr. Atendimento que já pertence a outra
+  // internação (ex.: paciente que já estava na UTI).
+  const nrAtendimentoDuplicado = useMemo(() => {
+    const termo = nrAtendimento.trim().toLowerCase();
+    if (!termo) return null;
+    return internacoes.find((i) => (i.external_reference ?? "").trim().toLowerCase() === termo) ?? null;
+  }, [nrAtendimento, internacoes]);
+
   function reiniciar() {
     setEtapa("paciente");
     setModoPaciente("existente");
@@ -184,6 +193,11 @@ export default function NovoAtendimento() {
     }
     if (!nrAtendimento.trim()) {
       notificarErro("Nr. Atendimento obrigatório", "Informe o número de atendimento do Tasy antes de continuar — é o que evita internação duplicada e permite confrontar com a importação depois.");
+      return;
+    }
+    if (nrAtendimentoDuplicado) {
+      const pacienteDuplicado = pacientes.find((p) => p.id === nrAtendimentoDuplicado.patient_id)?.full_name ?? "outro paciente";
+      notificarErro("Nr. Atendimento já usado", `Este Nr. Atendimento Tasy já está em uso na internação de ${pacienteDuplicado}. Confira o número antes de continuar.`);
       return;
     }
     setSalvando(true);
@@ -456,6 +470,12 @@ export default function NovoAtendimento() {
                   ID da internação no Tasy — obrigatório. É o que evita internação duplicada e permite confrontar
                   com a importação da produção depois.
                 </p>
+                {nrAtendimentoDuplicado && (
+                  <p className="text-xs font-medium text-critical-600">
+                    Este Nr. Atendimento já está em uso na internação de{" "}
+                    {pacientes.find((p) => p.id === nrAtendimentoDuplicado.patient_id)?.full_name ?? "outro paciente"}. Confira o número.
+                  </p>
+                )}
               </div>
               <div className="flex flex-col gap-1.5 sm:w-96">
                 <Label htmlFor="diagnostico_novo">Diagnóstico</Label>
@@ -482,7 +502,7 @@ export default function NovoAtendimento() {
                 <Button type="button" variant="secondary" onClick={() => setEtapa("concluido")}>
                   Concluir aqui (sem internação)
                 </Button>
-                <Button type="submit" disabled={salvando || !unidadeId || !leitoId || !nrAtendimento.trim()}>
+                <Button type="submit" disabled={salvando || !unidadeId || !leitoId || !nrAtendimento.trim() || !!nrAtendimentoDuplicado}>
                   {salvando ? "Salvando…" : "Continuar para procedimento"} <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>

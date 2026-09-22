@@ -266,7 +266,7 @@ export async function excluirLinhaPorColuna(table: TableName, coluna: string, va
 
 export async function registrarAuditoria(data: {
   company_id: string;
-  action: "criado" | "editado" | "excluido" | "alta" | "importado" | "desfeito" | "transferencia" | "retorno_transferencia";
+  action: "criado" | "editado" | "excluido" | "alta" | "importado" | "desfeito" | "transferencia" | "retorno_transferencia" | "quebra_de_alta";
   entity_type: string;
   entity_label: string;
 }): Promise<void> {

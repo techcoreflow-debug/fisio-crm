@@ -619,6 +619,44 @@ export const repository = {
     },
 
     /**
+     * "Quebra de alta" — cancela uma alta lançada por engano e reabre a
+     * internação como "internado" de novo. Restrito a admin/supervisor na
+     * tela (mesmo nível de permissão de excluir internação); não é uma
+     * ação de uso corriqueiro. Se o leito da internação ainda estiver livre
+     * (ninguém ocupou nesse meio tempo), volta a ficar ocupado por este
+     * paciente; se já tiver outro paciente, o leito NÃO é mexido — só a
+     * internação volta a ficar ativa, sem leito, pra alguém realocar.
+     */
+    cancelarAlta: async (id: string): Promise<void> => {
+      const { data: admissao, error } = await supabase.from("admissions").select("*").eq("id", id).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!admissao) throw new Error("Internação não encontrada.");
+      if (admissao.status !== "alta") throw new Error("Esta internação não está com alta registrada.");
+
+      await atualizarLinha("admissions", id, {
+        status: "internado",
+        discharge_date: null,
+        discharge_at: null,
+        discharge_type: null,
+        confirmou_sem_atendimento_alta: false,
+      });
+
+      if (admissao.bed_id) {
+        const { data: leitoAtual } = await supabase.from("beds").select("status").eq("id", admissao.bed_id).maybeSingle();
+        if (leitoAtual && leitoAtual.status !== "ocupado") {
+          await atualizarLinha("beds", admissao.bed_id, { status: "ocupado", higienizacao_desde: null });
+        }
+      }
+
+      await registrarAuditoria({
+        company_id: admissao.company_id,
+        action: "quebra_de_alta",
+        entity_type: "Internação",
+        entity_label: `Internação ${id.slice(0, 8)}`,
+      });
+    },
+
+    /**
      * Transferência (ex.: pra UTI de outra empresa) — congela a
      * internação SEM fechar ela como alta. O Nr. Atendimento continua o
      * mesmo; o leito de origem é liberado (a pessoa não está mais nele

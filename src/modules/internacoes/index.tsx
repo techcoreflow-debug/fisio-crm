@@ -30,6 +30,7 @@ import {
   useProcedures,
   useDailyProduction,
   useSatisfactionSurveyTemplates,
+  usePatientQueue,
   repository,
 } from "@/data/repository";
 import { Combobox } from "@/components/ui/combobox";
@@ -70,9 +71,21 @@ export default function Internacoes() {
   const fisioterapeutas = usePhysiotherapists();
   const procedimentos = useProcedures();
   const producao = useDailyProduction();
+  const fila = usePatientQueue();
   const { profile } = useAuth();
   const quartos = useRooms();
   const empresaId = useAppStore((s) => s.activeCompanyId);
+  const hojeIsoFila = hojeLocalIso();
+
+  async function handleDesfazerDistribuicao(itemId: string, nomePaciente: string) {
+    if (!window.confirm(`Retirar ${nomePaciente} da fila do fisioterapeuta de hoje?`)) return;
+    try {
+      await repository.patientQueue.remover(itemId);
+      notificarSucesso("Distribuição desfeita — o paciente saiu da fila de hoje.");
+    } catch (erro) {
+      notificarErro("Não foi possível desfazer a distribuição", erro);
+    }
+  }
 
   // Seleção de linhas — base pra "gerar lista" (imprimir) e "distribuir".
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
@@ -118,6 +131,19 @@ export default function Internacoes() {
   // orientar (a razão de existir o pré-lançamento).
   const podeAlterarPreLancamento = profile?.role === "admin" || profile?.role === "supervisor" || profile?.is_platform_admin;
   const podeExcluirInternacao = profile?.role === "admin" || profile?.role === "supervisor" || profile?.is_platform_admin;
+  // Quebra de alta é mais sensível que excluir/editar — só ADM (empresa ou
+  // plataforma), nem supervisor, exatamente como pedido.
+  const podeQuebrarAlta = profile?.role === "admin" || profile?.is_platform_admin;
+
+  async function handleQuebrarAlta(internacao: Admission, nomePaciente: string) {
+    if (!window.confirm(`Cancelar a alta de ${nomePaciente} e reabrir a internação como "Internado"? Use só em caso de alta lançada por engano.`)) return;
+    try {
+      await repository.admissions.cancelarAlta(internacao.id);
+      notificarSucesso("Alta cancelada — internação reaberta.");
+    } catch (erro) {
+      notificarErro("Não foi possível cancelar a alta", erro);
+    }
+  }
 
   const hojeIso = hojeLocalIso();
   const internacoesComAtendimentoHoje = useMemo(
@@ -169,6 +195,22 @@ export default function Internacoes() {
   const setPreLancamentoMotoraId = (v: string) => setRascunho({ ...rascunho, preLancamentoMotoraId: v });
   const preLancamentoRespiratoriaId = rascunho.preLancamentoRespiratoriaId;
   const setPreLancamentoRespiratoriaId = (v: string) => setRascunho({ ...rascunho, preLancamentoRespiratoriaId: v });
+
+  // Nr. Atendimento Tasy duplicado: mesmo número já usado em OUTRA
+  // internação da mesma empresa. Evita o caso real relatado — fisio criando
+  // uma nova internação com o Nr. Atendimento de um paciente que já estava
+  // internado (ex.: na UTI).
+  const nrAtendimentoDuplicado = useMemo(() => {
+    const termo = nrAtendimento.trim().toLowerCase();
+    if (!termo) return null;
+    return (
+      internacoes.find(
+        (i) =>
+          i.id !== editando?.id &&
+          (i.external_reference ?? "").trim().toLowerCase() === termo
+      ) ?? null
+    );
+  }, [nrAtendimento, internacoes, editando]);
 
   // Não confia no campo `status` do leito puro — o mesmo tipo de
   // dessincronia que já corrigimos em Leitos pode deixar um leito preso
@@ -551,6 +593,14 @@ export default function Internacoes() {
       );
       return;
     }
+    if (nrAtendimentoDuplicado) {
+      const pacienteDuplicado = pacientes.find((p) => p.id === nrAtendimentoDuplicado.patient_id)?.full_name ?? "outro paciente";
+      notificarErro(
+        "Nr. Atendimento já usado",
+        `Este Nr. Atendimento Tasy já está em uso na internação de ${pacienteDuplicado}. Confira o número antes de salvar.`
+      );
+      return;
+    }
     setSalvando(true);
     try {
       if (leitoId && quartoInlineId) {
@@ -792,6 +842,12 @@ export default function Internacoes() {
                       É o ID da internação no Tasy — usado pra confrontar automaticamente com a importação da
                       produção. Sem ele, essa internação não concilia sozinha.
                     </p>
+                    {nrAtendimentoDuplicado && (
+                      <p className="text-xs font-medium text-critical-600">
+                        Este Nr. Atendimento já está em uso na internação de{" "}
+                        {pacientes.find((p) => p.id === nrAtendimentoDuplicado.patient_id)?.full_name ?? "outro paciente"}. Confira o número.
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="diagnostico">Diagnóstico</Label>
@@ -859,7 +915,7 @@ export default function Internacoes() {
                 </div>
                 <SheetFooter>
                   <Button type="button" variant="secondary" onClick={() => limparRascunho()}>Cancelar</Button>
-                  <Button type="submit" disabled={salvando || !pacienteId || !unidadeId || !leitoId}>
+                  <Button type="submit" disabled={salvando || !pacienteId || !unidadeId || !leitoId || !!nrAtendimentoDuplicado}>
                     {salvando ? "Salvando…" : editando ? "Salvar alterações" : "Registrar internação"}
                   </Button>
                 </SheetFooter>
@@ -1003,6 +1059,11 @@ export default function Internacoes() {
                       <Badge variant={statusConfig[i.status as StatusInternacao]?.variant ?? "neutral"}>
                         {statusConfig[i.status as StatusInternacao]?.label ?? i.status}
                       </Badge>
+                      {i.status === "alta" && i.discharge_type && (
+                        <Badge variant={i.discharge_type === "obito" ? "critical" : "neutral"}>
+                          {i.discharge_type === "obito" ? "Óbito" : "Alta hospitalar"}
+                        </Badge>
+                      )}
                       {i.status === "internado" &&
                         (internacoesComAtendimentoHoje.has(i.id) ? (
                           <Badge variant="recovery">Em atendimento</Badge>
@@ -1041,6 +1102,23 @@ export default function Internacoes() {
                         {procedimentos.find((p) => p.id === i.pre_lancamento_respiratoria_id)?.code ?? "—"}
                       </span>
                     )}
+                    {i.status === "internado" && podeAdministrarInternacao && (() => {
+                      const itemFila = fila.find((f) => f.admission_id === i.id && f.data === hojeIsoFila && f.status === "pendente");
+                      if (!itemFila) return null;
+                      const nomeFisio = fisioterapeutas.find((f) => f.id === itemFila.physiotherapist_id)?.full_name ?? "—";
+                      return (
+                        <div className="mt-1 flex items-center gap-1.5 text-xs text-clinical-700">
+                          <Users className="h-3 w-3" /> Distribuído hoje pra {nomeFisio}
+                          <button
+                            type="button"
+                            className="text-critical-600 underline underline-offset-2 hover:text-critical-700"
+                            onClick={() => handleDesfazerDistribuicao(itemFila.id, paciente)}
+                          >
+                            Desfazer distribuição
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     {podeEditarInternacao && (
@@ -1069,6 +1147,17 @@ export default function Internacoes() {
                     {i.status === "alta" && (
                       <Button variant="ghost" size="sm" onClick={() => abrirEnviarPesquisa(i)} title="Enviar pesquisa de satisfação">
                         <Star className="h-3.5 w-3.5" /> Pesquisa
+                      </Button>
+                    )}
+                    {i.status === "alta" && podeQuebrarAlta && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-critical-600 hover:text-critical-700"
+                        onClick={() => handleQuebrarAlta(i, paciente)}
+                        title="Quebra de alta — cancela a alta e reabre a internação (só ADM)"
+                      >
+                        <CornerDownLeft className="h-3.5 w-3.5" /> Quebrar alta
                       </Button>
                     )}
                     {podeExcluirInternacao && (

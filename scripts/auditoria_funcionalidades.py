@@ -75,6 +75,12 @@ MARCADORES = [
     ("Link para inovare.risco — desktop (v0.49.0)", "src/components/layout/topbar.tsx", "risco.inovaretech.com"),
     ("Link para inovare.risco — tablet (v0.49.0)", "src/components/layout/tablet-shell.tsx", "risco.inovaretech.com"),
     ("Detecção de conta só-do-risco no login (v0.49.0)", "src/App.tsx", "somenteRisco"),
+    ("Motivo da alta na listagem de Internações (v0.50.0)", "src/modules/internacoes/index.tsx", "Alta hospitalar"),
+    ("Bloqueio de Nr. Atendimento duplicado em Internações (v0.50.0)", "src/modules/internacoes/index.tsx", "nrAtendimentoDuplicado"),
+    ("Bloqueio de Nr. Atendimento duplicado em Novo Atendimento (v0.50.0)", "src/modules/novo-atendimento/index.tsx", "nrAtendimentoDuplicado"),
+    ("Desfazer distribuição da fila (v0.50.0)", "src/modules/internacoes/index.tsx", "handleDesfazerDistribuicao"),
+    ("Quebra de alta — só ADM (v0.50.0)", "src/modules/internacoes/index.tsx", "handleQuebrarAlta"),
+    ("Quebra de alta — repository (v0.50.0)", "src/data/repository.ts", "cancelarAlta"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [
