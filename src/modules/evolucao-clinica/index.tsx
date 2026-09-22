@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { NotebookPen, Plus, Search, AlertTriangle, BedDouble, ChevronDown } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -221,10 +222,12 @@ export default function EvolucaoClinica() {
 
       {grupos.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
-            <NotebookPen className="h-8 w-8 text-ink-soft" />
-            <p className="font-medium text-ink">Nenhuma evolução encontrada</p>
-            <p className="text-sm text-ink-soft">Ajuste a busca ou registre a primeira evolução de um paciente.</p>
+          <CardContent>
+            <EmptyState
+              icon={NotebookPen}
+              title="Nenhuma evolução encontrada"
+              description="Ajuste a busca ou registre a primeira evolução de um paciente."
+            />
           </CardContent>
         </Card>
       ) : (

@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { CheckCircle2, TriangleAlert } from "lucide-react";
+import { CheckCircle2, TriangleAlert, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -164,8 +165,8 @@ export default function Financeiro() {
           <CardTitle>Contas a receber</CardTitle>
         </CardHeader>
         {recebiveis.length === 0 ? (
-          <CardContent className="py-10 text-center text-sm text-ink-soft">
-            Nenhum lançamento cadastrado ainda.
+          <CardContent>
+            <EmptyState icon={Wallet} title="Nenhum lançamento cadastrado ainda" description="Contas a receber aparecem aqui conforme os contratos ativos geram faturamento." />
           </CardContent>
         ) : (
           <div className="overflow-x-auto">

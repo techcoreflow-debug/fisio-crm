@@ -15,6 +15,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DeleteButton } from "@/components/shared/delete-button";
+import { EmptyState } from "@/components/shared/empty-state";
 import { useCostCenters, useContracts, repository } from "@/data/repository";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useAppStore } from "@/store/app-store";
@@ -96,10 +97,13 @@ export default function CentrosDeCusto() {
 
       <Card>
         {centros.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <Wallet className="h-8 w-8 text-ink-soft" />
-            <p className="font-medium text-ink">Nenhum centro de custo cadastrado</p>
-          </div>
+          <EmptyState
+            icon={Wallet}
+            title="Nenhum centro de custo cadastrado"
+            description="Centros de custo organizam contratos e o financeiro por área."
+            actionLabel="Cadastrar centro de custo"
+            onAction={abrirNovo}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

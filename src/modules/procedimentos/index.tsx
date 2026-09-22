@@ -18,6 +18,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DeleteButton } from "@/components/shared/delete-button";
+import { EmptyState } from "@/components/shared/empty-state";
 import { useProcedures, useProcedureCategories, repository } from "@/data/repository";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useAppStore } from "@/store/app-store";
@@ -163,11 +164,13 @@ export default function Procedimentos() {
         </div>
 
         {filtrados.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <ListChecks className="h-8 w-8 text-ink-soft" />
-            <p className="font-medium text-ink">Nenhum procedimento encontrado</p>
-            <p className="text-sm text-ink-soft">Ajuste os termos da busca ou cadastre um novo procedimento.</p>
-          </div>
+          <EmptyState
+            icon={ListChecks}
+            title="Nenhum procedimento encontrado"
+            description="Ajuste os termos da busca ou cadastre um novo procedimento."
+            actionLabel="Cadastrar procedimento"
+            onAction={abrirNovo}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

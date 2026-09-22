@@ -15,6 +15,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DeleteButton } from "@/components/shared/delete-button";
+import { EmptyState } from "@/components/shared/empty-state";
 import { useTeams, usePhysiotherapists, repository } from "@/data/repository";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useAppStore } from "@/store/app-store";
@@ -96,10 +97,13 @@ export default function Equipes() {
 
       <Card>
         {equipes.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <Users className="h-8 w-8 text-ink-soft" />
-            <p className="font-medium text-ink">Nenhuma equipe cadastrada</p>
-          </div>
+          <EmptyState
+            icon={Users}
+            title="Nenhuma equipe cadastrada"
+            description="Organize os fisioterapeutas em equipes pra usar em escalas e distribuição."
+            actionLabel="Cadastrar equipe"
+            onAction={abrirNovo}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

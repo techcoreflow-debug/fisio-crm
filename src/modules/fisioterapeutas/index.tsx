@@ -20,6 +20,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Badge } from "@/components/ui/badge";
 import { GoniometerGauge } from "@/components/shared/goniometer-gauge";
 import { DeleteButton } from "@/components/shared/delete-button";
+import { EmptyState } from "@/components/shared/empty-state";
 import { usePhysiotherapists, useTeams, useProfiles, repository } from "@/data/repository";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useAppStore } from "@/store/app-store";
@@ -174,11 +175,13 @@ export default function Fisioterapeutas() {
         </div>
 
         {filtrados.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <UserRound className="h-8 w-8 text-ink-soft" />
-            <p className="font-medium text-ink">Nenhum fisioterapeuta encontrado</p>
-            <p className="text-sm text-ink-soft">Ajuste os termos da busca ou cadastre um novo profissional.</p>
-          </div>
+          <EmptyState
+            icon={UserRound}
+            title="Nenhum fisioterapeuta encontrado"
+            description="Ajuste os termos da busca ou cadastre um novo profissional."
+            actionLabel="Cadastrar fisioterapeuta"
+            onAction={abrirNovo}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

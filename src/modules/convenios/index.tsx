@@ -15,6 +15,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DeleteButton } from "@/components/shared/delete-button";
+import { EmptyState } from "@/components/shared/empty-state";
 import { useHealthInsurances, useContracts, repository } from "@/data/repository";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useAppStore } from "@/store/app-store";
@@ -123,11 +124,13 @@ export default function Convenios() {
         </div>
 
         {filtrados.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <HeartHandshake className="h-8 w-8 text-ink-soft" />
-            <p className="font-medium text-ink">Nenhum convênio encontrado</p>
-            <p className="text-sm text-ink-soft">Ajuste os termos da busca ou cadastre um novo convênio.</p>
-          </div>
+          <EmptyState
+            icon={HeartHandshake}
+            title="Nenhum convênio encontrado"
+            description="Ajuste os termos da busca ou cadastre um novo convênio."
+            actionLabel="Cadastrar convênio"
+            onAction={abrirNovo}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

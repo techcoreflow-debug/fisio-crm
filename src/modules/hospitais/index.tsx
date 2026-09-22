@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sheet";
 import { AddressFields, enderecoVazio, type EnderecoValue } from "@/components/shared/address-fields";
 import { DeleteButton } from "@/components/shared/delete-button";
+import { EmptyState } from "@/components/shared/empty-state";
 import { useHospitals, useUnits, repository } from "@/data/repository";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useAppStore } from "@/store/app-store";
@@ -142,11 +143,13 @@ export default function Hospitais() {
         </div>
 
         {filtrados.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <HospitalIcon className="h-8 w-8 text-ink-soft" />
-            <p className="font-medium text-ink">Nenhum hospital encontrado</p>
-            <p className="text-sm text-ink-soft">Ajuste os termos da busca ou cadastre um novo hospital.</p>
-          </div>
+          <EmptyState
+            icon={HospitalIcon}
+            title="Nenhum hospital encontrado"
+            description="Ajuste os termos da busca ou cadastre um novo hospital."
+            actionLabel="Cadastrar hospital"
+            onAction={abrirNovo}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
