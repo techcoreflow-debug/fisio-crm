@@ -20,6 +20,33 @@ Antes de subir um deploy:
 
 ---
 
+## v0.50.0 — 21/09/2026
+
+**Ajustes pedidos pelo usuário em Pacientes Internados** — a partir de
+um incidente real (fisio criando internação nova pra paciente que já
+estava internado, na UTI).
+
+- **Motivo da alta na listagem**: quando a internação está com status
+  "Alta", mostra também um badge com o motivo (Alta hospitalar / Óbito),
+  ao lado do status — antes só aparecia "Alta", sem dizer qual tipo.
+- **Bloqueio de Nr. Atendimento (Tasy) duplicado**: tanto em "Pacientes
+  Internados" (editar/nova internação) quanto em "Novo Atendimento", se o
+  número já pertence a outra internação da empresa, mostra aviso e
+  bloqueia o salvar — evita o caso relatado.
+- **Desfazer distribuição da fila**: na listagem de Internações, quando
+  o paciente já foi distribuído pra um fisioterapeuta hoje, aparece
+  "Distribuído hoje pra {nome}" com um link "Desfazer distribuição" —
+  remove o paciente da fila daquele fisio (visível pra quem pode
+  administrar internação, não pro fisioterapeuta comum).
+- **Quebra de alta (só ADM)**: internação com alta lançada por engano
+  agora pode ser reaberta — botão "Quebrar alta", restrito ao papel
+  Admin (empresa ou plataforma; nem supervisor tem acesso, por ser mais
+  sensível que excluir/editar). Reabre a internação como "Internado",
+  limpa os dados da alta e devolve o leito pra "ocupado" se ele ainda
+  estiver livre.
+
+---
+
 ## v0.49.0 — 20/09/2026
 
 **Link cruzado com o inovare.risco** — refeito depois de se perder num
