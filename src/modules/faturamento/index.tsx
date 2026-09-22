@@ -17,6 +17,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DeleteButton } from "@/components/shared/delete-button";
+import { EmptyState } from "@/components/shared/empty-state";
 import {
   useBillingEntries,
   useAdmissions,
@@ -36,6 +37,7 @@ export default function Faturamento() {
   const hospitais = useHospitals();
   const procedimentos = useProcedures();
   const empresaId = useAppStore((s) => s.activeCompanyId);
+  const compacta = useAppStore((s) => s.densidade === "compacta");
 
   const [busca, setBusca] = useState("");
   const [open, setOpen] = useState(false);
@@ -216,10 +218,14 @@ export default function Faturamento() {
 
       <Card>
         {filtradas.length === 0 ? (
-          <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
-            <Wallet className="h-8 w-8 text-ink-soft" />
-            <p className="font-medium text-ink">Nenhum lançamento de repasse ainda</p>
-            <p className="text-sm text-ink-soft">Registre o que veio no relatório de repasse do hospital/convênio.</p>
+          <CardContent>
+            <EmptyState
+              icon={Wallet}
+              title="Nenhum lançamento de repasse ainda"
+              description="Registre o que veio no relatório de repasse do hospital/convênio."
+              actionLabel="Lançar repasse"
+              onAction={abrirNovo}
+            />
           </CardContent>
         ) : (
           <div className="overflow-x-auto">
@@ -241,23 +247,24 @@ export default function Faturamento() {
                 {filtradas.map((e) => {
                   const internacao = internacoes.find((i) => i.id === e.admission_id);
                   const proc = procedimentos.find((p) => p.id === e.procedure_id);
+                  const td = compacta ? "px-4 py-1.5" : "px-4 py-3";
                   return (
                     <tr key={e.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
-                      <td className="px-4 py-3 font-mono text-xs text-ink-soft">{e.data_atendimento.split("-").reverse().join("/")}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-ink-soft">{internacao?.external_reference ?? "—"}</td>
-                      <td className="px-4 py-3 font-medium text-ink">{nomePaciente(e.admission_id)}</td>
-                      <td className="px-4 py-3 text-ink-soft">
+                      <td className={`${td} font-mono text-xs text-ink-soft`}>{e.data_atendimento.split("-").reverse().join("/")}</td>
+                      <td className={`${td} font-mono text-xs text-ink-soft`}>{internacao?.external_reference ?? "—"}</td>
+                      <td className={`${td} font-medium text-ink`}>{nomePaciente(e.admission_id)}</td>
+                      <td className={`${td} text-ink-soft`}>
                         {proc ? <><span className="font-mono text-xs">{proc.code}</span> {proc.name}</> : "—"}
                       </td>
-                      <td className="px-4 py-3 text-ink-soft">{e.quantidade}</td>
-                      <td className="px-4 py-3 font-medium text-recovery-600">R$ {e.valor_repasse.toLocaleString("pt-BR")}</td>
-                      <td className="px-4 py-3 text-ink-soft">{e.valor_glosado > 0 ? `R$ ${e.valor_glosado.toLocaleString("pt-BR")}` : "—"}</td>
-                      <td className="px-4 py-3">
+                      <td className={`${td} text-ink-soft`}>{e.quantidade}</td>
+                      <td className={`${td} font-medium text-recovery-600`}>R$ {e.valor_repasse.toLocaleString("pt-BR")}</td>
+                      <td className={`${td} text-ink-soft`}>{e.valor_glosado > 0 ? `R$ ${e.valor_glosado.toLocaleString("pt-BR")}` : "—"}</td>
+                      <td className={td}>
                         <Badge variant={e.origem === "manual" ? "neutral" : "clinical"}>
                           {e.origem === "manual" ? "Manual" : "Importado"}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className={`${td} text-right`}>
                         <DeleteButton itemLabel="lançamento" onConfirm={() => repository.billingEntries.remove(e.id)} />
                       </td>
                     </tr>

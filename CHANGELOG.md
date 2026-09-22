@@ -20,6 +20,48 @@ Antes de subir um deploy:
 
 ---
 
+## v0.55.0 — 22/09/2026
+
+**Modernização de UI — etapa 4: densidade compacta em mais 3 tabelas.**
+Extensão do toggle de densidade (v0.53.0) pras tabelas de Produção
+Diária, Contratos e Faturamento — todas com 7-8 colunas, então cada
+célula foi editada individualmente (sem atalho de CSS por seletor de
+descendente, que teria risco de não aplicar de forma confiável). Mudança
+é só classe CSS condicional (`py-3` → `py-1.5`) calculada por linha, sem
+requisição nova, sem lib nova — impacto de peso: nenhum perceptível (o
+chunk de Produção Diária variou menos de 0,2 KB).
+
+- **Leitos** ficou de fora de propósito: não é uma lista/tabela, é um
+  mapa de leitos agrupado por unidade/quarto — densidade compacta não se
+  aplica a esse layout.
+
+Com isso, densidade compacta cobre: Pacientes Internados, Pacientes,
+Produção Diária, Contratos e Faturamento.
+
+---
+
+## v0.54.0 — 22/09/2026
+
+**Modernização de UI — etapa 3: empty states em todo o cadastro.**
+Extensão do componente `EmptyState` (v0.53.0) pras telas de cadastro que
+ainda usavam o bloco antigo — mesma receita, ícone com mais presença e
+botão de ação direto onde fazia sentido.
+
+- Empty state modernizado em: Clínicas, Convênios, Fisioterapeutas,
+  Hospitais, Procedimentos, Equipes, Centros de Custo, Contratos,
+  Financeiro, Faturamento e Evolução Clínica — 11 telas.
+- Onde a tela já tinha um botão "Novo/Cadastrar", o empty state ganhou a
+  ação direta ali ("Cadastrar clínica", "Cadastrar contrato", etc.), sem
+  precisar procurar o botão no canto da tela.
+
+**Ainda não migrados**: densidade compacta nas demais listas (por
+enquanto só Pacientes Internados e Pacientes), skeleton por seção.
+
+A partir desta versão, as entregas passam a ser só o **delta** (arquivos
+alterados), não mais o projeto completo — pedido do usuário.
+
+---
+
 ## v0.53.0 — 22/09/2026
 
 **Modernização de UI — etapa 2: o máximo do plano de 7 pontos, de uma vez.**

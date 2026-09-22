@@ -107,6 +107,20 @@ MARCADORES = [
     ("Toggle de densidade no topbar (v0.53.0)", "src/components/layout/topbar.tsx", "toggleDensidade"),
     ("Densidade aplicada na lista de Internações (v0.53.0)", "src/modules/internacoes/index.tsx", "compacta"),
     ("Densidade aplicada na lista de Pacientes (v0.53.0)", "src/modules/pacientes/index.tsx", "compacta"),
+    ("Empty state em Clínicas (v0.54.0)", "src/modules/clinicas/index.tsx", "EmptyState"),
+    ("Empty state em Convênios (v0.54.0)", "src/modules/convenios/index.tsx", "EmptyState"),
+    ("Empty state em Fisioterapeutas (v0.54.0)", "src/modules/fisioterapeutas/index.tsx", "EmptyState"),
+    ("Empty state em Hospitais (v0.54.0)", "src/modules/hospitais/index.tsx", "EmptyState"),
+    ("Empty state em Procedimentos (v0.54.0)", "src/modules/procedimentos/index.tsx", "EmptyState"),
+    ("Empty state em Equipes (v0.54.0)", "src/modules/equipes/index.tsx", "EmptyState"),
+    ("Empty state em Centros de Custo (v0.54.0)", "src/modules/centros-de-custo/index.tsx", "EmptyState"),
+    ("Empty state em Contratos (v0.54.0)", "src/modules/contratos/index.tsx", "EmptyState"),
+    ("Empty state em Financeiro (v0.54.0)", "src/modules/financeiro/index.tsx", "EmptyState"),
+    ("Empty state em Faturamento (v0.54.0)", "src/modules/faturamento/index.tsx", "EmptyState"),
+    ("Empty state em Evolução Clínica (v0.54.0)", "src/modules/evolucao-clinica/index.tsx", "EmptyState"),
+    ("Densidade aplicada em Produção Diária (v0.55.0)", "src/modules/producao-diaria/index.tsx", "compacta"),
+    ("Densidade aplicada em Contratos (v0.55.0)", "src/modules/contratos/index.tsx", "compacta"),
+    ("Densidade aplicada em Faturamento (v0.55.0)", "src/modules/faturamento/index.tsx", "compacta"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [

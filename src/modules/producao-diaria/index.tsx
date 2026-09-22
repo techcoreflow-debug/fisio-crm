@@ -64,6 +64,7 @@ export default function ProducaoDiaria() {
 
   const companies = useCompanies();
   const activeCompanyId = useAppStore((s) => s.activeCompanyId);
+  const compacta = useAppStore((s) => s.densidade === "compacta");
   const empresa = companies.find((c) => c.id === activeCompanyId);
   const glosaPorProcedimento = empresa?.glosa_por_procedimento ?? false;
 
@@ -404,27 +405,29 @@ export default function ProducaoDiaria() {
                 </tr>
               </thead>
               <tbody>
-                {paginaAtual.map((p) => (
+                {paginaAtual.map((p) => {
+                  const td = compacta ? "px-4 py-1.5" : "px-4 py-3";
+                  return (
                   <tr key={p.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
-                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">{p.production_date.split("-").reverse().join("/")} {p.production_time?.slice(0, 5)}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">
+                    <td className={`${td} font-mono text-xs text-ink-soft`}>{p.production_date.split("-").reverse().join("/")} {p.production_time?.slice(0, 5)}</td>
+                    <td className={`${td} font-mono text-xs text-ink-soft`}>
                       {internacoes.find((i) => i.id === p.admission_id)?.external_reference ?? "—"}
                     </td>
-                    <td className="px-4 py-3 font-medium text-ink">{nomePaciente(p.admission_id)}</td>
-                    <td className="px-4 py-3 text-ink-soft">
+                    <td className={`${td} font-medium text-ink`}>{nomePaciente(p.admission_id)}</td>
+                    <td className={`${td} text-ink-soft`}>
                       {(() => {
                         const proc = procedimentos.find((pr) => pr.id === p.procedure_id);
                         return proc ? <><span className="font-mono text-xs">{proc.code}</span> {proc.name}</> : "—";
                       })()}
                     </td>
-                    <td className="px-4 py-3 text-ink-soft">{fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—"}</td>
-                    <td className="px-4 py-3">
+                    <td className={`${td} text-ink-soft`}>{fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—"}</td>
+                    <td className={td}>
                       <Badge variant={p.confirmado_tasy ? "recovery" : "neutral"}>
                         {p.confirmado_tasy ? "Confirmado" : "Não confirmado"}
                       </Badge>
                     </td>
                     {glosaPorProcedimento && (
-                      <td className="px-4 py-3">
+                      <td className={td}>
                         {p.glosado ? (
                           <div className="flex items-center gap-2">
                             <Badge variant="critical">
@@ -441,7 +444,7 @@ export default function ProducaoDiaria() {
                         )}
                       </td>
                     )}
-                    <td className="px-4 py-3 text-right">
+                    <td className={`${td} text-right`}>
                       {!p.confirmado_tasy && (
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" aria-label="Editar lançamento" onClick={() => abrirEdicao(p)}>
@@ -454,7 +457,8 @@ export default function ProducaoDiaria() {
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

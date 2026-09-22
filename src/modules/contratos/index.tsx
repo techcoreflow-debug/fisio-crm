@@ -17,8 +17,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DeleteButton } from "@/components/shared/delete-button";
+import { EmptyState } from "@/components/shared/empty-state";
 import { useContracts, useHospitals, useHealthInsurances, useCostCenters, useUnits, useContractUnits, repository } from "@/data/repository";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
+import { useAppStore } from "@/store/app-store";
 import type { Contract } from "@/types/domain";
 
 function formatarData(iso: string) {
@@ -27,6 +29,7 @@ function formatarData(iso: string) {
 }
 
 export default function Contratos() {
+  const compacta = useAppStore((s) => s.densidade === "compacta");
   const contratos = useContracts();
   const hospitais = useHospitals();
   const convenios = useHealthInsurances();
@@ -274,11 +277,13 @@ export default function Contratos() {
         </div>
 
         {filtrados.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <FileSignature className="h-8 w-8 text-ink-soft" />
-            <p className="font-medium text-ink">Nenhum contrato encontrado</p>
-            <p className="text-sm text-ink-soft">Ajuste os termos da busca ou cadastre um novo contrato.</p>
-          </div>
+          <EmptyState
+            icon={FileSignature}
+            title="Nenhum contrato encontrado"
+            description="Ajuste os termos da busca ou cadastre um novo contrato."
+            actionLabel="Cadastrar contrato"
+            onAction={abrirNovo}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -294,17 +299,19 @@ export default function Contratos() {
                 </tr>
               </thead>
               <tbody>
-                {filtrados.map((c) => (
+                {filtrados.map((c) => {
+                  const td = compacta ? "px-4 py-1.5" : "px-4 py-3";
+                  return (
                   <tr key={c.id} className="border-b border-line last:border-0 hover:bg-surface-sunken/60">
-                    <td className="px-4 py-3 font-medium text-ink">{hospitais.find((h) => h.id === c.hospital_id)?.name ?? "—"}</td>
-                    <td className="px-4 py-3 text-ink-soft">
+                    <td className={`${td} font-medium text-ink`}>{hospitais.find((h) => h.id === c.hospital_id)?.name ?? "—"}</td>
+                    <td className={`${td} text-ink-soft`}>
                       {c.health_insurance_id ? (
                         convenios.find((v) => v.id === c.health_insurance_id)?.name ?? "—"
                       ) : (
                         <Badge variant="neutral">Direto com hospital</Badge>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-ink-soft">
+                    <td className={`${td} text-ink-soft`}>
                       {c.aplica_todas_unidades ? (
                         <Badge variant="clinical">Todas as unidades</Badge>
                       ) : (
@@ -313,18 +320,18 @@ export default function Contratos() {
                         </Badge>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">
+                    <td className={`${td} font-mono text-xs text-ink-soft`}>
                       {formatarData(c.start_date)}{c.end_date ? ` – ${formatarData(c.end_date)}` : ""}
                     </td>
-                    <td className="px-4 py-3 text-ink-soft">
+                    <td className={`${td} text-ink-soft`}>
                       {c.monthly_value ? `R$ ${c.monthly_value.toLocaleString("pt-BR")}` : "—"}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={td}>
                       <Badge variant={c.status === "ativo" ? "recovery" : "neutral"}>
                         {c.status === "ativo" ? "Ativo" : c.status}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className={`${td} text-right`}>
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
@@ -341,7 +348,8 @@ export default function Contratos() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
