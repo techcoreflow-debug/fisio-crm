@@ -20,6 +20,79 @@ Antes de subir um deploy:
 
 ---
 
+## v0.53.0 — 22/09/2026
+
+**Modernização de UI — etapa 2: o máximo do plano de 7 pontos, de uma vez.**
+Continuação da v0.52.0 (command palette). Nada de funcionalidade existente
+foi removida — só camada visual/estrutural nova em cima do que já tinha.
+
+- **Avatares/iniciais** (Pacientes Internados e Pacientes): cada paciente
+  ganha um círculo com iniciais, cor determinística pelo nome — ajuda a
+  escanear a lista visualmente, não só ler texto.
+- **Empty states com ação**: em vez de só "ajuste os filtros", agora tem
+  um ícone com mais presença e, em Pacientes, um botão "Cadastrar
+  paciente" direto ali quando a base tá vazia.
+- **Trend deltas reais** (Efetividade Assistencial): "Pacientes
+  atendidos", "Procedimentos realizados" e "Tempo Médio de Internação"
+  agora mostram a variação % contra o período anterior de mesma duração
+  — calculado de verdade a partir dos dados, nunca um número inventado.
+  Sem dado no período anterior, mostra "sem comparação" em vez de forçar
+  uma porcentagem sem sentido. (O Dashboard Executivo tem indicadores em
+  tempo real, sem recorte de período — não dá pra comparar "com o período
+  anterior" ali sem inventar uma janela arbitrária, então ficou de fora
+  por enquanto, de propósito.)
+- **Skeleton de carregamento**: a tela de carregamento ao trocar de
+  módulo agora sugere o formato real da página (título, KPIs, lista) em
+  vez de dois blocos genéricos — menos "flash" entre uma tela e outra.
+- **Central de notificações** (sino do topo): o antigo "sino de
+  novidades" virou central com 2 abas — **Alertas** (condições reais dos
+  dados: internação sem evolução, contrato vencendo, unidade lotada —
+  mesma lógica do card "Alertas" do Dashboard Executivo, agora numa fonte
+  só) e **Novidades** (changelog do produto, como já era). O ponto no
+  sino prioriza alerta crítico > alerta de atenção > novidade não vista.
+- **Densidade confortável/compacta**: novo botão no topo alterna entre
+  as duas — na compacta, linha mais enxuta e sem avatar, pra caber mais
+  gente na tela. Aplicado em Pacientes Internados e Pacientes por
+  enquanto (são as 2 listas mais usadas no dia a dia); o estado já é
+  global — extender pras outras listas é só aplicar a mesma classe
+  condicional, sem nova infraestrutura.
+
+**Ainda não migrados por completo** (infraestrutura já existe, é
+replicar a mesma receita): densidade nas demais listas (Relatórios,
+Faturamento, etc.), skeleton por seção dentro de uma página muito pesada
+(hoje é só por página inteira).
+
+---
+
+## v0.52.0 — 22/09/2026
+
+**Modernização de UI — etapa 1: Command palette (Cmd+K) + busca global.**
+Primeira entrega do plano de modernização visual do fisio (esboço aprovado
+em canvas antes de mexer no código). Escopo desta etapa: só o command
+palette — nenhuma tela existente perdeu funcionalidade, colunas, filtros
+ou botões.
+
+- **Command palette** (`Cmd+K` / `Ctrl+K`, ou `/` fora de um campo de
+  texto, de qualquer tela): busca unificada que já filtra pela permissão
+  de cada usuário — só aparecem os módulos que a pessoa pode ver.
+  - Busca por **nome de tela** (Internações, Relatórios, Dashboard
+    Executivo, etc.) e leva direto pra lá.
+  - A partir de 2 letras, busca também por **paciente** (nome ou CPF),
+    **nº de Atendimento Tasy** e mostra leito + hospital da internação
+    ativa, quando existe — clicar leva pra Internações (ou Pacientes, se
+    não tiver internação ativa) já com o nome no campo de busca daquela
+    tela.
+  - Navegação por teclado (`↑`/`↓`/`Enter`) ou mouse.
+- O campo "Busca global — em breve" do topo, que ficava desabilitado,
+  agora abre o command palette.
+
+**Próxima etapa** (aguardando esta ser validada): modernização visual das
+listas (Pacientes Internados, Pacientes) — avatares/iniciais, mais
+espaçamento, elevação ao passar o mouse — mantendo colunas configuráveis,
+seleção em massa e impressão como estão hoje.
+
+---
+
 ## v0.51.0 — 21/09/2026
 
 **Mais itens da lista de ajustes** — indicadores e relatórios.
