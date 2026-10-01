@@ -282,7 +282,17 @@ export interface Receivable {
   created_at: string;
 }
 
-export type ActivityAction = "criado" | "editado" | "excluido" | "alta" | "importado" | "desfeito" | "transferencia" | "retorno_transferencia";
+export type ActivityAction =
+  | "criado"
+  | "editado"
+  | "excluido"
+  | "alta"
+  | "importado"
+  | "desfeito"
+  | "transferencia"
+  | "retorno_transferencia"
+  | "quebra_de_alta"
+  | "mudanca_unidade";
 
 export interface ActivityLog {
   id: string;
@@ -290,6 +300,33 @@ export interface ActivityLog {
   action: ActivityAction;
   entity_type: string;
   entity_label: string;
+  created_at: string;
+}
+
+/**
+ * Tipo de movimentação de unidade — unifica, numa linha só por evento, os
+ * três jeitos de uma internação trocar de lugar: mudança interna (ex.:
+ * Enfermaria → UTI do mesmo hospital, mesma equipe), transferência externa
+ * (congela a internação, ex.: UTI de outra empresa) e o retorno dela.
+ */
+export type TipoMovimentoUnidade = "mudanca_unidade" | "transferencia_externa" | "retorno_transferencia";
+
+export interface AdmissionUnitHistory {
+  id: string;
+  company_id: string;
+  admission_id: string;
+  tipo: TipoMovimentoUnidade;
+  hospital_origem_id: string | null;
+  unidade_origem_id: string | null;
+  leito_origem_id: string | null;
+  hospital_destino_id: string | null;
+  unidade_destino_id: string | null;
+  leito_destino_id: string | null;
+  /** Só preenchido em transferência externa — destino fora do nosso cadastro de unidades (texto livre). */
+  destino_externo: string | null;
+  motivo: string | null;
+  registrado_por: string | null;
+  ocorrido_em: string;
   created_at: string;
 }
 

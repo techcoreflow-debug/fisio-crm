@@ -8,6 +8,7 @@ import { Search, Plus, Pencil, BedDouble, LogOut, AlertTriangle, ClipboardPlus, 
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -315,7 +316,7 @@ export default function Internacoes() {
     if (!internacaoParaTransferir || !destinoTransferencia.trim()) return;
     setSalvandoTransferencia(true);
     try {
-      await repository.admissions.transferir(internacaoParaTransferir.id, destinoTransferencia.trim());
+      await repository.admissions.transferir(internacaoParaTransferir.id, destinoTransferencia.trim(), profile?.id ?? null);
       notificarSucesso("Internação transferida — continua com o mesmo Nr. Atendimento, sem alta.");
       setInternacaoParaTransferir(null);
     } catch (erro) {
@@ -345,7 +346,7 @@ export default function Internacoes() {
     if (!unidade) return;
     setSalvandoRetorno(true);
     try {
-      await repository.admissions.retornarDeTransferencia(internacaoParaRetornar.id, unidadeRetorno, unidade.hospital_id, leitoRetorno || null);
+      await repository.admissions.retornarDeTransferencia(internacaoParaRetornar.id, unidadeRetorno, unidade.hospital_id, leitoRetorno || null, profile?.id ?? null);
       notificarSucesso("Internação reaberta — mesmo Nr. Atendimento de antes da transferência.");
       setInternacaoParaRetornar(null);
     } catch (erro) {
@@ -354,6 +355,43 @@ export default function Internacoes() {
       setSalvandoRetorno(false);
     }
   }
+
+  // --- Mudar de unidade (ex.: Enfermaria → UTI própria) — move sem transferir ---
+  const [internacaoParaMudarUnidade, setInternacaoParaMudarUnidade] = useState<Admission | null>(null);
+  const [unidadeDestinoMudanca, setUnidadeDestinoMudanca] = useState("");
+  const [leitoDestinoMudanca, setLeitoDestinoMudanca] = useState("");
+  const [motivoMudancaUnidade, setMotivoMudancaUnidade] = useState("");
+  const [salvandoMudancaUnidade, setSalvandoMudancaUnidade] = useState(false);
+  const leitosDaUnidadeMudanca = leitos.filter((l) => l.unit_id === unidadeDestinoMudanca && leitoEstaLivre(l));
+
+  function abrirMudarUnidade(internacao: Admission) {
+    setInternacaoParaMudarUnidade(internacao);
+    setUnidadeDestinoMudanca("");
+    setLeitoDestinoMudanca("");
+    setMotivoMudancaUnidade("");
+  }
+
+  async function handleConfirmarMudancaUnidade(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!internacaoParaMudarUnidade || !unidadeDestinoMudanca) return;
+    const unidade = unidades.find((u) => u.id === unidadeDestinoMudanca);
+    if (!unidade) return;
+    setSalvandoMudancaUnidade(true);
+    try {
+      await repository.admissions.mudarUnidade(
+        internacaoParaMudarUnidade.id,
+        { unitId: unidadeDestinoMudanca, hospitalId: unidade.hospital_id, bedId: leitoDestinoMudanca || null, motivo: motivoMudancaUnidade.trim() || null },
+        profile?.id ?? null
+      );
+      notificarSucesso("Unidade atualizada — mesma internação, sem transferência, com o movimento registrado no rastreio.");
+      setInternacaoParaMudarUnidade(null);
+    } catch (erro) {
+      notificarErro("Não foi possível mudar de unidade", erro);
+    } finally {
+      setSalvandoMudancaUnidade(false);
+    }
+  }
+
   const [etapaAlta, setEtapaAlta] = useState<"data" | "lancar">("data");
   const [dataHoraAlta, setDataHoraAlta] = useState(agoraParaInputDatetime());
   const [tipoAlta, setTipoAlta] = useState<"hospitalar" | "obito">("hospitalar");
@@ -648,7 +686,7 @@ export default function Internacoes() {
         company_id: paciente.company_id,
       };
       if (editando) {
-        await repository.admissions.update(editando.id, dados);
+        await repository.admissions.update(editando.id, dados, profile?.id ?? null);
         notificarSucesso("Internação atualizada.");
       } else {
         await repository.admissions.create(dados);
@@ -1173,6 +1211,9 @@ export default function Internacoes() {
                         <Button variant="ghost" size="sm" onClick={() => abrirFluxoAlta(i)} title="Dar alta">
                           <LogOut className="h-3.5 w-3.5" /> Alta
                         </Button>
+                        <Button variant="ghost" size="sm" onClick={() => abrirMudarUnidade(i)} title="Mudar de unidade (ex.: Enfermaria → UTI própria) — mesma internação, sem transferir">
+                          <BedDouble className="h-3.5 w-3.5" /> Mudar unidade
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => abrirTransferencia(i)} title="Transferir (ex.: UTI de outra empresa) — sem dar alta">
                           <ArrowRightLeft className="h-3.5 w-3.5" /> Transferir
                         </Button>
@@ -1649,6 +1690,67 @@ export default function Internacoes() {
               <Button type="button" variant="secondary" onClick={() => setInternacaoParaRetornar(null)}>Cancelar</Button>
               <Button type="submit" disabled={salvandoRetorno || !unidadeRetorno}>
                 {salvandoRetorno ? "Salvando…" : "Confirmar retorno"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={internacaoParaMudarUnidade !== null} onOpenChange={(v) => !v && setInternacaoParaMudarUnidade(null)}>
+        <DialogContent>
+          <form onSubmit={handleConfirmarMudancaUnidade}>
+            <DialogHeader>
+              <DialogTitle>Mudar de unidade</DialogTitle>
+              <DialogDescription>
+                {internacaoParaMudarUnidade && (pacientes.find((p) => p.id === internacaoParaMudarUnidade.patient_id)?.full_name ?? "—")} —
+                mesma internação (mesmo Nr. Atendimento, mesma evolução e produção), só troca unidade/leito. Fica
+                registrado no rastreio de movimentação — use isso pra UTI própria, não "Transferir".
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-4 py-2">
+              <div className="flex flex-col gap-1.5">
+                <Label>Unidade de destino</Label>
+                <Select value={unidadeDestinoMudanca} onValueChange={(v) => { setUnidadeDestinoMudanca(v); setLeitoDestinoMudanca(""); }}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
+                  <SelectContent>
+                    {unidades
+                      .filter((u) => u.hospital_id === internacaoParaMudarUnidade?.hospital_id && u.id !== internacaoParaMudarUnidade?.unit_id)
+                      .map((u) => (
+                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Leito (opcional)</Label>
+                <Select value={leitoDestinoMudanca} onValueChange={setLeitoDestinoMudanca}>
+                  <SelectTrigger><SelectValue placeholder="Selecione um leito livre" /></SelectTrigger>
+                  <SelectContent>
+                    {leitosDaUnidadeMudanca.length === 0 ? (
+                      <SelectItem value="none" disabled>Nenhum leito livre nesta unidade</SelectItem>
+                    ) : (
+                      leitosDaUnidadeMudanca.map((l) => (
+                        <SelectItem key={l.id} value={l.id}>{l.code}</SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="motivo_mudanca_unidade">Motivo (opcional)</Label>
+                <Textarea
+                  id="motivo_mudanca_unidade"
+                  value={motivoMudancaUnidade}
+                  onChange={(e) => setMotivoMudancaUnidade(e.target.value)}
+                  placeholder="Ex.: Agravamento clínico — indicação de UTI"
+                  rows={2}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="secondary" onClick={() => setInternacaoParaMudarUnidade(null)}>Cancelar</Button>
+              <Button type="submit" disabled={salvandoMudancaUnidade || !unidadeDestinoMudanca}>
+                {salvandoMudancaUnidade ? "Salvando…" : "Confirmar mudança"}
               </Button>
             </DialogFooter>
           </form>

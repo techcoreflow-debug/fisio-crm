@@ -1,7 +1,7 @@
 /**
  * Parser do relatório "Produtividade Médica" exportado pelo Tasy.
  *
- * Dois formatos observados na prática, mesma estrutura de relatório:
+ * Três formatos observados na prática, mesma estrutura de relatório:
  *
  *   Modelo 1 (.xls que na prática é texto simples separado por TAB):
  *   confirmado em arquivo real fornecido pelo cliente, testado em produção.
@@ -13,6 +13,13 @@
  *   "Médica", "?" no lugar de qualquer vogal acentuada) — por isso todo
  *   marcador de texto é comparado de forma tolerante a acento (ver
  *   `normalizarMarcador`), nunca por igualdade exata.
+ *
+ *   Modelo 3 (.csv separado por PONTO-E-VÍRGULA, outra variação de
+ *   impressão vista em arquivo real): mesmo layout, mas cada célula
+ *   vazia vira um ";" a mais entre as colunas (às vezes duas ou três
+ *   seguidas). A linha do hospital também pode vir com um código antes
+ *   do nome, ex. "[018] Hospital Unimed" em vez de só "Hospital Unimed"
+ *   — o prefixo entre colchetes é ignorado ao extrair o nome.
  *
  * Layout (igual nos dois modelos, só muda o separador de coluna):
  *
@@ -64,8 +71,8 @@ const RE_FIM_DETALHE = /^procedimentos\s*por\s*conv.nio$/i;
 const RE_IMPRESSO_EM = /^impresso\s*em/i;
 const RE_DE_ATE = /^de:\s*\d{2}\/\d{2}\/\d{4}\s*at.\s*\d{2}\/\d{2}\/\d{4}/i;
 
-/** Divide uma linha de CSV respeitando aspas — vírgula dentro de aspas não conta como separador. */
-function dividirLinhaCsv(linha: string): string[] {
+/** Divide uma linha de CSV respeitando aspas — o separador (vírgula ou ponto-e-vírgula) dentro de aspas não conta como quebra de coluna. */
+function dividirLinhaCsv(linha: string, separador: "," | ";"): string[] {
   const campos: string[] = [];
   let atual = "";
   let dentroDeAspas = false;
@@ -73,7 +80,7 @@ function dividirLinhaCsv(linha: string): string[] {
     const c = linha[i];
     if (c === '"') {
       dentroDeAspas = !dentroDeAspas;
-    } else if (c === "," && !dentroDeAspas) {
+    } else if (c === separador && !dentroDeAspas) {
       campos.push(atual);
       atual = "";
     } else {
@@ -84,12 +91,18 @@ function dividirLinhaCsv(linha: string): string[] {
   return campos;
 }
 
-export type ModeloArquivoTasy = "tab" | "csv";
+export type ModeloArquivoTasy = "tab" | "csv" | "csv-ponto-e-virgula";
 
-/** Detecta automaticamente se o arquivo é TAB (Modelo 1) ou CSV (Modelo 2), pela primeira linha não-vazia. */
+/** Detecta automaticamente o modelo do arquivo (TAB, CSV vírgula ou CSV ponto-e-vírgula), pela primeira linha não-vazia. */
 export function detectarModeloTasy(texto: string): ModeloArquivoTasy {
   const primeiraLinha = texto.split(/\r?\n/).find((l) => l.trim().length > 0) ?? "";
-  return primeiraLinha.includes("\t") ? "tab" : "csv";
+  if (primeiraLinha.includes("\t")) return "tab";
+  // Ponto-e-vírgula como separador de coluna é bem mais comum que uma
+  // vírgula perdida no meio do texto de uma linha de cabeçalho — usa a
+  // contagem para decidir entre os dois modelos de CSV.
+  const qtdPontoEVirgula = (primeiraLinha.match(/;/g) ?? []).length;
+  const qtdVirgula = (primeiraLinha.match(/,/g) ?? []).length;
+  return qtdPontoEVirgula > qtdVirgula ? "csv-ponto-e-virgula" : "csv";
 }
 
 export interface TasyParsedRow {
@@ -114,7 +127,10 @@ export interface TasyParseResult {
 }
 
 function tokensNaoVazios(linhaBruta: string, modelo: ModeloArquivoTasy): string[] {
-  const campos = modelo === "tab" ? linhaBruta.split("\t") : dividirLinhaCsv(linhaBruta);
+  const campos =
+    modelo === "tab"
+      ? linhaBruta.split("\t")
+      : dividirLinhaCsv(linhaBruta, modelo === "csv-ponto-e-virgula" ? ";" : ",");
   return campos.map((c) => c.trim()).filter((c) => c.length > 0);
 }
 
@@ -215,8 +231,11 @@ export function parseTasyReport(texto: string, modelo?: ModeloArquivoTasy): Tasy
     if (/^total\(\d+\)$/.test(valorNormalizado)) continue;
     if (/^\d+$/.test(valor)) continue; // linha do total isolado, ex.: "46"
 
-    if (valorNormalizado.startsWith("hospital ")) {
-      hospitalAtual = valor.replace(/^hospital\s+/i, "").trim();
+    // Aceita tanto "Hospital Nome" quanto "[018] Hospital Nome" (código
+    // do hospital entre colchetes antes do marcador, visto em arquivo real).
+    const RE_HOSPITAL = /^(?:\[[^\]]*\]\s*)?hospital\s+/i;
+    if (RE_HOSPITAL.test(valor.trim())) {
+      hospitalAtual = valor.replace(RE_HOSPITAL, "").trim();
       esperandoNomeFisio = true;
       continue;
     }

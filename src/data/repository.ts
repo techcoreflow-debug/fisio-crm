@@ -8,6 +8,7 @@ import {
   excluirLinhaPorColuna,
   contarDependentes,
   registrarAuditoria,
+  registrarMovimentoUnidade,
   buscarOuCriarEmLote,
   emLotes,
 } from "@/data/supabase-collection";
@@ -48,6 +49,7 @@ import type {
   ProcedureCategory,
   ActivityLog,
   Receivable,
+  AdmissionUnitHistory,
 } from "@/types/domain";
 
 /**
@@ -194,6 +196,9 @@ export function useActivityLog(): ActivityLog[] {
 }
 export function useReceivables(): Receivable[] {
   return useSupabaseCollection<Receivable>("receivables", { company_id: useActiveCompanyId() }, "created_at", true);
+}
+export function useAdmissionUnitHistory(): AdmissionUnitHistory[] {
+  return useSupabaseCollection<AdmissionUnitHistory>("admission_unit_history", { company_id: useActiveCompanyId() }, "ocorrido_em", true);
 }
 export function useProfiles(): Profile[] {
   return useSupabaseCollection<Profile>("profiles", { company_id: useActiveCompanyId() });
@@ -551,10 +556,18 @@ export const repository = {
         throw erro;
       }
     },
+    /**
+     * `registradoPor` é opcional — só importa quando o patch troca `unit_id`
+     * (edição comum de cadastro às vezes corrige só convênio, diagnóstico
+     * etc., sem mexer em unidade, e aí não há nada pra registrar no
+     * rastreio de movimentação).
+     */
     update: async (
       id: string,
-      patch: Partial<Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "external_reference" | "diagnostico" | "company_id">>
+      patch: Partial<Pick<Admission, "patient_id" | "hospital_id" | "unit_id" | "bed_id" | "health_insurance_id" | "admission_date" | "admission_time" | "external_reference" | "diagnostico" | "company_id">>,
+      registradoPor: string | null = null
     ): Promise<void> => {
+      const { data: antes } = await supabase.from("admissions").select("*").eq("id", id).maybeSingle();
       try {
         await atualizarLinha("admissions", id, patch);
       } catch (erro) {
@@ -564,15 +577,96 @@ export const repository = {
         }
         throw erro;
       }
-      // Só reocupa o leito se a internação ainda estiver ativa — editar
-      // uma internação já com alta (ex.: corrigir a unidade) não pode
-      // devolver o leito pra "ocupado" outra vez.
-      if (patch.bed_id) {
-        const { data: atual } = await supabase.from("admissions").select("status").eq("id", id).maybeSingle();
-        if (atual?.status === "internado") {
-          await atualizarLinha("beds", patch.bed_id, { status: "ocupado" });
+      // Mexer no leito (liberar o antigo, ocupar o novo) e gravar rastreio
+      // de movimentação só faz sentido com a internação ainda ativa —
+      // editar uma internação já com alta (ex.: corrigir a unidade por
+      // engano, meses depois) não pode liberar leito de outro paciente
+      // nem virar um "movimento" fantasma no histórico.
+      if (antes?.status === "internado") {
+        const trocouLeito = patch.bed_id !== undefined && patch.bed_id !== antes.bed_id;
+        if (trocouLeito) {
+          if (antes.bed_id) {
+            await atualizarLinha("beds", antes.bed_id, { status: "higienizacao", higienizacao_desde: new Date().toISOString() });
+          }
+          if (patch.bed_id) {
+            await atualizarLinha("beds", patch.bed_id, { status: "ocupado" });
+          }
+        }
+        const trocouUnidade = patch.unit_id !== undefined && patch.unit_id !== antes.unit_id;
+        if (trocouUnidade) {
+          await registrarMovimentoUnidade({
+            company_id: antes.company_id,
+            admission_id: id,
+            tipo: "mudanca_unidade",
+            hospital_origem_id: antes.hospital_id,
+            unidade_origem_id: antes.unit_id,
+            leito_origem_id: antes.bed_id,
+            hospital_destino_id: patch.hospital_id ?? antes.hospital_id,
+            unidade_destino_id: patch.unit_id ?? null,
+            leito_destino_id: patch.bed_id !== undefined ? patch.bed_id : antes.bed_id,
+            destino_externo: null,
+            motivo: null,
+            registrado_por: registradoPor,
+          });
+          await registrarAuditoria({
+            company_id: antes.company_id,
+            action: "mudanca_unidade",
+            entity_type: "Internação",
+            entity_label: `Internação ${id.slice(0, 8)}`,
+          });
         }
       }
+    },
+    /**
+     * Ação dedicada pra mover o paciente de unidade DENTRO do mesmo
+     * controle (ex.: Enfermaria → UTI própria) — ao contrário de
+     * `transferir`, não congela a internação: mesmo status "internado",
+     * mesmo Nr. Atendimento, evoluções e produção contínuas. Existe
+     * separada de `update` só pra oferecer uma tela focada (escolher
+     * unidade/leito novo + motivo) sem expor o formulário inteiro de
+     * edição de cadastro.
+     */
+    mudarUnidade: async (
+      id: string,
+      destino: { unitId: string; hospitalId: string | null; bedId: string | null; motivo: string | null },
+      registradoPor: string | null
+    ): Promise<void> => {
+      const { data: antes, error } = await supabase.from("admissions").select("*").eq("id", id).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!antes) throw new Error("Internação não encontrada.");
+      if (antes.status !== "internado") throw new Error("Só é possível mudar de unidade uma internação ativa.");
+
+      await atualizarLinha("admissions", id, {
+        unit_id: destino.unitId,
+        hospital_id: destino.hospitalId,
+        bed_id: destino.bedId,
+      });
+      if (antes.bed_id) {
+        await atualizarLinha("beds", antes.bed_id, { status: "higienizacao", higienizacao_desde: new Date().toISOString() });
+      }
+      if (destino.bedId) {
+        await atualizarLinha("beds", destino.bedId, { status: "ocupado" });
+      }
+      await registrarMovimentoUnidade({
+        company_id: antes.company_id,
+        admission_id: id,
+        tipo: "mudanca_unidade",
+        hospital_origem_id: antes.hospital_id,
+        unidade_origem_id: antes.unit_id,
+        leito_origem_id: antes.bed_id,
+        hospital_destino_id: destino.hospitalId,
+        unidade_destino_id: destino.unitId,
+        leito_destino_id: destino.bedId,
+        destino_externo: null,
+        motivo: destino.motivo,
+        registrado_por: registradoPor,
+      });
+      await registrarAuditoria({
+        company_id: antes.company_id,
+        action: "mudanca_unidade",
+        entity_type: "Internação",
+        entity_label: `Internação ${id.slice(0, 8)}`,
+      });
     },
     /**
      * Dar alta é bloqueado por padrão se não houver nenhum procedimento
@@ -662,7 +756,7 @@ export const repository = {
      * mesmo; o leito de origem é liberado (a pessoa não está mais nele
      * fisicamente).
      */
-    transferir: async (id: string, destino: string): Promise<void> => {
+    transferir: async (id: string, destino: string, registradoPor: string | null = null): Promise<void> => {
       const { data: admissao, error } = await supabase.from("admissions").select("*").eq("id", id).maybeSingle();
       if (error) throw new Error(error.message);
       if (!admissao) throw new Error("Internação não encontrada.");
@@ -677,6 +771,20 @@ export const repository = {
       if (admissao.bed_id) {
         await atualizarLinha("beds", admissao.bed_id, { status: "higienizacao", higienizacao_desde: new Date().toISOString() });
       }
+      await registrarMovimentoUnidade({
+        company_id: admissao.company_id,
+        admission_id: id,
+        tipo: "transferencia_externa",
+        hospital_origem_id: admissao.hospital_id,
+        unidade_origem_id: admissao.unit_id,
+        leito_origem_id: admissao.bed_id,
+        hospital_destino_id: null,
+        unidade_destino_id: null,
+        leito_destino_id: null,
+        destino_externo: destino,
+        motivo: null,
+        registrado_por: registradoPor,
+      });
       await registrarAuditoria({
         company_id: admissao.company_id,
         action: "transferencia",
@@ -690,7 +798,13 @@ export const repository = {
      * Atendimento, mesmo histórico), com leito/unidade novos (a pessoa
      * fisicamente está num lugar diferente de antes de ir pra UTI).
      */
-    retornarDeTransferencia: async (id: string, unitId: string, hospitalId: string | null, bedId: string | null): Promise<void> => {
+    retornarDeTransferencia: async (
+      id: string,
+      unitId: string,
+      hospitalId: string | null,
+      bedId: string | null,
+      registradoPor: string | null = null
+    ): Promise<void> => {
       const { data: admissao, error } = await supabase.from("admissions").select("*").eq("id", id).maybeSingle();
       if (error) throw new Error(error.message);
       if (!admissao) throw new Error("Internação não encontrada.");
@@ -705,6 +819,20 @@ export const repository = {
       if (bedId) {
         await atualizarLinha("beds", bedId, { status: "ocupado" });
       }
+      await registrarMovimentoUnidade({
+        company_id: admissao.company_id,
+        admission_id: id,
+        tipo: "retorno_transferencia",
+        hospital_origem_id: null,
+        unidade_origem_id: null,
+        leito_origem_id: null,
+        hospital_destino_id: hospitalId,
+        unidade_destino_id: unitId,
+        leito_destino_id: bedId,
+        destino_externo: admissao.transfer_destino,
+        motivo: null,
+        registrado_por: registradoPor,
+      });
       await registrarAuditoria({
         company_id: admissao.company_id,
         action: "retorno_transferencia",

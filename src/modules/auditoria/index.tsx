@@ -1,4 +1,4 @@
-import { ShieldAlert, FileEdit, UploadCloud, Trash2, LogOut, Plus, Undo2, ArrowRightLeft, CornerDownLeft } from "lucide-react";
+import { ShieldAlert, FileEdit, UploadCloud, Trash2, LogOut, Plus, Undo2, ArrowRightLeft, CornerDownLeft, BedDouble } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,8 @@ const iconByAction: Record<ActivityAction, typeof ShieldAlert> = {
   desfeito: Undo2,
   transferencia: ArrowRightLeft,
   retorno_transferencia: CornerDownLeft,
+  quebra_de_alta: Undo2,
+  mudanca_unidade: BedDouble,
 };
 
 const labelByAction: Record<ActivityAction, string> = {
@@ -25,6 +27,8 @@ const labelByAction: Record<ActivityAction, string> = {
   desfeito: "desfez a importação de",
   transferencia: "transferiu",
   retorno_transferencia: "trouxe de volta da transferência",
+  quebra_de_alta: "quebrou a alta de",
+  mudanca_unidade: "mudou a unidade de",
 };
 
 export default function Auditoria() {

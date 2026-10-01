@@ -121,6 +121,15 @@ MARCADORES = [
     ("Densidade aplicada em Produção Diária (v0.55.0)", "src/modules/producao-diaria/index.tsx", "compacta"),
     ("Densidade aplicada em Contratos (v0.55.0)", "src/modules/contratos/index.tsx", "compacta"),
     ("Densidade aplicada em Faturamento (v0.55.0)", "src/modules/faturamento/index.tsx", "compacta"),
+    ("Tasy Modelo 3 — CSV com ponto-e-vírgula (v0.55.1)", "src/lib/tasy-parser.ts", "csv-ponto-e-virgula"),
+    ("Tasy — hospital com código entre colchetes, ex. [018] Hospital (v0.55.1)", "src/lib/tasy-parser.ts", "RE_HOSPITAL"),
+    ("Tasy — detecção de charset (UTF-8 com BOM vs. Latin1) (v0.55.1)", "src/modules/importacao-tasy/index.tsx", "lerArquivoTasy"),
+    ("Rastreio de movimentação de unidade — tabela de histórico (v0.56.0)", "src/types/domain.ts", "AdmissionUnitHistory"),
+    ("Mudar de unidade — ação dedicada sem transferir (v0.56.0)", "src/data/repository.ts", "mudarUnidade"),
+    ("Mudar de unidade — leito liberado/ocupado corretamente na edição comum (v0.56.0)", "src/data/repository.ts", "trocouLeito"),
+    ("Mudar de unidade — tela em Internações (v0.56.0)", "src/modules/internacoes/index.tsx", "abrirMudarUnidade"),
+    ("Relatório Rastreio de movimentação (v0.56.0)", "src/modules/relatorios/index.tsx", "rastreio-movimentacao"),
+    ("Auditoria — ícone/rótulo de quebra_de_alta e mudança de unidade (v0.56.0)", "src/modules/auditoria/index.tsx", "mudanca_unidade"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [

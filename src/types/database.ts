@@ -30,6 +30,7 @@ import type {
   Shift,
   ActivityLog,
   Receivable,
+  AdmissionUnitHistory,
 } from "@/types/domain";
 
 /**
@@ -88,6 +89,7 @@ export interface Database {
       shifts: TableDef<Shift>;
       activity_log: TableDef<ActivityLog>;
       receivables: TableDef<Receivable>;
+      admission_unit_history: TableDef<AdmissionUnitHistory>;
     };
   };
 }

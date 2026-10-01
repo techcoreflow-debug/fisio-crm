@@ -266,7 +266,17 @@ export async function excluirLinhaPorColuna(table: TableName, coluna: string, va
 
 export async function registrarAuditoria(data: {
   company_id: string;
-  action: "criado" | "editado" | "excluido" | "alta" | "importado" | "desfeito" | "transferencia" | "retorno_transferencia" | "quebra_de_alta";
+  action:
+    | "criado"
+    | "editado"
+    | "excluido"
+    | "alta"
+    | "importado"
+    | "desfeito"
+    | "transferencia"
+    | "retorno_transferencia"
+    | "quebra_de_alta"
+    | "mudanca_unidade";
   entity_type: string;
   entity_label: string;
 }): Promise<void> {
@@ -276,6 +286,35 @@ export async function registrarAuditoria(data: {
   if (error) {
     // eslint-disable-next-line no-console
     console.error("[Fisio] Falha ao registrar auditoria:", error.message);
+  }
+}
+
+/**
+ * Grava um evento no rastreio de movimentação de unidade — usado tanto
+ * pra mudança interna (ex.: Enfermaria → UTI, mesma empresa/equipe) quanto
+ * pras transferências externas já existentes, num lugar estruturado só,
+ * pra alimentar o relatório de rastreio (não dá pra montar isso a partir
+ * do `activity_log`, que só guarda um texto solto por evento).
+ */
+export async function registrarMovimentoUnidade(data: {
+  company_id: string;
+  admission_id: string;
+  tipo: "mudanca_unidade" | "transferencia_externa" | "retorno_transferencia";
+  hospital_origem_id: string | null;
+  unidade_origem_id: string | null;
+  leito_origem_id: string | null;
+  hospital_destino_id: string | null;
+  unidade_destino_id: string | null;
+  leito_destino_id: string | null;
+  destino_externo: string | null;
+  motivo: string | null;
+  registrado_por: string | null;
+}): Promise<void> {
+  const { error } = await supabase.from("admission_unit_history").insert(data);
+  // Mesmo padrão da auditoria: nunca trava a operação principal.
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error("[Fisio] Falha ao registrar movimentação de unidade:", error.message);
   }
 }
 

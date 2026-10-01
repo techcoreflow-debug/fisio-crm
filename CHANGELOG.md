@@ -20,6 +20,32 @@ Antes de subir um deploy:
 
 ---
 
+## v0.56.0 — 2026-10-01
+
+**Rastreio de movimentação de unidade — pra UTI própria do hospital (não mais só UTI de outra empresa).** Até agora, mover um paciente de unidade (ex.: Enfermaria → UTI) sem usar "Transferir" (pensado só pra sair do nosso controle, ex.: UTI de outra empresa) não deixava rastro nenhum — a edição comum de internação nunca gravou nada em auditoria, e não dava pra saber depois quem mudou o quê e quando.
+
+- **Nova ação "Mudar de unidade"** em Internações, ao lado de "Transferir": move o paciente pra outra unidade do MESMO hospital sem fechar a internação — mesmo Nr. Atendimento, mesma evolução, mesma produção, nada se perde. Pede unidade + leito (opcional) + motivo (opcional, texto livre). É isso que se usa agora pra Enfermaria ↔ UTI própria.
+- **Nova tabela `admission_unit_history`**: registra todo movimento de unidade num lugar estruturado só — tanto a mudança interna nova quanto as transferências externas que já existiam (`Transferir`/`Retorno`, que passam a gravar aqui também). Guarda origem, destino, motivo, quem registrou e quando.
+- **Novo relatório "Rastreio de movimentação"** (aba Relatórios, categoria Assistencial): lista todo movimento — tipo, de onde, pra onde, motivo, quem registrou — com o **tempo no local anterior** calculado automaticamente (ex.: "3d 6h" na Enfermaria antes de ir pra UTI). Exportável em CSV, igual aos outros relatórios.
+- **Correção de um gap encontrado nesta mesma área**: editar o cadastro de uma internação pra trocar de leito hoje só ocupava o leito novo — nunca liberava o antigo, deixando leito "fantasma" marcado como ocupado pra sempre. Agora libera (vai pra higienização) o leito de origem sempre que o leito muda numa internação ativa, não só nas ações dedicadas.
+- **Correção de outro gap**: o check constraint de `activity_log` no banco nunca foi ampliado pras ações `transferencia`, `retorno_transferencia` e `quebra_de_alta` — toda chamada de auditoria com essas ações vinha falhando silenciosamente (só ia pro console, nunca travava a tela, então ninguém percebeu). Corrigido junto, incluindo a ação nova `mudanca_unidade`. A tela de Auditoria também não tinha ícone/rótulo pra `quebra_de_alta` — corrigido.
+
+Decisões tomadas (sem confirmação individual do usuário, dentro do combinado "pode seguir no sugerido"): motivo da mudança de unidade é opcional e texto livre; o relatório calcula tempo no local anterior; a ação "Mudar de unidade" fica disponível entre quaisquer unidades do mesmo hospital (não restrita a Enfermaria↔UTI).
+
+---
+
+## v0.55.1 — 2026-09-30
+
+**Correção: importação/conciliação Tasy rejeitava um terceiro formato de arquivo real** (relatório "Produtividade Médica" com colunas separadas por `;`, enviado pela Dra. Monika em duas planilhas de 24/09) com o erro "Nenhuma linha reconhecida". Três causas, todas confirmadas comparando com os arquivos reais:
+
+1. **Separador não reconhecido**: o parser só sabia ler TAB (modelo antigo .xls) ou vírgula (modelo de impressão já visto antes) — este arquivo usa ponto-e-vírgula, com células vazias extras entre colunas (`;;`). `detectarModeloTasy` agora escolhe entre os três modelos comparando a contagem de `;` e `,` na primeira linha; `tasy-parser.ts` ganhou um modelo `"csv-ponto-e-virgula"`.
+2. **Linha do hospital com código na frente**: este export traz `[018] Hospital Unimed` em vez de só `Hospital Unimed` — o parser exigia o valor começar exatamente por "hospital ". Agora aceita um prefixo opcional entre colchetes antes do marcador.
+3. **Charset errado (o mais sério dos três)**: o app sempre decodificava o arquivo como Latin1 (herdado do modelo antigo em TAB), mas este export é UTF-8 com BOM. Decodificar UTF-8 como Latin1 corrompe todo acento (`Médica` virava `MÃ©dica`, `Convênio` virava `ConvÃªnio`), o que quebrava os marcadores de "período" e de fim de seção — cortando a leitura no meio do arquivo mesmo quando o separador já batia. `lerArquivoComoTextoLatin1` virou `lerArquivoTasy`: detecta BOM UTF-8, senão tenta decodificar como UTF-8 estrito e só cai para Latin1 se a decodificação falhar (preserva o comportamento do modelo antigo).
+
+Testado com os dois arquivos reais fornecidos (períodos 01–15/09 e 16–23/09): 2.193 e 1.358 linhas reconhecidas, 0 avisos, período e todos os 6 convênios detectados corretamente em ambos.
+
+---
+
 ## v0.55.0 — 22/09/2026
 
 **Modernização de UI — etapa 4: densidade compacta em mais 3 tabelas.**

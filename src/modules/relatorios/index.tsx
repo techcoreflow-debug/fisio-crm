@@ -23,7 +23,10 @@ import {
   useContracts,
   useHealthInsurances,
   useReceivables,
+  useAdmissionUnitHistory,
+  useProfiles,
 } from "@/data/repository";
+import type { AdmissionUnitHistory, TipoMovimentoUnidade } from "@/types/domain";
 
 type Categoria = "Operacional" | "Assistencial" | "Financeiro";
 
@@ -53,6 +56,8 @@ export default function Relatorios() {
   const contratos = useContracts();
   const convenios = useHealthInsurances();
   const recebiveisBruta = useReceivables();
+  const movimentosBruta = useAdmissionUnitHistory();
+  const perfis = useProfiles();
 
   const [filtroPeriodoDe, setFiltroPeriodoDe] = useState("");
   const [filtroPeriodoAte, setFiltroPeriodoAte] = useState("");
@@ -77,6 +82,14 @@ export default function Relatorios() {
       }),
     [evolucoesBruta, filtroPeriodoDe, filtroPeriodoAte]
   );
+  const movimentos = useMemo(
+    () =>
+      movimentosBruta.filter((m) => {
+        const data = m.ocorrido_em.slice(0, 10);
+        return (!filtroPeriodoDe || data >= filtroPeriodoDe) && (!filtroPeriodoAte || data <= filtroPeriodoAte);
+      }),
+    [movimentosBruta, filtroPeriodoDe, filtroPeriodoAte]
+  );
   const recebiveis = useMemo(
     () => recebiveisBruta.filter((r) => (!filtroPeriodoDe || r.competencia >= filtroPeriodoDe) && (!filtroPeriodoAte || r.competencia <= filtroPeriodoAte)),
     [recebiveisBruta, filtroPeriodoDe, filtroPeriodoAte]
@@ -85,6 +98,47 @@ export default function Relatorios() {
   function nomePaciente(admissionId: string | null) {
     const internacao = internacoes.find((i) => i.id === admissionId);
     return pacientes.find((p) => p.id === internacao?.patient_id)?.full_name ?? "—";
+  }
+
+  const labelTipoMovimento: Record<TipoMovimentoUnidade, string> = {
+    mudanca_unidade: "Mudança de unidade",
+    transferencia_externa: "Transferência (externa)",
+    retorno_transferencia: "Retorno de transferência",
+  };
+
+  /** "Unidade · Leito" pra um local interno, ou o texto livre de destino externo quando não há unidade cadastrada. */
+  function nomeLocalMovimento(unidadeId: string | null, leitoId: string | null, externo: string | null) {
+    if (unidadeId) {
+      const nomeUnidade = unidades.find((u) => u.id === unidadeId)?.name ?? "—";
+      const codigoLeito = leitos.find((l) => l.id === leitoId)?.code;
+      return codigoLeito ? `${nomeUnidade} · ${codigoLeito}` : nomeUnidade;
+    }
+    return externo ?? "—";
+  }
+
+  /**
+   * Tempo entre o movimento anterior desta MESMA internação (ou a entrada
+   * dela, se for o primeiro movimento) e este — usa o histórico completo
+   * (não o filtrado por período), senão um movimento logo após o início
+   * do filtro calcularia a duração errada.
+   */
+  function tempoAteEsteMovimento(movimento: AdmissionUnitHistory): string {
+    const anterior = movimentosBruta
+      .filter((m) => m.admission_id === movimento.admission_id && m.ocorrido_em < movimento.ocorrido_em)
+      .sort((a, b) => b.ocorrido_em.localeCompare(a.ocorrido_em))[0];
+    const internacao = internacoesBruta.find((i) => i.id === movimento.admission_id);
+    const inicioMs = anterior
+      ? new Date(anterior.ocorrido_em).getTime()
+      : internacao
+      ? new Date(`${internacao.admission_date}T${(internacao.admission_time || "00:00").slice(0, 5)}:00`).getTime()
+      : null;
+    if (inicioMs === null || Number.isNaN(inicioMs)) return "—";
+    const diffHoras = (new Date(movimento.ocorrido_em).getTime() - inicioMs) / 3_600_000;
+    if (diffHoras < 0) return "—";
+    if (diffHoras < 24) return `${Math.round(diffHoras)}h`;
+    const dias = Math.floor(diffHoras / 24);
+    const horasRestantes = Math.round(diffHoras % 24);
+    return horasRestantes > 0 ? `${dias}d ${horasRestantes}h` : `${dias}d`;
   }
 
   // Status da internação + sub-status da alta (Hospitalar/Óbito), pra usar
@@ -276,6 +330,32 @@ export default function Relatorios() {
             "Valor mensal": c.monthly_value ?? 0,
           })),
     },
+    {
+      nome: "Rastreio de movimentação",
+      categoria: "Assistencial",
+      descricao:
+        "Toda troca de unidade de uma internação — mudança interna (ex.: Enfermaria → UTI própria), transferência externa e retorno —, com data/hora, quem registrou, motivo e tempo desde o movimento anterior.",
+      arquivo: "rastreio-movimentacao",
+      gerar: () =>
+        movimentos
+          .slice()
+          .sort((a, b) => b.ocorrido_em.localeCompare(a.ocorrido_em))
+          .map((m) => {
+            const internacao = internacoesBruta.find((i) => i.id === m.admission_id);
+            const paciente = pacientes.find((p) => p.id === internacao?.patient_id);
+            return {
+              "Data/Hora": new Date(m.ocorrido_em).toLocaleString("pt-BR"),
+              Paciente: paciente?.full_name ?? "—",
+              "Nr. Atendimento": internacao?.external_reference ?? "—",
+              Tipo: labelTipoMovimento[m.tipo],
+              De: nomeLocalMovimento(m.unidade_origem_id, m.leito_origem_id, m.tipo === "retorno_transferencia" ? m.destino_externo : null),
+              Para: nomeLocalMovimento(m.unidade_destino_id, m.leito_destino_id, m.tipo !== "retorno_transferencia" ? m.destino_externo : null),
+              "Tempo no local anterior": tempoAteEsteMovimento(m),
+              Motivo: m.motivo ?? "—",
+              "Registrado por": perfis.find((p) => p.id === m.registrado_por)?.full_name ?? "—",
+            };
+          }),
+    },
   ];
 
   // Memoizado: sem isso, cada card recalcularia seu dataset inteiro a cada
@@ -284,7 +364,7 @@ export default function Relatorios() {
   const relatoriosComDados = useMemo(
     () => relatorios.map((r) => ({ ...r, linhas: r.gerar() })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [producao, internacoes, pacientes, fisioterapeutas, procedimentos, unidades, hospitais, leitos, evolucoes, contratos, convenios, recebiveis]
+    [producao, internacoes, pacientes, fisioterapeutas, procedimentos, unidades, hospitais, leitos, evolucoes, contratos, convenios, recebiveis, movimentos, perfis]
   );
 
   function handleExportar(relatorio: { nome: string; arquivo: string; linhas: LinhaRelatorio[] }) {

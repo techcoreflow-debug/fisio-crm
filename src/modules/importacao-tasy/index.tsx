@@ -33,9 +33,25 @@ const MOTIVO_LABEL: Record<MotivoPendenciaTasy, { label: string; variant: NonNul
 
 const TODOS = "todos";
 
-async function lerArquivoComoTextoLatin1(arquivo: File): Promise<string> {
+/**
+ * Detecta o charset real do export do Tasy em vez de assumir um fixo:
+ * confirmado em arquivo real que o modelo antigo (.xls/TAB) vem em
+ * Latin1/CP1252, mas os modelos de impressão em CSV (vírgula ou
+ * ponto-e-vírgula) vêm em UTF-8 (às vezes com BOM). Decodificar um
+ * arquivo UTF-8 como Latin1 corrompe todo acento (ex.: "Médica" vira
+ * "MÃ©dica"), o que quebra os marcadores de seção do parser.
+ */
+async function lerArquivoTasy(arquivo: File): Promise<string> {
   const buffer = await arquivo.arrayBuffer();
-  return new TextDecoder("iso-8859-1").decode(buffer);
+  const bytes = new Uint8Array(buffer);
+  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    return new TextDecoder("utf-8").decode(buffer);
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+  } catch {
+    return new TextDecoder("iso-8859-1").decode(buffer);
+  }
 }
 
 export default function ImportacaoTasy() {
@@ -74,7 +90,7 @@ export default function ImportacaoTasy() {
     setPrevendo(true);
     setResultado(null);
     try {
-      const texto = await lerArquivoComoTextoLatin1(file);
+      const texto = await lerArquivoTasy(file);
       const parse = parseTasyReport(texto);
       if (parse.linhas.length === 0) {
         notificarErro(
@@ -102,7 +118,7 @@ export default function ImportacaoTasy() {
     if (!arquivo || !resultado || !empresaId) return;
     setConfirmando(true);
     try {
-      const texto = await lerArquivoComoTextoLatin1(arquivo);
+      const texto = await lerArquivoTasy(arquivo);
       if (modo === "carga") {
         const saida = await repository.tasyImports.processarComoCarga(empresaId, arquivo.name, texto);
         notificarSucesso(
@@ -167,7 +183,7 @@ export default function ImportacaoTasy() {
                 <p className="font-display font-semibold text-ink">
                   {prevendo ? "Lendo arquivo…" : "Arraste o arquivo do Tasy ou clique para selecionar"}
                 </p>
-                <p className="mt-1 text-sm text-ink-soft">Relatório "Produtividade Médica" exportado do Tasy — aceita .xls (TAB) ou .csv (vírgula)</p>
+                <p className="mt-1 text-sm text-ink-soft">Relatório "Produtividade Médica" exportado do Tasy — aceita .xls (TAB) ou .csv (vírgula ou ponto-e-vírgula)</p>
               </div>
             </label>
           ) : (
