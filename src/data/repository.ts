@@ -50,6 +50,7 @@ import type {
   ActivityLog,
   Receivable,
   AdmissionUnitHistory,
+  FunctionalAssessment,
 } from "@/types/domain";
 
 /**
@@ -197,6 +198,10 @@ export function useActivityLog(): ActivityLog[] {
 export function useReceivables(): Receivable[] {
   return useSupabaseCollection<Receivable>("receivables", { company_id: useActiveCompanyId() }, "created_at", true);
 }
+export function useFunctionalAssessments(): FunctionalAssessment[] {
+  return useSupabaseCollection<FunctionalAssessment>("functional_assessments", { company_id: useActiveCompanyId() }, "avaliado_em", true);
+}
+
 export function useAdmissionUnitHistory(): AdmissionUnitHistory[] {
   return useSupabaseCollection<AdmissionUnitHistory>("admission_unit_history", { company_id: useActiveCompanyId() }, "ocorrido_em", true);
 }
@@ -455,6 +460,7 @@ export const repository = {
         evolucoesApagadas += await excluirLinhaPorColuna("clinical_evolutions", "admission_id", admissionId);
         await excluirLinhaPorColuna("patient_queue", "admission_id", admissionId);
         await excluirLinhaPorColuna("billing_entries", "admission_id", admissionId);
+        await excluirLinhaPorColuna("functional_assessments", "admission_id", admissionId);
       }
       await excluirLinhaPorColuna("patient_insurance_history", "patient_id", id);
       await excluirLinhaPorColuna("admissions", "patient_id", id);
@@ -544,6 +550,7 @@ export const repository = {
           { table: "clinical_evolutions", coluna: "admission_id", rotulo: "evolução(ões) clínica(s)" },
           { table: "patient_queue", coluna: "admission_id", rotulo: "item(ns) de fila" },
           { table: "billing_entries", coluna: "admission_id", rotulo: "lançamento(s) de faturamento" },
+          { table: "functional_assessments", coluna: "admission_id", rotulo: "avaliação(ões) funcional(is)" },
         ],
         "esta internação"
       );
@@ -966,6 +973,23 @@ export const repository = {
     },
   },
 
+  functionalAssessments: {
+    create: async (
+      data: Pick<
+        FunctionalAssessment,
+        "company_id" | "admission_id" | "physiotherapist_id" | "escala" | "momento" | "score" | "itens" | "observacao" | "avaliado_em"
+      >
+    ): Promise<FunctionalAssessment> => {
+      if (!Number.isInteger(data.score) || data.score < 0 || data.score > 100) {
+        throw new Error("Escore inválido.");
+      }
+      return inserirLinha<FunctionalAssessment>("functional_assessments", data);
+    },
+    remove: async (id: string): Promise<void> => {
+      await excluirLinha("functional_assessments", id);
+    },
+  },
+
   clinicalEvolutions: {
     create: async (
       data: Pick<ClinicalEvolution, "admission_id" | "physiotherapist_id" | "content" | "company_id">
@@ -1377,6 +1401,7 @@ export const repository = {
       }
       if (grupos.includes("financeiro")) await apagar("receivables");
       if (grupos.includes("atendimento")) {
+        await apagar("functional_assessments");
         await apagar("clinical_evolutions");
         await apagar("daily_production");
       }

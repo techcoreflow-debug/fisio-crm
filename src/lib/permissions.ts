@@ -13,7 +13,7 @@ const SO_VER: Permissao = { can_view: true, can_create: false, can_edit: false, 
 const VER_E_LANCAR: Permissao = { can_view: true, can_create: true, can_edit: true, can_delete: false };
 
 /** Módulos que o perfil fisioterapeuta (lançador) enxerga — o dia a dia dele. */
-export const MODULOS_FISIOTERAPEUTA = ["minha-fila", "novo-atendimento", "pacientes", "internacoes", "producao-diaria"];
+export const MODULOS_FISIOTERAPEUTA = ["minha-fila", "novo-atendimento", "pacientes", "internacoes", "producao-diaria", "avaliacao-funcional", "jornada-paciente"];
 
 /** Módulos onde o perfil financeiro tem acesso completo. */
 const MODULOS_FINANCEIRO_COMPLETO = ["financeiro", "faturamento", "fechamento", "painel-procedimentos", "relatorios", "contratos"];

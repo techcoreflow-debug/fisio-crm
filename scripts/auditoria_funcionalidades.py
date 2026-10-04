@@ -132,6 +132,13 @@ MARCADORES = [
     ("Auditoria — ícone/rótulo de quebra_de_alta e mudança de unidade (v0.56.0)", "src/modules/auditoria/index.tsx", "mudanca_unidade"),
     ("Transferência — opções reduzidas a UTI Geral/Outras, com observação (v0.57.0)", "src/modules/internacoes/index.tsx", "observacaoTransferencia"),
     ("Fisioterapeuta — campos opcionais de nascimento/CPF/registro (v0.57.0)", "src/modules/fisioterapeutas/index.tsx", "registry_number"),
+    ("Avaliação funcional — escalas Barthel/MRC/IMS/FSS-ICU/Borg com escore (v0.58.0)", "src/lib/escalas-funcionais.ts", "calcularScore"),
+    ("Avaliação funcional — ganho por internação (v0.58.0)", "src/lib/escalas-funcionais.ts", "ganhoPorInternacao"),
+    ("Avaliação funcional — tabela e RLS (v0.58.0)", "supabase/migrations/0034_avaliacao_funcional.sql", "functional_assessments_isolation"),
+    ("Avaliação funcional — repositório (v0.58.0)", "src/data/repository.ts", "functionalAssessments"),
+    ("Avaliação funcional — módulo com curva de ganho (v0.58.0)", "src/modules/avaliacao-funcional/index.tsx", "ganhoPorUnidade"),
+    ("Jornada do paciente — linha do tempo unificada (v0.58.0)", "src/lib/jornada.ts", "montarJornada"),
+    ("Jornada do paciente — módulo (v0.58.0)", "src/modules/jornada-paciente/index.tsx", "JornadaPaciente"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [

@@ -31,6 +31,7 @@ import type {
   ActivityLog,
   Receivable,
   AdmissionUnitHistory,
+  FunctionalAssessment,
 } from "@/types/domain";
 
 /**
@@ -90,6 +91,7 @@ export interface Database {
       activity_log: TableDef<ActivityLog>;
       receivables: TableDef<Receivable>;
       admission_unit_history: TableDef<AdmissionUnitHistory>;
+      functional_assessments: TableDef<FunctionalAssessment>;
     };
   };
 }

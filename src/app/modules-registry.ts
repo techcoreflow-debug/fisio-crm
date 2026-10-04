@@ -34,6 +34,8 @@ import {
   Gauge,
   Receipt,
   ListOrdered,
+  TrendingUp,
+  Route,
 } from "lucide-react";
 
 export interface ModuleDef {
@@ -128,6 +130,8 @@ export const moduleGroups: ModuleGroup[] = [
       { slug: "pacientes", path: "/pacientes", label: "Pacientes", icon: Users, description: "Cadastro de pacientes atendidos, histórico clínico e internações relacionadas.", status: "pronto" },
       { slug: "internacoes", path: "/internacoes", label: "Pacientes Internados", icon: BedDouble, description: "Pacientes internados acompanhados pela equipe, com leito, hospital e status de atendimento do dia.", status: "pronto" },
       { slug: "leitos", path: "/leitos", label: "Leitos", icon: BedDouble, description: "Mapa de leitos por ala e quarto, ocupação em tempo real e histórico de giro.", status: "pronto" },
+      { slug: "avaliacao-funcional", path: "/avaliacao-funcional", label: "Avaliação funcional", icon: TrendingUp, description: "Escalas funcionais (Barthel, MRC-SS, IMS, FSS-ICU, Borg) na admissão, reavaliação e alta, com a curva de ganho do paciente.", status: "pronto" },
+      { slug: "jornada-paciente", path: "/jornada-paciente", label: "Jornada do paciente", icon: Route, description: "Linha do tempo única da internação: unidades, evoluções, procedimentos, avaliações e alta.", status: "pronto" },
       { slug: "escalas", path: "/escalas", label: "Escalas", icon: CalendarClock, description: "Escalas de trabalho dos fisioterapeutas por unidade e turno.", status: "pronto" },
       { slug: "fisioterapeutas", path: "/fisioterapeutas", label: "Fisioterapeutas", icon: UserRound, description: "Equipe assistencial, especialidades, produtividade e vínculos com unidades.", status: "pronto" },
       { slug: "procedimentos", path: "/procedimentos", label: "Procedimentos", icon: ListChecks, description: "Catálogo de procedimentos fisioterapêuticos e tabelas de referência por convênio.", status: "pronto" },
@@ -179,5 +183,5 @@ export const allModules: ModuleDef[] = moduleGroups.flatMap((g) => g.modules);
  * papéis (admin de empresa, gestor, financeiro, auditor) continuam vendo
  * tudo normalmente.
  */
-export const SLUGS_LANCADOR = ["novo-atendimento", "pacientes", "internacoes", "producao-diaria"];
+export const SLUGS_LANCADOR = ["novo-atendimento", "pacientes", "internacoes", "producao-diaria", "avaliacao-funcional", "jornada-paciente"];
 export const ROTA_PADRAO_LANCADOR = "/minha-fila";

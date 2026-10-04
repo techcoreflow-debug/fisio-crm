@@ -259,6 +259,25 @@ export interface ClinicalEvolution {
   created_at: string;
 }
 
+export type EscalaFuncionalId = "barthel" | "mrc" | "ims" | "fss_icu" | "borg";
+export type MomentoAvaliacaoFuncional = "admissao" | "reavaliacao" | "alta";
+
+/** Uma escala funcional aplicada em uma data (migration 0034). Reavaliar = nova linha. */
+export interface FunctionalAssessment {
+  id: string;
+  company_id: string;
+  admission_id: string;
+  physiotherapist_id: string | null;
+  escala: EscalaFuncionalId;
+  momento: MomentoAvaliacaoFuncional;
+  score: number;
+  itens: Record<string, number>;
+  observacao: string | null;
+  /** Data local (YYYY-MM-DD) */
+  avaliado_em: string;
+  created_at: string;
+}
+
 export type ShiftPeriod = "manha" | "tarde" | "noite";
 
 export interface Shift {

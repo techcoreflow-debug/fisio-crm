@@ -20,6 +20,15 @@ Antes de subir um deploy:
 
 ---
 
+## v0.58.0 — 2026-10-04
+
+**Fase A do roadmap "do volume ao resultado" (ver `docs/BACKLOG-ROADMAP.md`).**
+- **Avaliação funcional** (módulo novo): escalas Barthel, MRC-SS, ICU Mobility Scale, FSS-ICU e Borg CR10, em três momentos (admissão, reavaliação, alta). Escore calculado só com todos os itens respondidos; classificação automática; curva de ganho por paciente; ganho médio por unidade (só com ≥ 2 avaliações da mesma escala — sem dado, o sistema diz "sem dado").
+- **Jornada do paciente** (módulo novo): linha do tempo única da internação (entrada, mudanças de unidade/transferências, evoluções, procedimentos por dia, avaliações, alta), com impressão.
+- Migration **0034** (`functional_assessments`, RLS por empresa; sem edição — reavaliar cria nova linha).
+- Exclusão de internação/paciente e "Exclusão avançada" passam a considerar as avaliações funcionais.
+- Itens das escalas devem ser validados pela equipe clínica antes do uso oficial.
+
 ## v0.57.0 — 2026-10-04
 
 **1. Transferência — lista de destinos simplificada.** O combo "Pra onde vai" (opção Transferir, em Internações) era uma lista fixa no código, sem tela de cadastro pra alterar — por isso não dava pra achar onde editar. Reduzido de 4 pra 2 opções: **UTI Geral** e **Outras** (removidas "UTI Coronária (Ext)" e "Outro Hospital"). Também adicionado um campo de **Observação** (opcional, texto livre) em toda transferência — fica salvo junto com o motivo no histórico. O relatório "Rastreio de movimentação" (Relatórios, desde a v0.56.0) já cobre transferências e retornos junto com as mudanças de unidade — nenhuma mudança extra foi necessária ali, já é o mesmo relatório.
