@@ -20,6 +20,10 @@ Antes de subir um deploy:
 
 ---
 
+## v0.63.2 — 2026-10-04
+
+- **Produção diária:** nova coluna **Categoria** (a categoria do procedimento lançado) na tela e na exportação CSV.
+
 ## v0.63.1 — 2026-10-04
 
 **Correção: erro técnico ao usar a IA sem configuração.**

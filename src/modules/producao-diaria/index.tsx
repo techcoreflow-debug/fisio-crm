@@ -207,6 +207,7 @@ export default function ProducaoDiaria() {
           Diagnóstico: internacao?.diagnostico ?? "—",
           "Código do procedimento": proc?.code ?? "—",
           Procedimento: proc?.name ?? "—",
+          Categoria: proc?.category ?? "—",
           Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
           Status: p.confirmado_tasy ? "Confirmado" : "Não confirmado",
           Glosado: p.glosado ? `R$ ${(p.valor_glosado ?? 0).toLocaleString("pt-BR")}` : "—",
@@ -398,6 +399,7 @@ export default function ProducaoDiaria() {
                   <th className="px-4 py-3 font-medium">Nr. Atendimento</th>
                   <th className="px-4 py-3 font-medium">Paciente</th>
                   <th className="px-4 py-3 font-medium">Procedimento</th>
+                  <th className="px-4 py-3 font-medium">Categoria</th>
                   <th className="px-4 py-3 font-medium">Fisioterapeuta</th>
                   <th className="px-4 py-3 font-medium">Conciliação</th>
                   {glosaPorProcedimento && <th className="px-4 py-3 font-medium">Glosa</th>}
@@ -420,6 +422,7 @@ export default function ProducaoDiaria() {
                         return proc ? <><span className="font-mono text-xs">{proc.code}</span> {proc.name}</> : "—";
                       })()}
                     </td>
+                    <td className={`${td} text-ink-soft`}>{procedimentos.find((pr) => pr.id === p.procedure_id)?.category ?? "—"}</td>
                     <td className={`${td} text-ink-soft`}>{fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—"}</td>
                     <td className={td}>
                       <Badge variant={p.confirmado_tasy ? "recovery" : "neutral"}>
