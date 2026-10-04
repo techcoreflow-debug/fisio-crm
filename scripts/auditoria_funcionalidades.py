@@ -169,6 +169,8 @@ MARCADORES = [
     ("Previsão de alta — Jornada do paciente (v0.63.0)", "src/modules/jornada-paciente/index.tsx", "preverAlta"),
     ("Ditado por voz na evolução clínica (v0.63.0)", "src/lib/ditado.ts", "useDitado"),
     ("Ditado por voz — botão na evolução (v0.63.0)", "src/modules/evolucao-clinica/index.tsx", "ditado.iniciar"),
+    ("IA indisponível — mensagem clara 'Necessária configuração da API de IA' (v0.63.1)", "src/lib/ai.ts", "MENSAGEM_IA_NAO_CONFIGURADA"),
+    ("Edge Function — não lê .json() de erro que não é resposta HTTP (v0.63.1)", "src/lib/edge-function.ts", 'typeof error.context.json === "function"'),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [

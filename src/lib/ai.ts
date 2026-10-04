@@ -5,9 +5,17 @@ import { chamarEdgeFunction } from "@/lib/edge-function";
  * está configurada (sem deploy ou sem a chave), `iaIndisponivel` identifica
  * o caso para a tela cair no caminho manual sem assustar o usuário.
  */
+export const MENSAGEM_IA_NAO_CONFIGURADA = "Necessária configuração da API de IA";
+
 export function iaIndisponivel(erro: unknown): boolean {
   const msg = erro instanceof Error ? erro.message : String(erro);
-  return msg.includes("IA não configurada") || msg.includes("Não foi possível conectar à função");
+  return (
+    msg.includes("IA não configurada") ||
+    msg.includes("Não foi possível conectar à função") ||
+    msg.includes("is not a function") ||
+    msg.includes("Failed to send a request") ||
+    msg.includes("not found")
+  );
 }
 
 export interface EvolucaoEstruturada {

@@ -20,7 +20,7 @@ import {
 } from "@/data/repository";
 import { montarJornada, diasDeInternacao, type TipoEventoJornada } from "@/lib/jornada";
 import { ESCALAS, MOMENTO_LABEL } from "@/lib/escalas-funcionais";
-import { gerarResumoAlta, iaIndisponivel } from "@/lib/ai";
+import { gerarResumoAlta, iaIndisponivel, MENSAGEM_IA_NAO_CONFIGURADA } from "@/lib/ai";
 import { preverAlta } from "@/lib/previsao-alta";
 import { hojeLocalIso } from "@/lib/data-local";
 import { notificarErro, notificarAviso } from "@/store/toast-store";
@@ -107,7 +107,7 @@ export default function JornadaPaciente() {
       });
       setResumo(texto);
     } catch (erro) {
-      if (iaIndisponivel(erro)) notificarAviso("A IA ainda não está configurada neste ambiente — a jornada acima pode ser impressa normalmente.");
+      if (iaIndisponivel(erro)) notificarAviso(MENSAGEM_IA_NAO_CONFIGURADA, "O restante do sistema funciona normalmente — a IA é opcional.");
       else notificarErro("Não foi possível gerar o resumo", erro);
     } finally {
       setGerando(false);

@@ -14,7 +14,9 @@ export async function chamarEdgeFunction<T = unknown>(nome: string, body: Record
   });
 
   if (error) {
-    if (error.context) {
+    // `context` só é uma Response quando a função respondeu (HTTP). Se a função
+    // nem está publicada ou a rede falhou, é outro tipo de erro e não tem .json().
+    if (error.context && typeof error.context.json === "function") {
       try {
         const corpo = await error.context.json();
         if (corpo?.error) throw new Error(corpo.error);

@@ -20,6 +20,12 @@ Antes de subir um deploy:
 
 ---
 
+## v0.63.1 — 2026-10-04
+
+**Correção: erro técnico ao usar a IA sem configuração.**
+- Sem a função `ai-assist` publicada, os botões de IA mostravam "a.context.json is not a function". Causa: o helper de Edge Functions tentava ler o corpo de um erro que não era uma resposta HTTP. Corrigido em `src/lib/edge-function.ts` (vale também para as demais funções, como a de usuários).
+- Agora, em qualquer tela de IA (Evolução clínica, Painel de valor, Jornada), a ausência de configuração mostra o aviso amarelo **"Necessária configuração da API de IA"**, sem travar nada.
+
 ## v0.63.0 — 2026-10-04
 
 **Backlog pendente — o que não dependia de dado externo.**

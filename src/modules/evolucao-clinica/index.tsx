@@ -28,7 +28,7 @@ import {
   repository,
 } from "@/data/repository";
 import { notificarErro, notificarSucesso, notificarAviso } from "@/store/toast-store";
-import { estruturarEvolucao, iaIndisponivel, type EvolucaoEstruturada } from "@/lib/ai";
+import { estruturarEvolucao, iaIndisponivel, MENSAGEM_IA_NAO_CONFIGURADA, type EvolucaoEstruturada } from "@/lib/ai";
 import { ESCALAS } from "@/lib/escalas-funcionais";
 import { hojeLocalIso } from "@/lib/data-local";
 import { useDitado, ditadoSuportado } from "@/lib/ditado";
@@ -160,7 +160,7 @@ export default function EvolucaoClinica() {
       setEscalasCitadas(r.escalas_citadas);
     } catch (erro) {
       if (iaIndisponivel(erro)) {
-        notificarAviso("A IA ainda não está configurada neste ambiente — você pode preencher manualmente ou salvar só o texto.");
+        notificarAviso(MENSAGEM_IA_NAO_CONFIGURADA, "O restante do sistema funciona normalmente — a IA é opcional.");
       } else {
         notificarErro("Não foi possível estruturar com IA", erro);
       }

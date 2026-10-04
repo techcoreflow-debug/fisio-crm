@@ -6,7 +6,7 @@ import { useAdmissions, useDailyProduction, useFunctionalAssessments } from "@/d
 import { calcularPainelValor, narrativaPainelValor } from "@/lib/painel-valor";
 import { Input } from "@/components/ui/input";
 import { notificarSucesso, notificarErro, notificarAviso } from "@/store/toast-store";
-import { reescreverNarrativa, perguntarAosDados, iaIndisponivel } from "@/lib/ai";
+import { reescreverNarrativa, perguntarAosDados, iaIndisponivel, MENSAGEM_IA_NAO_CONFIGURADA } from "@/lib/ai";
 
 function formatarData(iso: string) {
   const [a, m, d] = iso.split("-");
@@ -48,7 +48,7 @@ export function PainelValor({ de, ate, hospitalId }: { de: string; ate: string; 
     try {
       return await fn();
     } catch (erro) {
-      if (iaIndisponivel(erro)) notificarAviso("A IA ainda não está configurada neste ambiente — o relatório automático acima continua valendo.");
+      if (iaIndisponivel(erro)) notificarAviso(MENSAGEM_IA_NAO_CONFIGURADA, "O restante do sistema funciona normalmente — a IA é opcional.");
       else notificarErro("Não foi possível usar a IA", erro);
       return null;
     } finally {
