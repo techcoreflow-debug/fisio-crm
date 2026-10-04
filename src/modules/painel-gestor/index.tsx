@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Circle,
 } from "lucide-react";
+import { RadarPrioridade } from "@/components/shared/radar-prioridade";
 import { PageHeader } from "@/components/shared/page-header";
 import { GoniometerGauge } from "@/components/shared/goniometer-gauge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -91,6 +92,8 @@ export default function PainelGestor() {
         title="Painel do Gestor"
         description={`Acompanhamento em tempo real de ${new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}.`}
       />
+
+      <RadarPrioridade />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
         <Card className="lg:col-span-1">

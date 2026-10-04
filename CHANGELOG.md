@@ -20,6 +20,15 @@ Antes de subir um deploy:
 
 ---
 
+## v0.59.0 — 2026-10-04
+
+**Fase B do roadmap (ver `docs/BACKLOG-ROADMAP.md`).**
+- **Painel de valor** em Impacto Assistencial: ganho funcional médio, permanência média, reinternação em 30 dias, glosa e cobertura de avaliação do período/hospital filtrados. Onde não há base, mostra "sem dado" (nunca estima).
+- **Relatório narrativo do período** (texto determinístico, copiável) gerado dos mesmos números.
+- **Radar de prioridade** explicável (Painel do Gestor e Minha Fila): ordena internados por regras transparentes (sem atendimento, piora funcional, MRC-SS < 48, Barthel ≤ 20, avaliação/evolução desatualizada, permanência prolongada), mostrando o motivo de cada ponto e "Como é calculado".
+- **Briefing da manhã** na Minha Fila: saudação, resumo da fila do dia e "Quem olhar primeiro".
+- Sem migration nova.
+
 ## v0.58.0 — 2026-10-04
 
 **Fase A do roadmap "do volume ao resultado" (ver `docs/BACKLOG-ROADMAP.md`).**

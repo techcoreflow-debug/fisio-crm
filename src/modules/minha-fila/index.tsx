@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { hojeLocalIso } from "@/lib/data-local";
 import { ClipboardList, CheckCircle2, BedDouble, ClipboardPlus } from "lucide-react";
+import { RadarPrioridade } from "@/components/shared/radar-prioridade";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,11 @@ function hojeIso() {
 }
 function agoraHora() {
   return new Date().toTimeString().slice(0, 5);
+}
+
+function saudacao() {
+  const h = new Date().getHours();
+  return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
 }
 
 export default function MinhaFila() {
@@ -168,6 +174,17 @@ export default function MinhaFila() {
         </Card>
       ) : (
         <>
+          <Card>
+            <CardContent className="flex flex-col gap-1 pt-5">
+              <p className="text-base font-semibold text-ink">
+                {saudacao()}{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}!
+              </p>
+              <p className="text-sm text-ink-soft">
+                Hoje você tem {filaDeHoje.length} paciente(s) na fila: {pendentes.length} pendente(s) e {filaDeHoje.length - pendentes.length} concluído(s). Veja abaixo quem merece olhar primeiro e por quê.
+              </p>
+            </CardContent>
+          </Card>
+          <RadarPrioridade apenasIds={filaDeHoje.map((f) => f.admission_id)} limite={5} titulo="Quem olhar primeiro" />
           <div className="flex flex-col gap-3">
             {pendentes.map((item) => {
               const internacao = internacaoDoItem(item.admission_id);

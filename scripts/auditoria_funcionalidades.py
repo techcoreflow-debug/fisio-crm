@@ -139,6 +139,12 @@ MARCADORES = [
     ("Avaliação funcional — módulo com curva de ganho (v0.58.0)", "src/modules/avaliacao-funcional/index.tsx", "ganhoPorUnidade"),
     ("Jornada do paciente — linha do tempo unificada (v0.58.0)", "src/lib/jornada.ts", "montarJornada"),
     ("Jornada do paciente — módulo (v0.58.0)", "src/modules/jornada-paciente/index.tsx", "JornadaPaciente"),
+    ("Painel de valor — cálculo com 'sem dado' quando falta base (v0.59.0)", "src/lib/painel-valor.ts", "calcularPainelValor"),
+    ("Relatório mensal narrativo determinístico (v0.59.0)", "src/lib/painel-valor.ts", "narrativaPainelValor"),
+    ("Painel de valor — exibido em Impacto Assistencial (v0.59.0)", "src/modules/impacto-assistencial/index.tsx", "PainelValor"),
+    ("Radar de prioridade — regras transparentes (v0.59.0)", "src/lib/radar-prioridade.ts", "REGRAS_RADAR"),
+    ("Radar de prioridade — no Painel do Gestor (v0.59.0)", "src/modules/painel-gestor/index.tsx", "RadarPrioridade"),
+    ("Briefing da manhã — Minha Fila (v0.59.0)", "src/modules/minha-fila/index.tsx", "Quem olhar primeiro"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [

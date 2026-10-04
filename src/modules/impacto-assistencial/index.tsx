@@ -38,6 +38,7 @@ import {
 import { hojeLocalIso, dataParaIsoLocal, calcularIdade, calcularDiasInternacao } from "@/lib/data-local";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useAppStore } from "@/store/app-store";
+import { PainelValor } from "@/components/shared/painel-valor";
 
 const TODOS = "todos";
 const CORES = ["#2f80ed", "#4f8f5f", "#e0a030", "#a05fe0", "#e05f7a", "#3fb6c9"];
@@ -429,6 +430,8 @@ export default function ImpactoAssistencial() {
           </Select>
         </CardContent>
       </Card>
+
+      <PainelValor de={periodoDe} ate={periodoAte} hospitalId={filtroHospital === TODOS ? undefined : filtroHospital} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>
