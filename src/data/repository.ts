@@ -465,7 +465,10 @@ export const repository = {
 
   physiotherapists: {
     create: async (
-      data: Pick<Physiotherapist, "full_name" | "professional_registry" | "team_id" | "user_id" | "company_id">
+      data: Pick<
+        Physiotherapist,
+        "full_name" | "professional_registry" | "birth_date" | "document" | "registry_type" | "registry_number" | "team_id" | "user_id" | "company_id"
+      >
     ): Promise<Physiotherapist> => {
       const row = await inserirLinha<Physiotherapist>("physiotherapists", data);
       await registrarAuditoria({ company_id: row.company_id, action: "criado", entity_type: "Fisioterapeuta", entity_label: row.full_name });
@@ -473,7 +476,12 @@ export const repository = {
     },
     update: async (
       id: string,
-      patch: Partial<Pick<Physiotherapist, "full_name" | "professional_registry" | "team_id" | "user_id" | "company_id">>
+      patch: Partial<
+        Pick<
+          Physiotherapist,
+          "full_name" | "professional_registry" | "birth_date" | "document" | "registry_type" | "registry_number" | "team_id" | "user_id" | "company_id"
+        >
+      >
     ): Promise<void> => atualizarLinha("physiotherapists", id, patch),
     remove: async (id: string): Promise<void> => {
       await bloquearSeTiverDependentes(
@@ -756,7 +764,7 @@ export const repository = {
      * mesmo; o leito de origem é liberado (a pessoa não está mais nele
      * fisicamente).
      */
-    transferir: async (id: string, destino: string, registradoPor: string | null = null): Promise<void> => {
+    transferir: async (id: string, destino: string, registradoPor: string | null = null, observacao: string | null = null): Promise<void> => {
       const { data: admissao, error } = await supabase.from("admissions").select("*").eq("id", id).maybeSingle();
       if (error) throw new Error(error.message);
       if (!admissao) throw new Error("Internação não encontrada.");
@@ -782,7 +790,7 @@ export const repository = {
         unidade_destino_id: null,
         leito_destino_id: null,
         destino_externo: destino,
-        motivo: null,
+        motivo: observacao,
         registrado_por: registradoPor,
       });
       await registrarAuditoria({

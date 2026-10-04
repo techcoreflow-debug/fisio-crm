@@ -130,6 +130,8 @@ MARCADORES = [
     ("Mudar de unidade — tela em Internações (v0.56.0)", "src/modules/internacoes/index.tsx", "abrirMudarUnidade"),
     ("Relatório Rastreio de movimentação (v0.56.0)", "src/modules/relatorios/index.tsx", "rastreio-movimentacao"),
     ("Auditoria — ícone/rótulo de quebra_de_alta e mudança de unidade (v0.56.0)", "src/modules/auditoria/index.tsx", "mudanca_unidade"),
+    ("Transferência — opções reduzidas a UTI Geral/Outras, com observação (v0.57.0)", "src/modules/internacoes/index.tsx", "observacaoTransferencia"),
+    ("Fisioterapeuta — campos opcionais de nascimento/CPF/registro (v0.57.0)", "src/modules/fisioterapeutas/index.tsx", "registry_number"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [

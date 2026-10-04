@@ -116,7 +116,12 @@ export interface Physiotherapist {
   user_id: string | null;
   team_id: string | null;
   full_name: string;
+  /** Mantido por compatibilidade com cadastros antigos (string livre, ex.: "CREFITO-3/00000-F") — derivado automaticamente de registry_type+registry_number quando um dos dois é preenchido. */
   professional_registry: string | null;
+  birth_date: string | null;
+  document: string | null;
+  registry_type: string | null;
+  registry_number: string | null;
   created_at: string;
 }
 

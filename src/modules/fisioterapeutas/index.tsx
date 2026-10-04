@@ -66,9 +66,21 @@ export default function Fisioterapeutas() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
+    const tipoRegistro = String(form.get("registry_type") ?? "").trim();
+    const numeroRegistro = String(form.get("registry_number") ?? "").trim();
+    // Deriva o campo antigo (professional_registry, string livre, usado na
+    // listagem) a partir dos dois campos novos — mas só quando pelo menos
+    // um deles foi preenchido. Deixando os dois em branco (ex.: editando só
+    // outro dado de um cadastro antigo) preserva o valor que já existia,
+    // em vez de apagá-lo.
+    const registroDerivado = [tipoRegistro, numeroRegistro].filter(Boolean).join(" ") || null;
     const dados = {
       full_name: String(form.get("full_name") ?? ""),
-      professional_registry: String(form.get("professional_registry") ?? "") || null,
+      professional_registry: registroDerivado ?? editando?.professional_registry ?? null,
+      registry_type: tipoRegistro || null,
+      registry_number: numeroRegistro || null,
+      birth_date: String(form.get("birth_date") ?? "") || null,
+      document: String(form.get("document") ?? "").trim() || null,
       team_id: equipeId || null,
       user_id: usuarioId || null,
       company_id: empresaId,
@@ -114,9 +126,25 @@ export default function Fisioterapeutas() {
                     <Label htmlFor="full_name">Nome completo</Label>
                     <Input id="full_name" name="full_name" required placeholder="Ex.: Ana Beatriz Correia" defaultValue={editando?.full_name} />
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="professional_registry">Registro profissional (Crefito)</Label>
-                    <Input id="professional_registry" name="professional_registry" placeholder="CREFITO-3/00000-F" defaultValue={editando?.professional_registry ?? ""} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="birth_date">Data de nascimento (opcional)</Label>
+                      <Input id="birth_date" name="birth_date" type="date" defaultValue={editando?.birth_date ?? ""} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="document">CPF (opcional)</Label>
+                      <Input id="document" name="document" placeholder="000.000.000-00" defaultValue={editando?.document ?? ""} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="registry_type">Tipo do registro profissional (opcional)</Label>
+                      <Input id="registry_type" name="registry_type" placeholder="Ex.: CREFITO, CRM" defaultValue={editando?.registry_type ?? ""} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="registry_number">Número do registro (opcional)</Label>
+                      <Input id="registry_number" name="registry_number" placeholder="Ex.: 3/00000-F" defaultValue={editando?.registry_number ?? ""} />
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label>Equipe (opcional)</Label>

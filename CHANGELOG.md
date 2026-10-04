@@ -20,6 +20,18 @@ Antes de subir um deploy:
 
 ---
 
+## v0.57.0 — 2026-10-04
+
+**1. Transferência — lista de destinos simplificada.** O combo "Pra onde vai" (opção Transferir, em Internações) era uma lista fixa no código, sem tela de cadastro pra alterar — por isso não dava pra achar onde editar. Reduzido de 4 pra 2 opções: **UTI Geral** e **Outras** (removidas "UTI Coronária (Ext)" e "Outro Hospital"). Também adicionado um campo de **Observação** (opcional, texto livre) em toda transferência — fica salvo junto com o motivo no histórico. O relatório "Rastreio de movimentação" (Relatórios, desde a v0.56.0) já cobre transferências e retornos junto com as mudanças de unidade — nenhuma mudança extra foi necessária ali, já é o mesmo relatório.
+
+**2. Fisioterapeutas — novos campos opcionais.** Cadastro de Fisioterapeutas ganhou 4 campos, todos opcionais: Data de nascimento, CPF, Tipo do registro profissional (texto livre — Crefito, CRM etc.) e Número do registro profissional (separado do tipo). O campo antigo "Registro profissional" (texto único) continua existindo por baixo pra não quebrar cadastros já feitos — quando Tipo e/ou Número são preenchidos, ele é atualizado automaticamente a partir dos dois; se os dois ficarem em branco numa edição, o valor antigo é preservado, nunca apagado.
+
+Nota: "cadastro de usuários" no pedido original foi interpretado como o cadastro de **Fisioterapeutas** — é onde existe registro profissional (Crefito/CRM); a tela "Usuários e Permissões" é só login e papel de acesso, sem esses campos.
+
+**Requer aplicar a migration nova** (`0033_dados_opcionais_fisioterapeuta.sql`) no banco antes de usar os campos novos.
+
+---
+
 ## v0.56.0 — 2026-10-01
 
 **Rastreio de movimentação de unidade — pra UTI própria do hospital (não mais só UTI de outra empresa).** Até agora, mover um paciente de unidade (ex.: Enfermaria → UTI) sem usar "Transferir" (pensado só pra sair do nosso controle, ex.: UTI de outra empresa) não deixava rastro nenhum — a edição comum de internação nunca gravou nada em auditoria, e não dava pra saber depois quem mudou o quê e quando.

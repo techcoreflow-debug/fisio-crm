@@ -300,15 +300,17 @@ export default function Internacoes() {
   const [internacaoParaTransferir, setInternacaoParaTransferir] = useState<Admission | null>(null);
   const [setorTransferencia, setSetorTransferencia] = useState("");
   const [detalheTransferencia, setDetalheTransferencia] = useState("");
+  const [observacaoTransferencia, setObservacaoTransferencia] = useState("");
   const [salvandoTransferencia, setSalvandoTransferencia] = useState(false);
 
-  const SETORES_TRANSFERENCIA = ["UTI Coronária (Ext)", "UTI Geral", "Outro Hospital", "Outras"];
+  const SETORES_TRANSFERENCIA = ["UTI Geral", "Outras"];
   const destinoTransferencia = setorTransferencia === "Outras" ? detalheTransferencia.trim() : setorTransferencia;
 
   function abrirTransferencia(internacao: Admission) {
     setInternacaoParaTransferir(internacao);
     setSetorTransferencia("");
     setDetalheTransferencia("");
+    setObservacaoTransferencia("");
   }
 
   async function handleConfirmarTransferencia(e: FormEvent<HTMLFormElement>) {
@@ -316,7 +318,12 @@ export default function Internacoes() {
     if (!internacaoParaTransferir || !destinoTransferencia.trim()) return;
     setSalvandoTransferencia(true);
     try {
-      await repository.admissions.transferir(internacaoParaTransferir.id, destinoTransferencia.trim(), profile?.id ?? null);
+      await repository.admissions.transferir(
+        internacaoParaTransferir.id,
+        destinoTransferencia.trim(),
+        profile?.id ?? null,
+        observacaoTransferencia.trim() || null
+      );
       notificarSucesso("Internação transferida — continua com o mesmo Nr. Atendimento, sem alta.");
       setInternacaoParaTransferir(null);
     } catch (erro) {
@@ -1635,6 +1642,16 @@ export default function Internacoes() {
                   />
                 </div>
               )}
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="observacao_transferencia">Observação (opcional)</Label>
+                <Textarea
+                  id="observacao_transferencia"
+                  value={observacaoTransferencia}
+                  onChange={(e) => setObservacaoTransferencia(e.target.value)}
+                  placeholder="Ex.: Motivo da transferência, contato do hospital de destino…"
+                  rows={2}
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="secondary" onClick={() => setInternacaoParaTransferir(null)}>Cancelar</Button>
