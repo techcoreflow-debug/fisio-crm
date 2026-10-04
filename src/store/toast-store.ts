@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type ToastVariant = "error" | "success";
+export type ToastVariant = "error" | "success" | "warning";
 
 export interface ToastItem {
   id: string;
@@ -25,7 +25,7 @@ export const useToastStore = create<ToastState>((set, get) => ({
   push: (toast) => {
     const id = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `t-${Math.random()}`;
     set({ toasts: [...get().toasts, { ...toast, id }] });
-    const timeout = toast.variant === "error" ? 8000 : 4000;
+    const timeout = toast.variant === "error" || toast.variant === "warning" ? 8000 : 4000;
     setTimeout(() => get().dismiss(id), timeout);
   },
   dismiss: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
@@ -44,4 +44,8 @@ export function notificarErro(title: string, erro: unknown) {
 
 export function notificarSucesso(title: string, description?: string) {
   useToastStore.getState().push({ variant: "success", title, description });
+}
+
+export function notificarAviso(title: string, description?: string) {
+  useToastStore.getState().push({ variant: "warning", title, description });
 }

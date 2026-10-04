@@ -256,7 +256,18 @@ export interface ClinicalEvolution {
   admission_id: string;
   physiotherapist_id: string | null;
   content: string;
+  /** Resumo estruturado confirmado pelo fisioterapeuta (migration 0035); nulo em evoluções antigas. */
+  estruturado: EvolucaoEstruturadaConfirmada | null;
   created_at: string;
+}
+
+export interface EvolucaoEstruturadaConfirmada {
+  resumo: string;
+  intercorrencias: string[];
+  condutas: string[];
+  metas: string[];
+  /** true quando o rascunho veio da IA (sempre confirmado por um humano antes de gravar). */
+  sugerido_por_ia: boolean;
 }
 
 export type EscalaFuncionalId = "barthel" | "mrc" | "ims" | "fss_icu" | "borg";

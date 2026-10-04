@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Route, BedDouble, ArrowRightLeft, NotebookPen, ListChecks, Activity, LogOut, Printer } from "lucide-react";
+import { Route, BedDouble, ArrowRightLeft, NotebookPen, ListChecks, Activity, LogOut, Printer, Sparkles, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +19,9 @@ import {
   useProcedures,
 } from "@/data/repository";
 import { montarJornada, diasDeInternacao, type TipoEventoJornada } from "@/lib/jornada";
+import { ESCALAS, MOMENTO_LABEL } from "@/lib/escalas-funcionais";
+import { gerarResumoAlta, iaIndisponivel } from "@/lib/ai";
+import { notificarErro, notificarAviso } from "@/store/toast-store";
 
 const VISUAL: Record<TipoEventoJornada, { icon: typeof Route; cor: string }> = {
   internacao: { icon: BedDouble, cor: "bg-clinical-50 text-clinical-600" },
@@ -41,6 +44,10 @@ export default function JornadaPaciente() {
   const procedimentos = useProcedures();
 
   const [admissionId, setAdmissionId] = useState("");
+  const [resumo, setResumo] = useState("");
+  const [gerando, setGerando] = useState(false);
+  const [revisado, setRevisado] = useState(false);
+  const [imprimirSoResumo, setImprimirSoResumo] = useState(false);
 
   const opcoes = useMemo(
     () =>
@@ -73,6 +80,37 @@ export default function JornadaPaciente() {
       nomeLocal,
     });
   }, [internacao, historico, evolucoes, producao, avaliacoes, procedimentos, hospitais, unidades]);
+
+  // Dados clínicos agregados para o resumo de alta — SEM nome do paciente,
+  // sem texto livre de evolução (pode conter identificadores).
+  async function gerarResumo() {
+    if (!internacao) return;
+    setGerando(true);
+    setRevisado(false);
+    try {
+      const avs = avaliacoes
+        .filter((a) => a.admission_id === internacao.id)
+        .sort((a, b) => a.avaliado_em.localeCompare(b.avaliado_em))
+        .map((a) => ({ escala: ESCALAS[a.escala].nome, momento: MOMENTO_LABEL[a.momento], escore: a.score, maximo: ESCALAS[a.escala].max, data: a.avaliado_em }));
+      const nomesProc = Array.from(
+        new Set(producao.filter((p) => p.admission_id === internacao.id).map((p) => procedimentos.find((x) => x.id === p.procedure_id)?.name).filter(Boolean))
+      );
+      const texto = await gerarResumoAlta({
+        dias_de_internacao: diasDeInternacao(internacao),
+        diagnostico: internacao.diagnostico,
+        unidades_percorridas: eventos.filter((e) => e.tipo === "unidade").map((e) => e.detalhe),
+        procedimentos_realizados: nomesProc,
+        avaliacoes_funcionais: avs,
+        tipo_alta: internacao.discharge_type,
+      });
+      setResumo(texto);
+    } catch (erro) {
+      if (iaIndisponivel(erro)) notificarAviso("A IA ainda não está configurada neste ambiente — a jornada acima pode ser impressa normalmente.");
+      else notificarErro("Não foi possível gerar o resumo", erro);
+    } finally {
+      setGerando(false);
+    }
+  }
 
   const paciente = pacientes.find((p) => p.id === internacao?.patient_id);
   const totalProcedimentos = internacao ? producao.filter((p) => p.admission_id === internacao.id).length : 0;
@@ -113,7 +151,7 @@ export default function JornadaPaciente() {
         </Card>
       ) : (
         <>
-          <Card>
+          <Card className={imprimirSoResumo ? "print:hidden" : ""}>
             <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-5">
               <div>
                 <p className="text-lg font-semibold text-ink">{paciente?.full_name ?? "—"}</p>
@@ -127,7 +165,7 @@ export default function JornadaPaciente() {
             </CardContent>
           </Card>
 
-          <ol className="relative flex flex-col gap-4 border-l-2 border-line pl-6">
+          <ol className={`relative flex flex-col gap-4 border-l-2 border-line pl-6 ${imprimirSoResumo ? "print:hidden" : ""}`}>
             {eventos.map((ev) => {
               const { icon: Icone, cor } = VISUAL[ev.tipo];
               return (
@@ -144,6 +182,49 @@ export default function JornadaPaciente() {
               );
             })}
           </ol>
+
+          <Card className="print:break-inside-avoid">
+            <CardContent className="flex flex-col gap-3 pt-5">
+              <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
+                <div>
+                  <p className="text-sm font-medium text-ink">Resumo de alta para paciente e família</p>
+                  <p className="text-xs text-ink-soft">Rascunho gerado por IA a partir dos dados clínicos agregados (sem nome). Edite e revise antes de entregar.</p>
+                </div>
+                <Button size="sm" variant="secondary" onClick={gerarResumo} disabled={gerando}>
+                  {gerando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Gerar rascunho
+                </Button>
+              </div>
+              {resumo && (
+                <>
+                  <p className="hidden text-sm font-semibold text-ink print:block">Resumo de alta — {paciente?.full_name ?? ""}</p>
+                  <textarea
+                    rows={9}
+                    value={resumo}
+                    onChange={(e) => {
+                      setResumo(e.target.value);
+                      setRevisado(false);
+                    }}
+                    className="rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm text-ink print:border-0 print:p-0"
+                  />
+                  <label className="flex items-center gap-2 text-sm text-ink print:hidden">
+                    <input type="checkbox" checked={revisado} onChange={(e) => setRevisado(e.target.checked)} />
+                    Revisei o texto e assumo a responsabilidade pelo conteúdo
+                  </label>
+                  <Button size="sm" className="self-start print:hidden" disabled={!revisado}
+                    onClick={() => {
+                      setImprimirSoResumo(true);
+                      setTimeout(() => {
+                        window.print();
+                        setImprimirSoResumo(false);
+                      }, 50);
+                    }}
+                  >
+                    <Printer className="h-4 w-4" /> Imprimir resumo
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

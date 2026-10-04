@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { NotebookPen, Plus, Search, AlertTriangle, BedDouble, ChevronDown } from "lucide-react";
+import { NotebookPen, Plus, Search, AlertTriangle, BedDouble, ChevronDown, Sparkles, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/sheet";
 import {
   useClinicalEvolutions,
+  useFunctionalAssessments,
   useAdmissions,
   usePatients,
   usePhysiotherapists,
@@ -26,10 +27,23 @@ import {
   useUnits,
   repository,
 } from "@/data/repository";
-import { notificarErro, notificarSucesso } from "@/store/toast-store";
+import { notificarErro, notificarSucesso, notificarAviso } from "@/store/toast-store";
+import { estruturarEvolucao, iaIndisponivel, type EvolucaoEstruturada } from "@/lib/ai";
+import { ESCALAS } from "@/lib/escalas-funcionais";
+import { hojeLocalIso } from "@/lib/data-local";
+
+interface EstruturaEditavel {
+  resumo: string;
+  intercorrencias: string;
+  condutas: string;
+  metas: string;
+  sugeridoPorIa: boolean;
+}
+const linhas = (t: string) => t.split("\n").map((l) => l.trim()).filter(Boolean);
 
 export default function EvolucaoClinica() {
   const evolucoes = useClinicalEvolutions();
+  const avaliacoes = useFunctionalAssessments();
   const internacoes = useAdmissions();
   const pacientes = usePatients();
   const fisioterapeutas = usePhysiotherapists();
@@ -43,6 +57,10 @@ export default function EvolucaoClinica() {
   const internacoesAtivas = internacoes.filter((i) => i.status === "internado");
   const [internacaoId, setInternacaoId] = useState(internacoesAtivas[0]?.id ?? "");
   const [fisioId, setFisioId] = useState("");
+  const [texto, setTexto] = useState("");
+  const [estrutura, setEstrutura] = useState<EstruturaEditavel | null>(null);
+  const [estruturando, setEstruturando] = useState(false);
+  const [escalasCitadas, setEscalasCitadas] = useState<EvolucaoEstruturada["escalas_citadas"]>([]);
 
   function nomePaciente(admissionId: string) {
     const internacao = internacoes.find((i) => i.id === admissionId);
@@ -107,12 +125,72 @@ export default function EvolucaoClinica() {
   function abrirNova() {
     setInternacaoId(internacoesAtivas[0]?.id ?? "");
     setFisioId("");
+    setTexto("");
+    setEstrutura(null);
+    setEscalasCitadas([]);
     setOpen(true);
+  }
+
+  async function estruturarComIa() {
+    if (texto.trim().length < 10) {
+      notificarAviso("Escreva a evolução antes de estruturar.");
+      return;
+    }
+    setEstruturando(true);
+    try {
+      const r = await estruturarEvolucao(texto);
+      setEstrutura({
+        resumo: r.resumo,
+        intercorrencias: r.intercorrencias.join("\n"),
+        condutas: r.condutas.join("\n"),
+        metas: r.metas.join("\n"),
+        sugeridoPorIa: true,
+      });
+      setEscalasCitadas(r.escalas_citadas);
+    } catch (erro) {
+      if (iaIndisponivel(erro)) {
+        notificarAviso("A IA ainda não está configurada neste ambiente — você pode preencher manualmente ou salvar só o texto.");
+      } else {
+        notificarErro("Não foi possível estruturar com IA", erro);
+      }
+    } finally {
+      setEstruturando(false);
+    }
+  }
+
+  // Só escalas de item único (IMS, Borg) podem ser gravadas direto a partir do
+  // texto: o escore É a resposta do item. Barthel/MRC/FSS-ICU exigem os itens.
+  async function registrarEscalaCitada(c: EvolucaoEstruturada["escalas_citadas"][number]) {
+    const internacao = internacoes.find((i) => i.id === internacaoId);
+    const def = ESCALAS[c.escala];
+    if (!internacao || def.itens.length !== 1) return;
+    const item = def.itens[0];
+    if (!item.opcoes.some((o) => o.valor === c.score)) {
+      notificarAviso(`Escore ${c.score} inválido para ${def.sigla}.`);
+      return;
+    }
+    const jaTem = avaliacoes.some((a) => a.admission_id === internacaoId && a.escala === c.escala);
+    try {
+      await repository.functionalAssessments.create({
+        company_id: internacao.company_id,
+        admission_id: internacaoId,
+        physiotherapist_id: fisioId || null,
+        escala: c.escala,
+        momento: jaTem ? "reavaliacao" : "admissao",
+        score: c.score,
+        itens: { [item.id]: c.score },
+        observacao: "Registrado a partir da evolução clínica",
+        avaliado_em: hojeLocalIso(),
+      });
+      setEscalasCitadas((atual) => atual.filter((x) => x !== c));
+      notificarSucesso(`${def.sigla} ${c.score} registrado na avaliação funcional.`);
+    } catch (erro) {
+      notificarErro("Não foi possível registrar a escala", erro);
+    }
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const form = new FormData(e.currentTarget);
     const internacao = internacoes.find((i) => i.id === internacaoId);
     if (!internacao) return;
     setSalvando(true);
@@ -120,12 +198,20 @@ export default function EvolucaoClinica() {
       await repository.clinicalEvolutions.create({
         admission_id: internacaoId,
         physiotherapist_id: fisioId,
-        content: String(form.get("content") ?? ""),
+        content: texto,
         company_id: internacao.company_id,
+        estruturado: estrutura
+          ? {
+              resumo: estrutura.resumo.trim(),
+              intercorrencias: linhas(estrutura.intercorrencias),
+              condutas: linhas(estrutura.condutas),
+              metas: linhas(estrutura.metas),
+              sugerido_por_ia: estrutura.sugeridoPorIa,
+            }
+          : null,
       });
       notificarSucesso("Evolução registrada.");
       setOpen(false);
-      e.currentTarget.reset();
     } catch (erro) {
       notificarErro("Não foi possível registrar a evolução", erro);
     } finally {
@@ -180,9 +266,65 @@ export default function EvolucaoClinica() {
                       name="content"
                       required
                       rows={5}
+                      value={texto}
+                      onChange={(e) => setTexto(e.target.value)}
                       className="rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm text-ink shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/40"
                       placeholder="Descreva a evolução do paciente…"
                     />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button type="button" size="sm" variant="secondary" onClick={estruturarComIa} disabled={estruturando || texto.trim().length < 10}>
+                        {estruturando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Estruturar com IA
+                      </Button>
+                      {!estrutura && (
+                        <button type="button" className="text-xs text-clinical-700 underline" onClick={() => setEstrutura({ resumo: "", intercorrencias: "", condutas: "", metas: "", sugeridoPorIa: false })}>
+                          Preencher manualmente
+                        </button>
+                      )}
+                      <span className="text-xs text-ink-soft">Opcional — o texto acima é o registro oficial.</span>
+                    </div>
+                  </div>
+                  {estrutura && (
+                    <div className="flex flex-col gap-3 rounded-lg border border-clinical-100 bg-clinical-50/40 p-3">
+                      <p className="text-xs font-medium text-clinical-700">
+                        {estrutura.sugeridoPorIa ? "Sugestão da IA — revise e corrija antes de salvar" : "Resumo estruturado"}
+                      </p>
+                      <div className="flex flex-col gap-1">
+                        <Label>Resumo</Label>
+                        <Input value={estrutura.resumo} onChange={(e) => setEstrutura({ ...estrutura, resumo: e.target.value })} />
+                      </div>
+                      {([["intercorrencias", "Intercorrências"], ["condutas", "Condutas"], ["metas", "Metas"]] as const).map(([campo, rotulo]) => (
+                        <div key={campo} className="flex flex-col gap-1">
+                          <Label>{rotulo} <span className="font-normal text-ink-soft">(uma por linha)</span></Label>
+                          <textarea
+                            rows={2}
+                            value={estrutura[campo]}
+                            onChange={(e) => setEstrutura({ ...estrutura, [campo]: e.target.value })}
+                            className="rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm text-ink"
+                          />
+                        </div>
+                      ))}
+                      {escalasCitadas.length > 0 && (
+                        <div className="flex flex-col gap-1.5">
+                          <Label>Escalas citadas no texto</Label>
+                          {escalasCitadas.map((c) => {
+                            const def = ESCALAS[c.escala];
+                            const unico = def.itens.length === 1;
+                            return (
+                              <div key={`${c.escala}-${c.score}-${c.trecho}`} className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-soft">
+                                <span>{def.sigla}: {c.score} — “{c.trecho}”</span>
+                                {unico ? (
+                                  <Button type="button" size="sm" variant="secondary" onClick={() => registrarEscalaCitada(c)}>Registrar {def.sigla}</Button>
+                                ) : (
+                                  <span>lance os itens em Avaliação funcional</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="hidden">
                   </div>
                 </div>
                 <SheetFooter>

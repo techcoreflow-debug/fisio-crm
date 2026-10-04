@@ -992,7 +992,7 @@ export const repository = {
 
   clinicalEvolutions: {
     create: async (
-      data: Pick<ClinicalEvolution, "admission_id" | "physiotherapist_id" | "content" | "company_id">
+      data: Pick<ClinicalEvolution, "admission_id" | "physiotherapist_id" | "content" | "company_id"> & Partial<Pick<ClinicalEvolution, "estruturado">>
     ): Promise<ClinicalEvolution> => {
       if (data.content.trim().length < 10) {
         throw new Error("A evolução precisa ter pelo menos 10 caracteres.");

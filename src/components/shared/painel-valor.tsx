@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
-import { Sparkles, Copy, Check } from "lucide-react";
+import { Sparkles, Copy, Check, Loader2, Send } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAdmissions, useDailyProduction, useFunctionalAssessments } from "@/data/repository";
 import { calcularPainelValor, narrativaPainelValor } from "@/lib/painel-valor";
-import { notificarSucesso } from "@/store/toast-store";
+import { Input } from "@/components/ui/input";
+import { notificarSucesso, notificarErro, notificarAviso } from "@/store/toast-store";
+import { reescreverNarrativa, perguntarAosDados, iaIndisponivel } from "@/lib/ai";
 
 function formatarData(iso: string) {
   const [a, m, d] = iso.split("-");
@@ -29,6 +31,10 @@ export function PainelValor({ de, ate, hospitalId }: { de: string; ate: string; 
   const producao = useDailyProduction();
   const avaliacoes = useFunctionalAssessments();
   const [copiado, setCopiado] = useState(false);
+  const [narrativaIa, setNarrativaIa] = useState<string | null>(null);
+  const [carregandoIa, setCarregandoIa] = useState<"narrativa" | "pergunta" | null>(null);
+  const [pergunta, setPergunta] = useState("");
+  const [resposta, setResposta] = useState<string | null>(null);
 
   const painel = useMemo(() => {
     const escopo = hospitalId ? internacoes.filter((i) => i.hospital_id === hospitalId) : internacoes;
@@ -37,9 +43,37 @@ export function PainelValor({ de, ate, hospitalId }: { de: string; ate: string; 
 
   const narrativa = narrativaPainelValor(painel, `de ${formatarData(de)} a ${formatarData(ate)}`);
 
-  async function copiar() {
+  async function chamarIa<T>(tipo: "narrativa" | "pergunta", fn: () => Promise<T>): Promise<T | null> {
+    setCarregandoIa(tipo);
     try {
-      await navigator.clipboard.writeText(narrativa);
+      return await fn();
+    } catch (erro) {
+      if (iaIndisponivel(erro)) notificarAviso("A IA ainda não está configurada neste ambiente — o relatório automático acima continua valendo.");
+      else notificarErro("Não foi possível usar a IA", erro);
+      return null;
+    } finally {
+      setCarregandoIa(null);
+    }
+  }
+
+  // A IA só enxerga números agregados do período — nunca registros de paciente.
+  const dadosAgregados = { periodo: { de, ate }, indicadores: painel };
+
+  async function reescrever() {
+    const r = await chamarIa("narrativa", () => reescreverNarrativa(narrativa));
+    if (r) setNarrativaIa(r);
+  }
+
+  async function perguntar() {
+    if (!pergunta.trim()) return;
+    const r = await chamarIa("pergunta", () => perguntarAosDados(pergunta, dadosAgregados));
+    if (r) setResposta(r);
+  }
+
+  async function copiar() {
+    const textoFinal = narrativaIa ?? narrativa;
+    try {
+      await navigator.clipboard.writeText(textoFinal);
       setCopiado(true);
       notificarSucesso("Relatório copiado.");
       setTimeout(() => setCopiado(false), 2000);
@@ -92,6 +126,33 @@ export function PainelValor({ de, ate, hospitalId }: { de: string; ate: string; 
             </Button>
           </div>
           <p className="text-sm leading-relaxed text-ink">{narrativa}</p>
+          <div className="mt-2">
+            <Button size="sm" variant="secondary" onClick={reescrever} disabled={carregandoIa !== null}>
+              {carregandoIa === "narrativa" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Reescrever com IA
+            </Button>
+          </div>
+          {narrativaIa && (
+            <div className="mt-3 border-t border-line pt-3">
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-clinical-700">Versão da IA (revise antes de usar)</p>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink">{narrativaIa}</p>
+            </div>
+          )}
+        </div>
+        <div className="rounded-lg border border-line p-3">
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-ink-soft">Pergunte aos dados</p>
+          <div className="flex gap-2">
+            <Input
+              value={pergunta}
+              onChange={(e) => setPergunta(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && perguntar()}
+              placeholder="Ex.: a glosa está alta neste período? o ganho funcional está bom?"
+            />
+            <Button size="sm" onClick={perguntar} disabled={carregandoIa !== null || !pergunta.trim()}>
+              {carregandoIa === "pergunta" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </div>
+          {resposta && <p className="mt-2 whitespace-pre-wrap text-sm text-ink">{resposta}</p>}
+          <p className="mt-2 text-xs text-ink-soft">A IA responde só com os indicadores agregados acima — nenhum dado de paciente é enviado.</p>
         </div>
         <p className="text-xs text-ink-soft">Todos os números vêm dos registros do sistema; onde não há base suficiente aparece "sem dado". O ganho funcional é a média, entre as internações com 2+ avaliações da mesma escala, da diferença entre a primeira e a última como % da amplitude da escala.</p>
       </CardContent>

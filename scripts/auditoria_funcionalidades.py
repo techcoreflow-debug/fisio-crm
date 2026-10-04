@@ -145,6 +145,18 @@ MARCADORES = [
     ("Radar de prioridade — regras transparentes (v0.59.0)", "src/lib/radar-prioridade.ts", "REGRAS_RADAR"),
     ("Radar de prioridade — no Painel do Gestor (v0.59.0)", "src/modules/painel-gestor/index.tsx", "RadarPrioridade"),
     ("Briefing da manhã — Minha Fila (v0.59.0)", "src/modules/minha-fila/index.tsx", "Quem olhar primeiro"),
+    ("IA — Edge Function ai-assist com chave em secret (v0.60.0)", "supabase/functions/ai-assist/index.ts", "ANTHROPIC_API_KEY"),
+    ("IA — anonimização de CPF/e-mail/telefone antes de enviar (v0.60.0)", "supabase/functions/ai-assist/index.ts", "anonimizar"),
+    ("IA — limite de uso por usuário (v0.60.0)", "supabase/functions/ai-assist/index.ts", "limiteExcedido"),
+    ("IA — cliente com fallback quando não configurada (v0.60.0)", "src/lib/ai.ts", "iaIndisponivel"),
+    ("IA — evolução estruturada com confirmação do fisio (v0.60.0)", "src/modules/evolucao-clinica/index.tsx", "estruturarComIa"),
+    ("IA — evolução estruturada: migration 0035 (v0.60.0)", "supabase/migrations/0035_evolucao_estruturada.sql", "estruturado"),
+    ("IA — perguntar aos dados (só números agregados) (v0.60.0)", "src/components/shared/painel-valor.tsx", "perguntarAosDados"),
+    ("IA — resumo de alta com revisão obrigatória (v0.60.0)", "src/modules/jornada-paciente/index.tsx", "gerarResumoAlta"),
+    ("Prevenção de glosa — regras universais antes do faturamento (v0.61.0)", "src/lib/glosa.ts", "verificarGlosa"),
+    ("Prevenção de glosa — exibida no Fechamento (v0.61.0)", "src/modules/fechamento/index.tsx", "PrevencaoGlosa"),
+    ("Projeção do mês rotulada como estimativa (v0.61.0)", "src/lib/glosa.ts", "projetarMes"),
+    ("Projeção do mês — card no Fechamento (v0.61.0)", "src/modules/fechamento/index.tsx", "ProjecaoMes"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [

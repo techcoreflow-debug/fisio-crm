@@ -20,6 +20,24 @@ Antes de subir um deploy:
 
 ---
 
+## v0.61.0 — 2026-10-04
+
+**Fase D do roadmap — receita inteligente.**
+- **Prevenção de glosa** no Fechamento (respeita período, hospital e convênio): duplicidade exata, procedimentos fora da internação (antes da entrada / depois da alta / sem internação), lançamento sem procedimento, frequência diária alta (> 4/dia, ajustável em `src/lib/glosa.ts`), internação sem diagnóstico e sem convênio. Lista por paciente, com filtro por regra e "Quais regras são checadas".
+- **Projeção do mês** (rotulada "estimativa"): média diária × dias do mês; valor estimado usa o repasse por procedimento do mês anterior; "sem dado" com menos de 3 dias de lançamento ou sem repasse anterior. Premissas e limites mostrados na tela.
+- Regras específicas por convênio continuam no backlog (precisam do cadastro das regras reais).
+- Sem migration nova.
+
+## v0.60.0 — 2026-10-04
+
+**Fase C do roadmap — IA como apoio (nunca decisora).**
+- **Edge Function `ai-assist`** (nova): chave da Anthropic só em secret do servidor; exige login; remove CPF/e-mail/telefone do texto; limita tamanho e uso por usuário. Sem a chave configurada responde "IA não configurada" e o app segue pelo caminho manual.
+- **Evolução clínica estruturada**: botão "Estruturar com IA" (ou "Preencher manualmente") gera resumo, intercorrências, condutas e metas **editáveis**; só grava após o fisioterapeuta confirmar. Escalas de item único citadas no texto (IMS, Borg) podem ser registradas direto na Avaliação funcional. Migration **0035** (`clinical_evolutions.estruturado`).
+- **Painel de valor**: "Reescrever com IA" (relatório para diretoria) e "Pergunte aos dados" (a IA recebe só indicadores agregados, nunca registros de paciente).
+- **Resumo de alta** na Jornada do paciente: rascunho para paciente/família sem nome, editável, impressão só após marcar a revisão.
+- Novo tipo de aviso (amarelo) nas notificações.
+- **Para ativar:** `supabase functions deploy ai-assist` + `supabase secrets set ANTHROPIC_API_KEY=...`.
+
 ## v0.59.0 — 2026-10-04
 
 **Fase B do roadmap (ver `docs/BACKLOG-ROADMAP.md`).**

@@ -17,10 +17,12 @@ export function Toaster() {
             "pointer-events-auto flex items-start gap-2.5 rounded-lg border p-3 shadow-lg",
             t.variant === "error"
               ? "border-critical-400/40 bg-critical-100 text-critical-700"
-              : "border-recovery-400/40 bg-recovery-100 text-recovery-700"
+              : t.variant === "warning"
+                ? "border-attention-400/40 bg-attention-100 text-attention-700"
+                : "border-recovery-400/40 bg-recovery-100 text-recovery-700"
           )}
         >
-          {t.variant === "error" ? (
+          {t.variant === "error" || t.variant === "warning" ? (
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           ) : (
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />

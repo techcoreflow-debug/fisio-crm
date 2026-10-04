@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { ClipboardCheck, CircleDashed, ClipboardList, Building2, Download, TriangleAlert } from "lucide-react";
+import { PrevencaoGlosa, ProjecaoMes } from "@/components/shared/prevencao-glosa";
 import { PageHeader } from "@/components/shared/page-header";
 import { GoniometerGauge } from "@/components/shared/goniometer-gauge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -222,6 +223,14 @@ export default function Fechamento() {
           </div>
         </CardContent>
       </Card>
+
+      <PrevencaoGlosa
+        de={periodoDe}
+        ate={periodoAte}
+        hospitalId={hospitalId === TODOS ? undefined : hospitalId}
+        convenioId={convenioId === TODOS ? undefined : convenioId}
+      />
+      <ProjecaoMes />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
         <Card className="lg:col-span-1">

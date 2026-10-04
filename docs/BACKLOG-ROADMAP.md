@@ -11,7 +11,7 @@ Princípios (valem para todos os itens):
 - Funciona sem IA: cada item tem um caminho determinístico; a IA só melhora.
 - Dados clínicos são sensíveis (LGPD): isolamento por empresa (RLS), trilha de auditoria.
 
-Legenda de status: `FEITO` · `FEITO (depende de config)` · `PENDENTE` — atualizado a cada entrega; Fases A (v0.58.0) e B (v0.59.0) concluídas; C e D pendentes.
+Legenda de status: `FEITO` · `FEITO (depende de config)` · `PENDENTE` — atualizado a cada entrega; Fases A (v0.58.0), B (v0.59.0), C (v0.60.0) e D (v0.61.0) concluídas. Fase C só funciona após deploy da função + secret.
 
 | ID | Item | Prioridade | Versão | Status | Dependências / observações |
 |----|------|-----------|--------|--------|----------------------------|
@@ -22,12 +22,12 @@ Legenda de status: `FEITO` · `FEITO (depende de config)` · `PENDENTE` — atua
 | B2 | Relatório mensal narrativo (texto determinístico a partir dos números) | P1 | 0.59.0 | FEITO | Versão com IA em C3 |
 | B3 | Radar de prioridade do dia, explicável (regras, com o motivo de cada paciente) | P0 | 0.59.0 | FEITO | Regras transparentes; sem "caixa preta" |
 | B4 | Briefing da manhã na Minha Fila | P2 | 0.59.0 | FEITO | Usa B3 |
-| C1 | Edge Function `ai-assist` (chave Anthropic em secret, limites, sem dado identificável desnecessário) | P0 | 0.60.0 | PENDENTE | Requer deploy da função + secret `ANTHROPIC_API_KEY` |
-| C2 | IA: evolução livre → dado estruturado (escalas, intercorrências, condutas, metas) com confirmação do fisio | P0 | 0.60.0 | PENDENTE | Depende de C1 e A1 |
-| C3 | IA: relatório mensal narrativo e "perguntar aos dados" | P1 | 0.60.0 | PENDENTE | Responde só a partir de números agregados enviados pelo app |
-| C4 | IA: resumo de alta para paciente/família (imprimível) | P2 | 0.60.0 | PENDENTE | Revisão obrigatória do fisio antes de entregar |
-| D1 | Prevenção de glosa: checagens antes do faturamento (duplicidade, frequência diária, lançamento fora da internação ativa, sem diagnóstico) | P1 | 0.61.0 | PENDENTE | Regras de convênio específicas ficam para quando houver tabela de regras cadastrada |
-| D2 | Projeção do faturamento do mês (rotulada como estimativa) | P2 | 0.61.0 | PENDENTE | Linear sobre produção real do mês |
+| C1 | Edge Function `ai-assist` (chave Anthropic em secret, limites, sem dado identificável desnecessário) | P0 | 0.60.0 | FEITO (depende de config) | Requer deploy da função + secret `ANTHROPIC_API_KEY` |
+| C2 | IA: evolução livre → dado estruturado (escalas, intercorrências, condutas, metas) com confirmação do fisio | P0 | 0.60.0 | FEITO (depende de config) | Depende de C1 e A1 |
+| C3 | IA: relatório mensal narrativo e "perguntar aos dados" | P1 | 0.60.0 | FEITO (depende de config) | Responde só a partir de números agregados enviados pelo app |
+| C4 | IA: resumo de alta para paciente/família (imprimível) | P2 | 0.60.0 | FEITO (depende de config) | Revisão obrigatória do fisio antes de entregar |
+| D1 | Prevenção de glosa: checagens antes do faturamento (duplicidade, frequência diária, lançamento fora da internação ativa, sem diagnóstico) | P1 | 0.61.0 | FEITO | Regras de convênio específicas ficam para quando houver tabela de regras cadastrada |
+| D2 | Projeção do faturamento do mês (rotulada como estimativa) | P2 | 0.61.0 | FEITO | Linear sobre produção real do mês |
 | — | Escala PERME e outras escalas | P3 | — | PENDENTE | Precisa da tabela oficial de itens validada pela equipe clínica |
 | — | IA por voz (ditado) no tablet | P3 | — | PENDENTE | Depende de C2 estável em produção |
 | — | Regras de glosa por convênio (cadastro de regras) | P3 | — | PENDENTE | Depende de levantar as regras reais de cada convênio |
