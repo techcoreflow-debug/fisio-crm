@@ -157,6 +157,18 @@ MARCADORES = [
     ("Prevenção de glosa — exibida no Fechamento (v0.61.0)", "src/modules/fechamento/index.tsx", "PrevencaoGlosa"),
     ("Projeção do mês rotulada como estimativa (v0.61.0)", "src/lib/glosa.ts", "projetarMes"),
     ("Projeção do mês — card no Fechamento (v0.61.0)", "src/modules/fechamento/index.tsx", "ProjecaoMes"),
+    ("Menu — hubs com abas (v0.62.0)", "src/app/modules-registry.ts", "hubDoModulo"),
+    ("Menu — abas do hub na página (v0.62.0)", "src/components/layout/hub-tabs.tsx", "HubTabs"),
+    ("Menu — sidebar com um item por hub (v0.62.0)", "src/components/layout/sidebar.tsx", "rotasAtivas"),
+    ("Menu — permissões por módulo preservadas nas abas (v0.62.0)", "src/lib/use-pode-ver.ts", "usePodeVerModulo"),
+    ("Regras de faturamento por convênio — migration (v0.63.0)", "supabase/migrations/0036_regras_faturamento_convenio.sql", "max_procedimentos_internacao"),
+    ("Regras por convênio — cadastro em Convênios (v0.63.0)", "src/modules/convenios/index.tsx", "max_procedimentos_dia"),
+    ("Regras por convênio — aplicadas na prevenção de glosa (v0.63.0)", "src/lib/glosa.ts", "limite_convenio"),
+    ("Previsão de alta por mediana histórica com 'sem dado' (v0.63.0)", "src/lib/previsao-alta.ts", "MIN_CASOS_PREVISAO"),
+    ("Previsão de alta — Painel do Gestor (v0.63.0)", "src/modules/painel-gestor/index.tsx", "PrevisaoAltaCard"),
+    ("Previsão de alta — Jornada do paciente (v0.63.0)", "src/modules/jornada-paciente/index.tsx", "preverAlta"),
+    ("Ditado por voz na evolução clínica (v0.63.0)", "src/lib/ditado.ts", "useDitado"),
+    ("Ditado por voz — botão na evolução (v0.63.0)", "src/modules/evolucao-clinica/index.tsx", "ditado.iniciar"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [

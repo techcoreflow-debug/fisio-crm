@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Activity, X, ChevronDown, ChevronsLeft, ChevronsRight } from "lucide-react";
-import { moduleGroups } from "@/app/modules-registry";
+import { moduleGroups, hubs, hubDoModulo, allModules, type ModuleDef } from "@/app/modules-registry";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/app-store";
 import { useAuth } from "@/auth/auth-provider";
@@ -23,8 +23,28 @@ function SidebarContent({ recolhida = false }: { recolhida?: boolean }) {
     return linha ? linha.can_view : permissaoPadrao(profile.role, slug).can_view;
   }
 
+  // Um item por hub (no lugar do primeiro módulo visível dele) + os módulos
+  // que não pertencem a nenhum hub. O item do hub leva à primeira aba que o
+  // usuário pode ver; fica ativo em qualquer rota do hub.
+  const jaMostrados = new Set<string>();
   const grupos = moduleGroups
-    .map((g) => ({ ...g, modules: g.modules.filter((m) => podeVer(m.slug)) }))
+    .map((g) => {
+      const itens: (ModuleDef & { rotasAtivas: string[] })[] = [];
+      for (const m of g.modules) {
+        if (!podeVer(m.slug)) continue;
+        const hub = hubDoModulo(m.slug);
+        if (!hub) {
+          itens.push({ ...m, rotasAtivas: [m.path] });
+          continue;
+        }
+        if (jaMostrados.has(hub.id)) continue;
+        jaMostrados.add(hub.id);
+        const visiveis = hub.abas.map((a) => allModules.find((x) => x.slug === a.slug)).filter((x): x is ModuleDef => !!x && podeVer(x.slug));
+        const definicao = hubs.find((h) => h.id === hub.id)!;
+        itens.push({ ...visiveis[0], slug: `hub-${hub.id}`, label: definicao.label, icon: definicao.icon, rotasAtivas: visiveis.map((x) => x.path) });
+      }
+      return { ...g, modules: itens };
+    })
     .filter((g) => g.modules.length > 0);
 
   const [recolhidos, setRecolhidos] = useState<Set<string>>(
@@ -60,12 +80,13 @@ function SidebarContent({ recolhida = false }: { recolhida?: boolean }) {
 
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
         {grupos.map((group) => {
-          const temRotaAtiva = group.modules.some((m) => m.path === location.pathname);
-          const expandido = temRotaAtiva || !recolhidos.has(group.id);
+          const temRotaAtiva = group.modules.some((m) => m.rotasAtivas.includes(location.pathname));
+          const grupoUnico = group.modules.length === 1;
+          const expandido = grupoUnico || temRotaAtiva || !recolhidos.has(group.id);
 
           return (
             <div key={group.id} className="mb-4">
-              {!recolhida && (
+              {!recolhida && !grupoUnico && (
                 <button
                   onClick={() => toggleGrupo(group.id)}
                   className="flex w-full items-center justify-between px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-soft/70 hover:text-ink-soft"
@@ -83,11 +104,11 @@ function SidebarContent({ recolhida = false }: { recolhida?: boolean }) {
                       end={mod.path === "/"}
                       onClick={() => setSidebarOpen(false)}
                       title={recolhida ? mod.label : undefined}
-                      className={({ isActive }) =>
+                      className={() =>
                         cn(
                           "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
                           recolhida && "justify-center",
-                          isActive
+                          mod.rotasAtivas.includes(location.pathname)
                             ? "bg-clinical-50 text-clinical-700"
                             : "text-ink-soft hover:bg-surface-sunken hover:text-ink"
                         )

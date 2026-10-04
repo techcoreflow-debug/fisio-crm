@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ShieldCheck, ShieldAlert, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useDailyProduction, useAdmissions, usePatients, useBillingEntries } from "@/data/repository";
+import { useDailyProduction, useAdmissions, usePatients, useBillingEntries, useHealthInsurances } from "@/data/repository";
 import { verificarGlosa, projetarMes, REGRAS_GLOSA, type RegraGlosa } from "@/lib/glosa";
 import { hojeLocalIso } from "@/lib/data-local";
 
@@ -13,6 +13,7 @@ export function PrevencaoGlosa({ de, ate, hospitalId, convenioId }: { de: string
   const producao = useDailyProduction();
   const internacoes = useAdmissions();
   const pacientes = usePatients();
+  const convenios = useHealthInsurances();
   const [filtro, setFiltro] = useState<RegraGlosa | null>(null);
 
   const alertas = useMemo(() => {
@@ -22,8 +23,8 @@ export function PrevencaoGlosa({ de, ate, hospitalId, convenioId }: { de: string
     const ids = new Set(escopoInternacoes.map((i) => i.id));
     const filtrarEscopo = hospitalId || convenioId;
     const producaoEscopo = filtrarEscopo ? producao.filter((p) => p.admission_id && ids.has(p.admission_id)) : producao;
-    return verificarGlosa({ de, ate, producao: producaoEscopo, internacoes });
-  }, [de, ate, hospitalId, convenioId, producao, internacoes]);
+    return verificarGlosa({ de, ate, producao: producaoEscopo, internacoes, convenios });
+  }, [de, ate, hospitalId, convenioId, producao, internacoes, convenios]);
 
   const porRegra = useMemo(() => {
     const m = new Map<RegraGlosa, number>();
@@ -88,7 +89,7 @@ export function PrevencaoGlosa({ de, ate, hospitalId, convenioId }: { de: string
                 <strong className="text-ink">{r.titulo}:</strong> {r.explicacao}
               </li>
             ))}
-            <li>Regras específicas de cada convênio ainda não são checadas — dependem de cadastro das regras reais.</li>
+            <li>Regras específicas de cada convênio (limite por dia, teto por internação, exigência de diagnóstico) são cadastradas em Cadastros → Convênios e passam a valer aqui automaticamente.</li>
           </ul>
         </details>
       </CardContent>

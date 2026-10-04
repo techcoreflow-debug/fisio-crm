@@ -11,7 +11,7 @@ Princípios (valem para todos os itens):
 - Funciona sem IA: cada item tem um caminho determinístico; a IA só melhora.
 - Dados clínicos são sensíveis (LGPD): isolamento por empresa (RLS), trilha de auditoria.
 
-Legenda de status: `FEITO` · `FEITO (depende de config)` · `PENDENTE` — atualizado a cada entrega; Fases A (v0.58.0), B (v0.59.0), C (v0.60.0) e D (v0.61.0) concluídas. Fase C só funciona após deploy da função + secret.
+Legenda de status: `FEITO` · `FEITO (depende de config)` · `PENDENTE` — atualizado a cada entrega; Fases A–D (v0.58–v0.61), menu (v0.62.0) e itens E (v0.63.0) concluídos; resta PERME. Fase C só funciona após deploy da função + secret.
 
 | ID | Item | Prioridade | Versão | Status | Dependências / observações |
 |----|------|-----------|--------|--------|----------------------------|
@@ -29,6 +29,7 @@ Legenda de status: `FEITO` · `FEITO (depende de config)` · `PENDENTE` — atua
 | D1 | Prevenção de glosa: checagens antes do faturamento (duplicidade, frequência diária, lançamento fora da internação ativa, sem diagnóstico) | P1 | 0.61.0 | FEITO | Regras de convênio específicas ficam para quando houver tabela de regras cadastrada |
 | D2 | Projeção do faturamento do mês (rotulada como estimativa) | P2 | 0.61.0 | FEITO | Linear sobre produção real do mês |
 | — | Escala PERME e outras escalas | P3 | — | PENDENTE | Precisa da tabela oficial de itens validada pela equipe clínica |
-| — | IA por voz (ditado) no tablet | P3 | — | PENDENTE | Depende de C2 estável em produção |
-| — | Regras de glosa por convênio (cadastro de regras) | P3 | — | PENDENTE | Depende de levantar as regras reais de cada convênio |
-| — | Previsão de alta / tempo de permanência com modelo estatístico | P3 | — | PENDENTE | Precisa de volume de avaliações (A1) acumulado para ter base |
+| E1 | Ditado por voz na evolução (reconhecimento do navegador, pt-BR) | P3 | 0.63.0 | FEITO | Depende do navegador (Chrome/Edge/Safari); no tablet funciona onde o navegador suportar |
+| E2 | Regras de glosa por convênio (limite/dia, teto por internação, exige diagnóstico) | P3 | 0.63.0 | FEITO | Migration 0036. As regras reais de cada convênio precisam ser cadastradas por quem conhece o contrato |
+| E3 | Previsão de alta por mediana histórica (estimativa) | P3 | 0.63.0 | FEITO | Só calcula com 5+ altas anteriores; modelo estatístico mais sofisticado fica para quando houver volume de avaliações (A1) |
+| F1 | Menu enxuto com hubs e abas (rotas e permissões preservadas) | P1 | 0.62.0 | FEITO | Pesquisa de Satisfação e Importação Tasy mantidas como itens próprios |

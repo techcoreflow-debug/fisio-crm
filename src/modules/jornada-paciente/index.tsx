@@ -21,6 +21,8 @@ import {
 import { montarJornada, diasDeInternacao, type TipoEventoJornada } from "@/lib/jornada";
 import { ESCALAS, MOMENTO_LABEL } from "@/lib/escalas-funcionais";
 import { gerarResumoAlta, iaIndisponivel } from "@/lib/ai";
+import { preverAlta } from "@/lib/previsao-alta";
+import { hojeLocalIso } from "@/lib/data-local";
 import { notificarErro, notificarAviso } from "@/store/toast-store";
 
 const VISUAL: Record<TipoEventoJornada, { icon: typeof Route; cor: string }> = {
@@ -112,6 +114,7 @@ export default function JornadaPaciente() {
     }
   }
 
+  const previsao = useMemo(() => (internacao ? preverAlta(internacao, internacoes, hojeLocalIso()) : null), [internacao, internacoes]);
   const paciente = pacientes.find((p) => p.id === internacao?.patient_id);
   const totalProcedimentos = internacao ? producao.filter((p) => p.admission_id === internacao.id).length : 0;
 
@@ -161,6 +164,11 @@ export default function JornadaPaciente() {
                 <Badge variant="clinical">{diasDeInternacao(internacao)} dia(s) de internação</Badge>
                 <Badge variant="neutral">{totalProcedimentos} procedimento(s)</Badge>
                 <Badge variant={internacao.status === "internado" ? "attention" : "recovery"}>{internacao.status}</Badge>
+                {previsao && (
+                  <Badge variant={previsao.diasAlemDaMediana > 0 ? "attention" : "neutral"}>
+                    Alta estimada {previsao.dataEstimada.split("-").reverse().slice(0, 2).join("/")} · mediana {previsao.medianaDias}d ({previsao.casos} casos)
+                  </Badge>
+                )}
               </div>
             </CardContent>
           </Card>

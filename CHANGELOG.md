@@ -20,6 +20,23 @@ Antes de subir um deploy:
 
 ---
 
+## v0.63.0 — 2026-10-04
+
+**Backlog pendente — o que não dependia de dado externo.**
+- **Regras de faturamento por convênio** (Cadastros → Convênios): limite de procedimentos por dia, teto por internação (sessões autorizadas) e "exige diagnóstico". A Prevenção de glosa passa a usar essas regras (novo alerta "Acima do limite do convênio"). Tudo opcional: em branco vale a regra geral. Migration **0036**.
+- **Previsão de alta** (estimativa): mediana de permanência das altas anteriores do mesmo diagnóstico (ou, sem base, da mesma unidade); só calcula com 5+ casos, senão "sem dado". Aparece em "Altas prováveis" no Painel do Gestor e na Jornada do paciente. Não considera gravidade — decisão de alta é clínica.
+- **Ditado por voz** na Evolução clínica (botão "Ditar", pt-BR, via reconhecimento de voz do navegador; pede permissão de microfone; para ao fechar o painel).
+- Continua pendente: escala PERME (precisa da tabela oficial de itens validada pela equipe clínica).
+
+## v0.62.0 — 2026-10-04
+
+**Menu enxuto (de ~38 itens para ~16 para o administrador).**
+- Módulos afins foram agrupados em **hubs com abas**: Painéis (Executivo · Dia a dia · Impacto clínico · Operacional · Financeiro), Pacientes Internados (Lista · Mapa de leitos · Evolução clínica · Avaliação funcional · Jornada), Financeiro (Contas a receber · Repasse Tasy · Fechamento), Controle e auditoria, Relatórios e BI, Cadastros e Configurações.
+- **Nada muda por baixo**: cada tela mantém a própria rota (links e favoritos continuam valendo) e a própria permissão (a tela de Permissões segue igual). Cada pessoa só vê as abas que pode acessar.
+- "Escalas" renomeada para **Escala de trabalho** (evita confusão com as escalas funcionais).
+- Pesquisa de Satisfação, Importação Tasy e os módulos do fisioterapeuta ficaram como estavam.
+- Sem migration nova.
+
 ## v0.61.0 — 2026-10-04
 
 **Fase D do roadmap — receita inteligente.**

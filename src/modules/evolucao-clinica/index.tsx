@@ -1,5 +1,5 @@
-import { useMemo, useState, type FormEvent } from "react";
-import { NotebookPen, Plus, Search, AlertTriangle, BedDouble, ChevronDown, Sparkles, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { NotebookPen, Plus, Search, AlertTriangle, BedDouble, ChevronDown, Sparkles, Loader2, Mic, Square } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +31,7 @@ import { notificarErro, notificarSucesso, notificarAviso } from "@/store/toast-s
 import { estruturarEvolucao, iaIndisponivel, type EvolucaoEstruturada } from "@/lib/ai";
 import { ESCALAS } from "@/lib/escalas-funcionais";
 import { hojeLocalIso } from "@/lib/data-local";
+import { useDitado, ditadoSuportado } from "@/lib/ditado";
 
 interface EstruturaEditavel {
   resumo: string;
@@ -61,6 +62,16 @@ export default function EvolucaoClinica() {
   const [estrutura, setEstrutura] = useState<EstruturaEditavel | null>(null);
   const [estruturando, setEstruturando] = useState(false);
   const [escalasCitadas, setEscalasCitadas] = useState<EvolucaoEstruturada["escalas_citadas"]>([]);
+  const ditado = useDitado(
+    (trecho) => setTexto((atual) => (atual && !atual.endsWith(" ") && !atual.endsWith("\n") ? `${atual} ${trecho}` : `${atual}${trecho}`)),
+    (mensagem) => notificarAviso(mensagem)
+  );
+
+  // Fechou o painel: para o ditado (não deixa o microfone aberto por trás).
+  useEffect(() => {
+    if (!open) ditado.parar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   function nomePaciente(admissionId: string) {
     const internacao = internacoes.find((i) => i.id === admissionId);
@@ -279,6 +290,11 @@ export default function EvolucaoClinica() {
                         <button type="button" className="text-xs text-clinical-700 underline" onClick={() => setEstrutura({ resumo: "", intercorrencias: "", condutas: "", metas: "", sugeridoPorIa: false })}>
                           Preencher manualmente
                         </button>
+                      )}
+                      {ditadoSuportado() && (
+                        <Button type="button" size="sm" variant={ditado.ouvindo ? "primary" : "secondary"} onClick={ditado.ouvindo ? ditado.parar : ditado.iniciar} title="O áudio é processado pelo reconhecimento de voz do navegador">
+                          {ditado.ouvindo ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />} {ditado.ouvindo ? "Parar ditado" : "Ditar"}
+                        </Button>
                       )}
                       <span className="text-xs text-ink-soft">Opcional — o texto acima é o registro oficial.</span>
                     </div>

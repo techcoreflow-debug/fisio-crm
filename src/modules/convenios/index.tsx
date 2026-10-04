@@ -21,6 +21,11 @@ import { notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useAppStore } from "@/store/app-store";
 import type { HealthInsurance } from "@/types/domain";
 
+function inteiroOuNull(valor: FormDataEntryValue | null): number | null {
+  const n = Number(String(valor ?? "").trim());
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 export default function Convenios() {
   const convenios = useHealthInsurances();
   const contratos = useContracts();
@@ -53,6 +58,9 @@ export default function Convenios() {
       name: String(form.get("name") ?? ""),
       ans_code: String(form.get("ans_code") ?? "") || null,
       company_id: empresaId,
+      max_procedimentos_dia: inteiroOuNull(form.get("max_procedimentos_dia")),
+      max_procedimentos_internacao: inteiroOuNull(form.get("max_procedimentos_internacao")),
+      exige_diagnostico: form.get("exige_diagnostico") === "on",
     };
     setSalvando(true);
     try {
@@ -98,6 +106,24 @@ export default function Convenios() {
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="ans_code">Código ANS</Label>
                     <Input id="ans_code" name="ans_code" placeholder="Ex.: 326305" defaultValue={editando?.ans_code ?? ""} />
+                  </div>
+                  <div className="flex flex-col gap-3 rounded-lg border border-line p-3">
+                    <div>
+                      <p className="text-sm font-medium text-ink">Regras de faturamento (opcional)</p>
+                      <p className="text-xs text-ink-soft">Usadas na Prevenção de glosa do Fechamento. Em branco = vale a regra geral do sistema.</p>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="max_procedimentos_dia">Máximo de procedimentos por dia (por internação)</Label>
+                      <Input id="max_procedimentos_dia" name="max_procedimentos_dia" type="number" min={1} placeholder="Ex.: 2" defaultValue={editando?.max_procedimentos_dia ?? ""} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="max_procedimentos_internacao">Máximo de procedimentos por internação (sessões autorizadas)</Label>
+                      <Input id="max_procedimentos_internacao" name="max_procedimentos_internacao" type="number" min={1} placeholder="Ex.: 30" defaultValue={editando?.max_procedimentos_internacao ?? ""} />
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-ink">
+                      <input type="checkbox" name="exige_diagnostico" defaultChecked={editando?.exige_diagnostico ?? true} />
+                      Exige diagnóstico na internação
+                    </label>
                   </div>
                 </div>
                 <SheetFooter>

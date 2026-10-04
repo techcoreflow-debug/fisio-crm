@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Circle,
 } from "lucide-react";
+import { PrevisaoAltaCard } from "@/components/shared/previsao-alta";
 import { RadarPrioridade } from "@/components/shared/radar-prioridade";
 import { PageHeader } from "@/components/shared/page-header";
 import { GoniometerGauge } from "@/components/shared/goniometer-gauge";
@@ -94,6 +95,7 @@ export default function PainelGestor() {
       />
 
       <RadarPrioridade />
+      <PrevisaoAltaCard />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
         <Card className="lg:col-span-1">

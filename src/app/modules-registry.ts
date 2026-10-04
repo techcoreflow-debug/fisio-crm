@@ -36,6 +36,9 @@ import {
   ListOrdered,
   TrendingUp,
   Route,
+  LayoutGrid,
+  Database,
+  ShieldHalf,
 } from "lucide-react";
 
 export interface ModuleDef {
@@ -132,7 +135,7 @@ export const moduleGroups: ModuleGroup[] = [
       { slug: "leitos", path: "/leitos", label: "Leitos", icon: BedDouble, description: "Mapa de leitos por ala e quarto, ocupação em tempo real e histórico de giro.", status: "pronto" },
       { slug: "avaliacao-funcional", path: "/avaliacao-funcional", label: "Avaliação funcional", icon: TrendingUp, description: "Escalas funcionais (Barthel, MRC-SS, IMS, FSS-ICU, Borg) na admissão, reavaliação e alta, com a curva de ganho do paciente.", status: "pronto" },
       { slug: "jornada-paciente", path: "/jornada-paciente", label: "Jornada do paciente", icon: Route, description: "Linha do tempo única da internação: unidades, evoluções, procedimentos, avaliações e alta.", status: "pronto" },
-      { slug: "escalas", path: "/escalas", label: "Escalas", icon: CalendarClock, description: "Escalas de trabalho dos fisioterapeutas por unidade e turno.", status: "pronto" },
+      { slug: "escalas", path: "/escalas", label: "Escala de trabalho", icon: CalendarClock, description: "Escalas de trabalho dos fisioterapeutas por unidade e turno.", status: "pronto" },
       { slug: "fisioterapeutas", path: "/fisioterapeutas", label: "Fisioterapeutas", icon: UserRound, description: "Equipe assistencial, especialidades, produtividade e vínculos com unidades.", status: "pronto" },
       { slug: "procedimentos", path: "/procedimentos", label: "Procedimentos", icon: ListChecks, description: "Catálogo de procedimentos fisioterapêuticos e tabelas de referência por convênio.", status: "pronto" },
       { slug: "producao-diaria", path: "/producao-diaria", label: "Produção Diária", icon: ClipboardList, description: "Lançamento e conferência da produção assistencial diária, manual ou importada do Tasy.", status: "pronto" },
@@ -185,3 +188,110 @@ export const allModules: ModuleDef[] = moduleGroups.flatMap((g) => g.modules);
  */
 export const SLUGS_LANCADOR = ["novo-atendimento", "pacientes", "internacoes", "producao-diaria", "avaliacao-funcional", "jornada-paciente"];
 export const ROTA_PADRAO_LANCADOR = "/minha-fila";
+
+
+/**
+ * Hubs — agrupam módulos afins num único item de menu, com abas no topo da
+ * página. Cada módulo continua com a PRÓPRIA rota e a PRÓPRIA permissão
+ * (links salvos, atalhos e a tela de Permissões seguem iguais); o hub é só
+ * apresentação: a sidebar mostra um item e o HubTabs mostra os irmãos que
+ * o usuário pode ver.
+ */
+export interface HubDef {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  /** Ordem = ordem das abas; o primeiro visível é o destino do item de menu. */
+  abas: { slug: string; label: string }[];
+}
+
+export const hubs: HubDef[] = [
+  {
+    id: "paineis",
+    label: "Painéis",
+    icon: LayoutGrid,
+    abas: [
+      { slug: "dashboard-executivo", label: "Executivo" },
+      { slug: "painel-gestor", label: "Dia a dia" },
+      { slug: "impacto-assistencial", label: "Impacto clínico" },
+      { slug: "dashboard-operacional", label: "Operacional" },
+      { slug: "dashboard-financeiro", label: "Financeiro" },
+    ],
+  },
+  {
+    id: "internados",
+    label: "Pacientes Internados",
+    icon: BedDouble,
+    abas: [
+      { slug: "internacoes", label: "Lista" },
+      { slug: "leitos", label: "Mapa de leitos" },
+      { slug: "evolucao-clinica", label: "Evolução clínica" },
+      { slug: "avaliacao-funcional", label: "Avaliação funcional" },
+      { slug: "jornada-paciente", label: "Jornada" },
+    ],
+  },
+  {
+    id: "financeiro",
+    label: "Financeiro",
+    icon: Wallet,
+    abas: [
+      { slug: "financeiro", label: "Contas a receber" },
+      { slug: "faturamento", label: "Repasse Tasy" },
+      { slug: "fechamento", label: "Fechamento" },
+    ],
+  },
+  {
+    id: "controle",
+    label: "Controle e auditoria",
+    icon: ShieldHalf,
+    abas: [
+      { slug: "auditoria", label: "Auditoria" },
+      { slug: "diagnostico", label: "Diagnóstico" },
+      { slug: "desempenho-fila", label: "Desempenho da fila" },
+    ],
+  },
+  {
+    id: "relatorios-bi",
+    label: "Relatórios e BI",
+    icon: BarChart3,
+    abas: [
+      { slug: "relatorios", label: "Relatórios" },
+      { slug: "painel-procedimentos", label: "Procedimentos" },
+      { slug: "bi", label: "Business Intelligence" },
+    ],
+  },
+  {
+    id: "cadastros",
+    label: "Cadastros",
+    icon: Database,
+    abas: [
+      { slug: "empresas", label: "Empresas" },
+      { slug: "hospitais", label: "Hospitais" },
+      { slug: "clinicas", label: "Clínicas" },
+      { slug: "unidades", label: "Unidades" },
+      { slug: "quartos", label: "Quartos" },
+      { slug: "convenios", label: "Convênios" },
+      { slug: "contratos", label: "Contratos" },
+      { slug: "centros-de-custo", label: "Centros de custo" },
+      { slug: "equipes", label: "Equipes" },
+    ],
+  },
+  {
+    id: "configuracoes-hub",
+    label: "Configurações",
+    icon: Settings,
+    abas: [
+      { slug: "configuracoes", label: "Geral" },
+      { slug: "usuarios-permissoes", label: "Usuários e permissões" },
+      { slug: "integracoes", label: "Integrações" },
+    ],
+  },
+];
+
+export function hubDoModulo(slug: string): HubDef | undefined {
+  return hubs.find((h) => h.abas.some((a) => a.slug === slug));
+}
+
+export function moduloPorSlug(slug: string): ModuleDef | undefined {
+  return allModules.find((m) => m.slug === slug);
+}

@@ -355,9 +355,16 @@ export const repository = {
   },
 
   healthInsurances: {
-    create: async (data: Pick<HealthInsurance, "name" | "ans_code" | "company_id">): Promise<HealthInsurance> =>
-      inserirLinha<HealthInsurance>("health_insurances", data),
-    update: async (id: string, patch: Partial<Pick<HealthInsurance, "name" | "ans_code" | "company_id">>): Promise<void> =>
+    create: async (
+      data: Pick<HealthInsurance, "name" | "ans_code" | "company_id"> &
+        Partial<Pick<HealthInsurance, "max_procedimentos_dia" | "max_procedimentos_internacao" | "exige_diagnostico">>
+    ): Promise<HealthInsurance> => inserirLinha<HealthInsurance>("health_insurances", data),
+    update: async (
+      id: string,
+      patch: Partial<
+        Pick<HealthInsurance, "name" | "ans_code" | "company_id" | "max_procedimentos_dia" | "max_procedimentos_internacao" | "exige_diagnostico">
+      >
+    ): Promise<void> =>
       atualizarLinha("health_insurances", id, patch),
     remove: async (id: string): Promise<void> => {
       await bloquearSeTiverDependentes(

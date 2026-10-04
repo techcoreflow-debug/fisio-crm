@@ -86,6 +86,10 @@ export interface HealthInsurance {
   company_id: string;
   name: string;
   ans_code: string | null;
+  /** Regras de faturamento do convênio (migration 0036) — opcionais, alimentam a prevenção de glosa. */
+  max_procedimentos_dia: number | null;
+  max_procedimentos_internacao: number | null;
+  exige_diagnostico: boolean;
   created_at: string;
 }
 

@@ -21,6 +21,8 @@ const ROTULO_CURTO: Record<string, string> = {
   pacientes: "Pacientes",
   internacoes: "Internados",
   "producao-diaria": "Produção",
+  "avaliacao-funcional": "Avaliação",
+  "jornada-paciente": "Jornada",
 };
 
 export function TabletShell({ children }: { children: React.ReactNode }) {
