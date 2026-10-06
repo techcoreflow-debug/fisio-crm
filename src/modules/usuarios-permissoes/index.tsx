@@ -97,7 +97,7 @@ export default function UsuariosPermissoes() {
 
   /** Chama a Edge Function pra qualquer ação (criar/excluir/trocar senha) — sempre a mesma checagem de admin e o mesmo tratamento de erro. */
   async function chamarGerenciarUsuario(body: Record<string, unknown>) {
-    await chamarEdgeFunction("create-user", body);
+    return chamarEdgeFunction<{ ok?: boolean; userId?: string }>("create-user", body);
   }
 
   async function handleCriarUsuario(e: React.FormEvent<HTMLFormElement>) {
@@ -105,7 +105,8 @@ export default function UsuariosPermissoes() {
     const form = new FormData(e.currentTarget);
     setSalvandoUsuario(true);
     try {
-      await chamarGerenciarUsuario({
+      const nomeCompleto = String(form.get("full_name") ?? "") || String(form.get("email") ?? "").split("@")[0];
+      const criado = await chamarGerenciarUsuario({
         action: "create",
         email: String(form.get("email") ?? ""),
         password: String(form.get("password") ?? ""),
@@ -113,7 +114,20 @@ export default function UsuariosPermissoes() {
         companyId: empresaNovoUsuario,
         role: papelNovoUsuario,
       });
-      notificarSucesso("Usuário criado e vinculado — já pode logar direto, sem confirmar e-mail.");
+      // Fisioterapeuta precisa também do CADASTRO de fisioterapeuta — é ele que aparece
+      // nas listas de lançar produção, evolução e fila. Cria junto, já vinculado ao login.
+      let cadastroFisio = false;
+      if (papelNovoUsuario === "fisioterapeuta" && criado?.userId) {
+        try {
+          cadastroFisio = await repository.physiotherapists.garantirParaUsuario({ company_id: empresaNovoUsuario, user_id: criado.userId, full_name: nomeCompleto });
+        } catch (erroFisio) {
+          notificarErro("Usuário criado, mas o cadastro de fisioterapeuta falhou — crie em Fisioterapeutas", erroFisio);
+        }
+      }
+      notificarSucesso(
+        "Usuário criado e vinculado — já pode logar direto, sem confirmar e-mail.",
+        cadastroFisio ? "Cadastro de fisioterapeuta criado junto, já aparece nas listas de lançamento." : undefined
+      );
       setOpenCriarUsuario(false);
       e.currentTarget.reset();
     } catch (erro) {
@@ -149,7 +163,16 @@ export default function UsuariosPermissoes() {
         role: papelEditar,
         company_id: empresaEditar || undefined,
       });
-      notificarSucesso("Usuário atualizado.");
+      let cadastroFisio = false;
+      const empresaFinal = empresaEditar || editando.company_id;
+      if (papelEditar === "fisioterapeuta" && empresaFinal) {
+        try {
+          cadastroFisio = await repository.physiotherapists.garantirParaUsuario({ company_id: empresaFinal, user_id: editando.id, full_name: nomeEditar });
+        } catch (erroFisio) {
+          notificarErro("Usuário atualizado, mas o cadastro de fisioterapeuta falhou — crie em Fisioterapeutas", erroFisio);
+        }
+      }
+      notificarSucesso("Usuário atualizado.", cadastroFisio ? "Cadastro de fisioterapeuta criado, já aparece nas listas de lançamento." : undefined);
       setOpenEditar(false);
     } catch (erro) {
       notificarErro("Não foi possível salvar as alterações", erro);

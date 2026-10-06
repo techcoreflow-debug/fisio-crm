@@ -1,4 +1,4 @@
-# Guia de treinamento — novidades das versões 0.58 a 0.63 (inovare.fisio)
+# Guia de treinamento — novidades das versões 0.58 a 0.64 (inovare.fisio)
 
 Para quem conduz o treinamento: cada seção é uma "mini-aula" de 5–10 minutos
 por perfil. Sugestão de ordem: Fisioterapeuta → Supervisor/Gestor → Financeiro → Diretoria.
@@ -6,10 +6,11 @@ por perfil. Sugestão de ordem: Fisioterapeuta → Supervisor/Gestor → Finance
 > Mensagem-chave para a equipe: **a IA e os painéis ajudam, mas quem decide é o profissional.** Tudo que a IA sugere precisa ser revisado antes de gravar.
 
 ## Antes de começar (TI / administrador)
-1. Aplicar no Supabase as migrations **0032 a 0036** (nessa ordem). A **0036** (regras por convênio) é a mais recente.
+1. Aplicar no Supabase as migrations **0032 a 0037** (nessa ordem). A **0037** (alta na UTI externa) é a mais recente.
 2. IA (pode ficar para depois): `supabase functions deploy ai-assist` e definir o secret `ANTHROPIC_API_KEY`. **Enquanto não estiver configurada, nada trava**: os botões de IA só mostram um aviso amarelo ("ainda não está configurada") e todo o resto funciona normalmente.
 3. Equipe clínica: **validar os itens das escalas** (Barthel, MRC-SS, IMS, FSS-ICU, Borg) antes do uso oficial.
-4. Financeiro/coordenação: **cadastrar as regras reais de cada convênio** em Cadastros → Convênios (veja a seção 3).
+4. Usuários fisioterapeutas: ao criar o login com papel Fisioterapeuta, o **cadastro de fisioterapeuta** é criado junto (é ele que aparece para lançar produção). Se existirem logins antigos sem cadastro, abra **Cadastros → Fisioterapeutas** e clique em **Criar cadastros agora** no aviso amarelo.
+5. Financeiro/coordenação: **cadastrar as regras reais de cada convênio** em Cadastros → Convênios (veja a seção 3).
 
 ## 0. O novo menu (para todos — 5 minutos)
 O menu ficou bem menor (cerca de 16 itens para o administrador, antes eram ~38). Nenhuma tela sumiu: as telas parecidas foram **agrupadas com abas no topo da página**.
@@ -49,6 +50,13 @@ O menu ficou bem menor (cerca de 16 itens para o administrador, antes eram ~38).
 3. Corrija o que for preciso e salve. O texto original continua sendo o registro oficial.
 4. Se o texto citar IMS ou Borg com número, aparece o botão para registrar direto na Avaliação funcional.
 - Treinar: **nunca salvar sem ler**. Não digitar CPF/telefone no texto (o sistema remove antes de enviar à IA, mas o hábito certo é não colocar).
+
+**Paciente na UTI externa: alta direta** *(novo)*
+- Em *Pacientes Internados → Lista*, quem está **Transferido** tem dois botões: **Retornou** (volta para nós) e **Alta** (embaixo).
+- Use **Alta** quando o paciente **não volta**: ele teve alta hospitalar (casa) ou óbito na UTI externa. Escolha o tipo, informe data e hora e confirme. Não precisa "retornar" antes.
+- A internação fica marcada como **Alta na UTI externa** (selo laranja na lista e filtro próprio). Isso permite separar nos indicadores o que aconteceu fora dos nossos cuidados.
+- Lançou errado? Só o administrador pode usar **Quebrar alta**; a internação volta para *Transferido*.
+- Rotina sugerida: toda semana, filtrar **Só transferidos** e dar baixa nos que já saíram da UTI externa, para ninguém ficar sem encerramento.
 
 **Ditado por voz**
 - Na Evolução clínica, botão **Ditar** (microfone): fale e o texto vai sendo escrito; **Parar ditado** encerra. Funciona em Chrome/Edge/Safari recentes e pede permissão de microfone na primeira vez.

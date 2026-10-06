@@ -223,6 +223,8 @@ export interface Admission {
   pre_lancamento_respiratoria_id: string | null;
   transferred_at: string | null;
   transfer_destino: string | null;
+  /** true quando a alta/óbito ocorreu na UTI externa (migration 0037) — o paciente estava transferido. */
+  alta_em_uti_externa: boolean;
   created_at: string;
 }
 
@@ -348,7 +350,7 @@ export interface ActivityLog {
  * Enfermaria → UTI do mesmo hospital, mesma equipe), transferência externa
  * (congela a internação, ex.: UTI de outra empresa) e o retorno dela.
  */
-export type TipoMovimentoUnidade = "mudanca_unidade" | "transferencia_externa" | "retorno_transferencia";
+export type TipoMovimentoUnidade = "mudanca_unidade" | "transferencia_externa" | "retorno_transferencia" | "alta_externa";
 
 export interface AdmissionUnitHistory {
   id: string;

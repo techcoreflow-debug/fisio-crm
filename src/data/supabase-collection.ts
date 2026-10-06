@@ -299,7 +299,7 @@ export async function registrarAuditoria(data: {
 export async function registrarMovimentoUnidade(data: {
   company_id: string;
   admission_id: string;
-  tipo: "mudanca_unidade" | "transferencia_externa" | "retorno_transferencia";
+  tipo: "mudanca_unidade" | "transferencia_externa" | "retorno_transferencia" | "alta_externa";
   hospital_origem_id: string | null;
   unidade_origem_id: string | null;
   leito_origem_id: string | null;

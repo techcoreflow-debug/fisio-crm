@@ -172,6 +172,14 @@ MARCADORES = [
     ("IA indisponível — mensagem clara 'Necessária configuração da API de IA' (v0.63.1)", "src/lib/ai.ts", "MENSAGEM_IA_NAO_CONFIGURADA"),
     ("Edge Function — não lê .json() de erro que não é resposta HTTP (v0.63.1)", "src/lib/edge-function.ts", 'typeof error.context.json === "function"'),
     ("Produção diária — coluna e exportação com a categoria do procedimento (v0.63.2)", "src/modules/producao-diaria/index.tsx", "Categoria"),
+    ("Usuário fisioterapeuta cria o cadastro de fisioterapeuta junto (v0.63.3)", "src/data/repository.ts", "garantirParaUsuario"),
+    ("Usuários e Permissões — cria cadastro de fisio ao criar/promover usuário (v0.63.3)", "src/modules/usuarios-permissoes/index.tsx", "garantirParaUsuario"),
+    ("Fisioterapeutas — aviso e criação em lote dos cadastros faltantes (v0.63.3)", "src/modules/fisioterapeutas/index.tsx", "criarCadastrosFaltantes"),
+    ("Alta direta da UTI externa — migration e flag (v0.64.0)", "supabase/migrations/0037_alta_na_uti_externa.sql", "alta_em_uti_externa"),
+    ("Alta direta da UTI externa — regra no repositório (v0.64.0)", "src/data/repository.ts", "darAltaDaExterna"),
+    ("Alta direta da UTI externa — botão Alta abaixo de Retornou (v0.64.0)", "src/modules/internacoes/index.tsx", "Alta direta da UTI externa"),
+    ("Alta na UTI externa — marcação e filtro na lista (v0.64.0)", "src/modules/internacoes/index.tsx", "Alta na UTI externa"),
+    ("Alta na UTI externa — rastreio de movimentação (v0.64.0)", "src/modules/relatorios/index.tsx", "alta_externa"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [

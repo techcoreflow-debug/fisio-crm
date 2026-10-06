@@ -20,6 +20,24 @@ Antes de subir um deploy:
 
 ---
 
+## v0.64.0 — 2026-10-05
+
+**Alta direta de quem está na UTI externa.**
+- Paciente **transferido** agora tem o botão **Alta** logo abaixo de **Retornou** em Pacientes Internados: registra **alta hospitalar ou óbito** sem precisar "retornar" antes (que era o que deixava pacientes sem baixa).
+- Esse fluxo não exige procedimento lançado no dia (o paciente não está sob nossos cuidados) e não mexe em leito (já liberado na transferência).
+- A internação fica **marcada como "Alta na UTI externa"**: selo na lista (ao lado de Óbito/Alta hospitalar), novo filtro de status **"Alta na UTI externa"** e o destino fica registrado. A alta aparece no relatório de **Rastreio de movimentação** (tipo "Alta na UTI externa") e na Jornada do paciente.
+- **Quebra de alta** de uma alta externa devolve a internação ao estado **transferido** (não a "internado").
+- Atenção para indicadores: altas/óbitos da UTI externa entram nas contagens gerais de altas e óbitos; a marcação existe justamente para separá-los depois, se a diretoria quiser.
+- Migration **0037**. Inclui as correções 0.63.1 a 0.63.3.
+
+## v0.63.3 — 2026-10-05
+
+**Correção: fisioterapeutas novos não apareciam para lançar/alterar procedimento.**
+- Causa: criar um usuário com papel Fisioterapeuta criava só o **login**; as listas de Produção diária, Evolução, fila etc. usam o **cadastro de Fisioterapeutas**, que era um passo manual separado.
+- Agora, ao **criar** um usuário Fisioterapeuta (ou **mudar** o papel de um usuário para Fisioterapeuta), o cadastro de fisioterapeuta é criado junto, já vinculado ao login (idempotente — não duplica).
+- Para os usuários **já existentes** sem cadastro: aviso na tela **Fisioterapeutas** ("N usuário(s) com papel Fisioterapeuta sem cadastro") com o botão **Criar cadastros agora**.
+- Sem migration nova.
+
 ## v0.63.2 — 2026-10-04
 
 - **Produção diária:** nova coluna **Categoria** (a categoria do procedimento lançado) na tela e na exportação CSV.

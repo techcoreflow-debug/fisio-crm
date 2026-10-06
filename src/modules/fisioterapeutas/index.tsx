@@ -43,6 +43,27 @@ export default function Fisioterapeutas() {
   const [usuarioId, setUsuarioId] = useState("");
   const [editando, setEditando] = useState<Physiotherapist | null>(null);
 
+  const [criandoCadastros, setCriandoCadastros] = useState(false);
+  const semCadastro = useMemo(
+    () => perfis.filter((p) => p.role === "fisioterapeuta" && p.company_id === empresaId && !fisioterapeutas.some((f) => f.user_id === p.id)),
+    [perfis, fisioterapeutas, empresaId]
+  );
+
+  async function criarCadastrosFaltantes() {
+    setCriandoCadastros(true);
+    try {
+      let criados = 0;
+      for (const p of semCadastro) {
+        if (await repository.physiotherapists.garantirParaUsuario({ company_id: empresaId, user_id: p.id, full_name: p.full_name })) criados++;
+      }
+      notificarSucesso(`${criados} cadastro(s) de fisioterapeuta criado(s).`, "Já aparecem nas listas de lançamento; complete equipe e registro profissional depois, se quiser.");
+    } catch (erro) {
+      notificarErro("Não foi possível criar os cadastros", erro);
+    } finally {
+      setCriandoCadastros(false);
+    }
+  }
+
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     if (!termo) return fisioterapeutas;
@@ -192,6 +213,24 @@ export default function Fisioterapeutas() {
           </Sheet>
         }
       />
+
+      {semCadastro.length > 0 && (
+        <Card className="border-attention-400/40">
+          <CardContent className="flex flex-col gap-3 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-ink">
+                {semCadastro.length} usuário(s) com papel Fisioterapeuta ainda sem cadastro de fisioterapeuta
+              </p>
+              <p className="mt-0.5 text-xs text-ink-soft">
+                Sem o cadastro, a pessoa não aparece para lançar/alterar produção nem recebe fila: {semCadastro.map((p) => p.full_name).join(", ")}.
+              </p>
+            </div>
+            <Button size="sm" onClick={criarCadastrosFaltantes} disabled={criandoCadastros}>
+              {criandoCadastros ? "Criando…" : "Criar cadastros agora"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <div className="flex flex-col gap-4 border-b border-line p-4 sm:flex-row sm:items-center sm:justify-between">

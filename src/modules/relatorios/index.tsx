@@ -104,6 +104,7 @@ export default function Relatorios() {
     mudanca_unidade: "Mudança de unidade",
     transferencia_externa: "Transferência (externa)",
     retorno_transferencia: "Retorno de transferência",
+    alta_externa: "Alta na UTI externa",
   };
 
   /** "Unidade · Leito" pra um local interno, ou o texto livre de destino externo quando não há unidade cadastrada. */
@@ -348,8 +349,8 @@ export default function Relatorios() {
               Paciente: paciente?.full_name ?? "—",
               "Nr. Atendimento": internacao?.external_reference ?? "—",
               Tipo: labelTipoMovimento[m.tipo],
-              De: nomeLocalMovimento(m.unidade_origem_id, m.leito_origem_id, m.tipo === "retorno_transferencia" ? m.destino_externo : null),
-              Para: nomeLocalMovimento(m.unidade_destino_id, m.leito_destino_id, m.tipo !== "retorno_transferencia" ? m.destino_externo : null),
+              De: nomeLocalMovimento(m.unidade_origem_id, m.leito_origem_id, m.tipo === "retorno_transferencia" || m.tipo === "alta_externa" ? m.destino_externo : null),
+              Para: m.tipo === "alta_externa" ? (m.motivo ?? "Alta") : nomeLocalMovimento(m.unidade_destino_id, m.leito_destino_id, m.tipo !== "retorno_transferencia" ? m.destino_externo : null),
               "Tempo no local anterior": tempoAteEsteMovimento(m),
               Motivo: m.motivo ?? "—",
               "Registrado por": perfis.find((p) => p.id === m.registrado_por)?.full_name ?? "—",

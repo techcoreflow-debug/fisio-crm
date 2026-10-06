@@ -477,6 +477,29 @@ export const repository = {
   },
 
   physiotherapists: {
+    /**
+     * Garante o cadastro de fisioterapeuta de um usuário (login) — é ESSE
+     * cadastro que aparece nas listas de Produção diária, Evolução, fila etc.
+     * Idempotente: se o usuário já tem cadastro, não cria outro.
+     */
+    garantirParaUsuario: async (data: { company_id: string; user_id: string; full_name: string }): Promise<boolean> => {
+      const { supabase } = await import("@/lib/supabase");
+      const { data: existente, error } = await supabase.from("physiotherapists").select("id").eq("user_id", data.user_id).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (existente) return false;
+      await repository.physiotherapists.create({
+        company_id: data.company_id,
+        user_id: data.user_id,
+        full_name: data.full_name,
+        team_id: null,
+        professional_registry: null,
+        birth_date: null,
+        document: null,
+        registry_type: null,
+        registry_number: null,
+      });
+      return true;
+    },
     create: async (
       data: Pick<
         Physiotherapist,
@@ -735,6 +758,54 @@ export const repository = {
     },
 
     /**
+     * Alta direta de quem está na UTI externa (status "transferido"): não
+     * exige "retornar" antes. Não pede procedimento lançado no dia (o
+     * paciente não está sob nossos cuidados), não mexe em leito (já foi
+     * liberado na transferência) e marca `alta_em_uti_externa` pra separar
+     * esse desfecho nos indicadores. Mantém transfer_destino.
+     */
+    darAltaDaExterna: async (
+      id: string,
+      dischargeAtISO: string,
+      dischargeType: "hospitalar" | "obito",
+      registradoPor: string | null = null
+    ): Promise<void> => {
+      const { data: admissao, error } = await supabase.from("admissions").select("*").eq("id", id).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!admissao) throw new Error("Internação não encontrada.");
+      if (admissao.status !== "transferido") throw new Error("Só é possível dar alta direta de quem está transferido para a UTI externa.");
+
+      await atualizarLinha("admissions", id, {
+        status: "alta",
+        discharge_date: dischargeAtISO.slice(0, 10),
+        discharge_at: dischargeAtISO,
+        discharge_type: dischargeType,
+        confirmou_sem_atendimento_alta: false,
+        alta_em_uti_externa: true,
+      });
+      await registrarMovimentoUnidade({
+        company_id: admissao.company_id,
+        admission_id: id,
+        tipo: "alta_externa",
+        hospital_origem_id: null,
+        unidade_origem_id: null,
+        leito_origem_id: null,
+        hospital_destino_id: null,
+        unidade_destino_id: null,
+        leito_destino_id: null,
+        destino_externo: admissao.transfer_destino,
+        motivo: dischargeType === "obito" ? "Óbito" : "Alta hospitalar",
+        registrado_por: registradoPor,
+      });
+      await registrarAuditoria({
+        company_id: admissao.company_id,
+        action: "alta",
+        entity_type: "Internação",
+        entity_label: `Internação ${id.slice(0, 8)} — ${dischargeType === "obito" ? "óbito" : "alta"} na UTI externa (${admissao.transfer_destino ?? "destino não informado"})`,
+      });
+    },
+
+    /**
      * "Quebra de alta" — cancela uma alta lançada por engano e reabre a
      * internação como "internado" de novo. Restrito a admin/supervisor na
      * tela (mesmo nível de permissão de excluir internação); não é uma
@@ -749,15 +820,18 @@ export const repository = {
       if (!admissao) throw new Error("Internação não encontrada.");
       if (admissao.status !== "alta") throw new Error("Esta internação não está com alta registrada.");
 
+      // Alta dada na UTI externa volta ao estado anterior (transferido), não a "internado".
+      const eraExterna = admissao.alta_em_uti_externa === true;
       await atualizarLinha("admissions", id, {
-        status: "internado",
+        status: eraExterna ? "transferido" : "internado",
         discharge_date: null,
         discharge_at: null,
         discharge_type: null,
         confirmou_sem_atendimento_alta: false,
+        alta_em_uti_externa: false,
       });
 
-      if (admissao.bed_id) {
+      if (admissao.bed_id && !eraExterna) {
         const { data: leitoAtual } = await supabase.from("beds").select("status").eq("id", admissao.bed_id).maybeSingle();
         if (leitoAtual && leitoAtual.status !== "ocupado") {
           await atualizarLinha("beds", admissao.bed_id, { status: "ocupado", higienizacao_desde: null });

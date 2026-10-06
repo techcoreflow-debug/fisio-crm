@@ -165,7 +165,7 @@ export default function Internacoes() {
   const [busca, setBusca] = useState(buscaInicial);
   const [filtroHospital, setFiltroHospital] = useState<string>("todos");
   const [filtroUnidade, setFiltroUnidade] = useState<string>("todas");
-  const [filtroStatus, setFiltroStatus] = useState<"todos" | "internado" | "alta" | "transferido">(
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "internado" | "alta" | "alta_externa" | "transferido">(
     buscaInicial ? "todos" : "internado"
   );
 
@@ -424,7 +424,8 @@ export default function Internacoes() {
     setDataLancar(hojeIso);
     setHoraLancar(new Date().toTimeString().slice(0, 5));
     setProcedimentosDeHojeConferidos(null);
-    await conferirProcedimentosDeHoje(internacao.id);
+    // Na UTI externa o paciente não está sob nossos cuidados: não há "procedimento de hoje" a conferir.
+    if (internacao.status !== "transferido") await conferirProcedimentosDeHoje(internacao.id);
   }
 
   function nomeProcedimentoHoje(admissionId: string) {
@@ -570,7 +571,9 @@ export default function Internacoes() {
     const resultado = internacoes.filter((i) => {
       if (filtroHospital !== "todos" && i.hospital_id !== filtroHospital) return false;
       if (filtroUnidade !== "todas" && i.unit_id !== filtroUnidade) return false;
-      if (filtroStatus !== "todos" && i.status !== filtroStatus) return false;
+      if (filtroStatus === "alta_externa") {
+        if (!(i.status === "alta" && i.alta_em_uti_externa)) return false;
+      } else if (filtroStatus !== "todos" && i.status !== filtroStatus) return false;
       if (filtroEntradaDe && i.admission_date < filtroEntradaDe) return false;
       if (filtroEntradaAte && i.admission_date > filtroEntradaAte) return false;
       if (apenasPendentes && (i.status !== "internado" || internacoesComAtendimentoHoje.has(i.id))) return false;
@@ -766,6 +769,12 @@ export default function Internacoes() {
       // confirmado" quando genuinamente não tem nenhum procedimento hoje.
       // O aviso já fica sempre visível nesta tela (nunca escondido atrás
       // de uma etapa separada), então quem confirma já viu a informação.
+      if (internacaoParaAlta.status === "transferido") {
+        await repository.admissions.darAltaDaExterna(internacaoParaAlta.id, iso, tipoAlta, profile?.id ?? null);
+        notificarSucesso(tipoAlta === "obito" ? "Óbito na UTI externa registrado." : "Alta na UTI externa registrada.", "A internação foi encerrada e marcada como alta da UTI externa.");
+        setInternacaoParaAlta(null);
+        return;
+      }
       const semAtendimento = procedimentosDeHojeNaAlta.length === 0;
       await repository.admissions.discharge(internacaoParaAlta.id, iso, semAtendimento, tipoAlta);
       notificarSucesso("Alta registrada. O leito foi liberado para higienização.");
@@ -1027,6 +1036,7 @@ export default function Internacoes() {
                   <SelectItem value="internado">Só internados</SelectItem>
                   <SelectItem value="transferido">Só transferidos</SelectItem>
                   <SelectItem value="alta">Só com alta</SelectItem>
+                  <SelectItem value="alta_externa">Alta na UTI externa</SelectItem>
                 </SelectContent>
               </Select>
               <Button
@@ -1148,6 +1158,11 @@ export default function Internacoes() {
                           {i.discharge_type === "obito" ? "Óbito" : "Alta hospitalar"}
                         </Badge>
                       )}
+                      {i.status === "alta" && i.alta_em_uti_externa && (
+                        <Badge variant="attention" title={`Alta ocorrida na UTI externa${i.transfer_destino ? ` (${i.transfer_destino})` : ""} — o paciente estava transferido`}>
+                          <ArrowRightLeft className="h-3 w-3" /> Alta na UTI externa
+                        </Badge>
+                      )}
                       {i.status === "internado" &&
                         (internacoesComAtendimentoHoje.has(i.id) ? (
                           <Badge variant="recovery">Em atendimento</Badge>
@@ -1227,9 +1242,14 @@ export default function Internacoes() {
                       </>
                     )}
                     {i.status === "transferido" && (
-                      <Button variant="ghost" size="sm" onClick={() => abrirRetornoTransferencia(i)} title="Paciente voltou — reabre esta mesma internação">
-                        <CornerDownLeft className="h-3.5 w-3.5" /> Retornou
-                      </Button>
+                      <div className="flex flex-col items-stretch">
+                        <Button variant="ghost" size="sm" className="justify-start" onClick={() => abrirRetornoTransferencia(i)} title="Paciente voltou — reabre esta mesma internação">
+                          <CornerDownLeft className="h-3.5 w-3.5" /> Retornou
+                        </Button>
+                        <Button variant="ghost" size="sm" className="justify-start" onClick={() => abrirFluxoAlta(i)} title="Alta (hospitalar ou óbito) direto da UTI externa — sem precisar retornar">
+                          <LogOut className="h-3.5 w-3.5" /> Alta
+                        </Button>
+                      </div>
                     )}
                     {i.status === "alta" && (
                       <Button variant="ghost" size="sm" onClick={() => abrirEnviarPesquisa(i)} title="Enviar pesquisa de satisfação">
@@ -1270,13 +1290,22 @@ export default function Internacoes() {
           {etapaAlta === "data" && (
             <form className="flex h-full flex-col" onSubmit={handleConfirmarAlta}>
               <SheetHeader>
-                <SheetTitle>Tem certeza que quer dar alta?</SheetTitle>
+                <SheetTitle>{internacaoParaAlta?.status === "transferido" ? "Alta direta da UTI externa" : "Tem certeza que quer dar alta?"}</SheetTitle>
                 <SheetDescription>
                   {internacaoParaAlta && (pacientes.find((p) => p.id === internacaoParaAlta.patient_id)?.full_name ?? "—")}
                 </SheetDescription>
               </SheetHeader>
               <div className="flex flex-1 flex-col gap-4">
-                {conferindoProcedimentos ? (
+                {internacaoParaAlta?.status === "transferido" ? (
+                  <div className="flex flex-col gap-1 rounded-md bg-attention-100 px-3 py-2.5 text-sm text-attention-700">
+                    <div className="flex items-center gap-2 font-medium">
+                      <ArrowRightLeft className="h-4 w-4 shrink-0" /> Paciente na UTI externa{internacaoParaAlta.transfer_destino ? ` (${internacaoParaAlta.transfer_destino})` : ""}
+                    </div>
+                    <p className="text-xs">
+                      A alta ou o óbito será registrado sem precisar retornar o paciente, e a internação ficará marcada como <strong>alta na UTI externa</strong>.
+                    </p>
+                  </div>
+                ) : conferindoProcedimentos ? (
                   <div className="flex items-center gap-2 rounded-md bg-surface-sunken px-3 py-2.5 text-sm text-ink-soft">
                     Conferindo o que já foi lançado hoje…
                   </div>
@@ -1310,9 +1339,11 @@ export default function Internacoes() {
                   )}
                 </div>
                 )}
-                <Button type="button" variant="secondary" size="sm" onClick={() => setEtapaAlta("lancar")}>
-                  <ClipboardPlus className="h-3.5 w-3.5" /> Lançar mais um procedimento
-                </Button>
+                {internacaoParaAlta?.status !== "transferido" && (
+                  <Button type="button" variant="secondary" size="sm" onClick={() => setEtapaAlta("lancar")}>
+                    <ClipboardPlus className="h-3.5 w-3.5" /> Lançar mais um procedimento
+                  </Button>
+                )}
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="discharge_at">Data e hora da alta</Label>
                   <Input

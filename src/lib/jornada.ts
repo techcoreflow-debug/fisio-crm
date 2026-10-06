@@ -45,6 +45,7 @@ const ROTULO_MOVIMENTO: Record<AdmissionUnitHistory["tipo"], string> = {
   mudanca_unidade: "Mudança de unidade",
   transferencia_externa: "Transferência",
   retorno_transferencia: "Retorno de transferência",
+  alta_externa: "Alta na UTI externa",
 };
 
 export function montarJornada(e: EntradaJornada): EventoJornada[] {
@@ -67,7 +68,7 @@ export function montarJornada(e: EntradaJornada): EventoJornada[] {
       tipo: "unidade",
       quando: ms(h.ocorrido_em),
       titulo: ROTULO_MOVIMENTO[h.tipo],
-      detalhe: `${origem} → ${destino}${h.motivo ? ` · ${h.motivo}` : ""}`,
+      detalhe: h.tipo === "alta_externa" ? `${destino}${h.motivo ? ` · ${h.motivo}` : ""}` : `${origem} → ${destino}${h.motivo ? ` · ${h.motivo}` : ""}`,
     });
   }
 
