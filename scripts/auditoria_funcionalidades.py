@@ -180,6 +180,9 @@ MARCADORES = [
     ("Alta direta da UTI externa — botão Alta abaixo de Retornou (v0.64.0)", "src/modules/internacoes/index.tsx", "Alta direta da UTI externa"),
     ("Alta na UTI externa — marcação e filtro na lista (v0.64.0)", "src/modules/internacoes/index.tsx", "Alta na UTI externa"),
     ("Alta na UTI externa — rastreio de movimentação (v0.64.0)", "src/modules/relatorios/index.tsx", "alta_externa"),
+    ("Data da alta + tipo (normal x UTI externa) na lista (v0.65.0)", "src/modules/internacoes/index.tsx", "Data da alta:"),
+    ("Data/Tipo da alta nos relatórios (v0.65.0)", "src/modules/relatorios/index.tsx", "Tipo da Alta"),
+    ("Indicador Altas normais x UTI externa (v0.65.0)", "src/modules/impacto-assistencial/index.tsx", "Altas normais × Altas na UTI externa"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [

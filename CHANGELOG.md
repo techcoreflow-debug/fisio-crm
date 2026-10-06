@@ -20,6 +20,14 @@ Antes de subir um deploy:
 
 ---
 
+## v0.65.0 — 2026-10-05
+
+- Lista de Pacientes internados: pacientes com alta mostram "Data da alta: dd/mm/aaaa hh:mm · Alta normal / Alta na UTI externa".
+- Relatórios/extrações (Pacientes Internados, Produção, Produção contabilizada): novas colunas "Data da Alta" e "Tipo da Alta" (Alta normal / Alta na UTI externa).
+- Lista imprimível: colunas opcionais "Data da Alta" e "Tipo da Alta".
+- Impacto assistencial: novo indicador "Altas normais × Altas na UTI externa" (com óbitos de cada grupo).
+- Nova lib `src/lib/alta.ts`. Sem migration nova.
+
 ## v0.64.0 — 2026-10-05
 
 **Alta direta de quem está na UTI externa.**

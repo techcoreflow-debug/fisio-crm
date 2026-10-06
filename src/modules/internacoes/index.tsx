@@ -1,3 +1,4 @@
+import { dataHoraAlta as formatarDataHoraAlta, rotuloTipoAlta } from "@/lib/alta";
 import { useMemo, useState, useEffect, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { hojeLocalIso, calcularIdade, calcularDiasInternacao } from "@/lib/data-local";
@@ -117,8 +118,13 @@ export default function Internacoes() {
     { chave: "leito", rotulo: "Leito" },
     { chave: "hospital", rotulo: "Hospital" },
     { chave: "convenio", rotulo: "Convênio" },
+    { chave: "dataAlta", rotulo: "Data da Alta" },
+    { chave: "tipoAlta", rotulo: "Tipo da Alta" },
   ] as const;
-  const [colunasLista, setColunasLista] = useState<Set<string>>(new Set(COLUNAS_LISTA.map((c) => c.chave)));
+  // Data/Tipo da alta começam desmarcadas (lista de internados ativos não tem alta).
+  const [colunasLista, setColunasLista] = useState<Set<string>>(
+    new Set(COLUNAS_LISTA.map((c) => c.chave).filter((c) => c !== "dataAlta" && c !== "tipoAlta"))
+  );
   const [dialogListaAberto, setDialogListaAberto] = useState(false);
 
   const [dialogDistribuirAberto, setDialogDistribuirAberto] = useState(false);
@@ -469,6 +475,8 @@ export default function Internacoes() {
               return idadeCalc !== null ? `${idadeCalc} anos` : "—";
             }
             case "diasInternacao": return String(calcularDiasInternacao(i.admission_date, i.discharge_date));
+            case "dataAlta": return formatarDataHoraAlta(i);
+            case "tipoAlta": return rotuloTipoAlta(i);
             case "procedimento": return nomeProcedimentoHoje(i.id);
             case "quarto": {
               const leito = leitos.find((l) => l.id === i.bed_id);
@@ -1187,6 +1195,11 @@ export default function Internacoes() {
                     {i.diagnostico && (
                       <p className="mt-0.5 truncate text-xs italic text-ink-soft/80" title={i.diagnostico}>
                         Dx: {i.diagnostico}
+                      </p>
+                    )}
+                    {i.status === "alta" && (
+                      <p className="mt-0.5 text-xs font-medium text-ink-soft">
+                        Data da alta: {formatarDataHoraAlta(i)} · {rotuloTipoAlta(i)}
                       </p>
                     )}
                     {i.status === "transferido" && (

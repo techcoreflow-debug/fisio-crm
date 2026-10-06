@@ -1,3 +1,4 @@
+import { dataHoraAlta, rotuloTipoAlta } from "@/lib/alta";
 import { useMemo, useState } from "react";
 import { hojeLocalIso, calcularIdade, calcularDiasInternacao } from "@/lib/data-local";
 import { BarChart3, Download } from "lucide-react";
@@ -183,6 +184,8 @@ export default function Relatorios() {
         Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
         Conciliação: p.confirmado_tasy ? "Confirmado" : "Não confirmado",
         "Status da Internação": statusInternacao(internacoes.find((i) => i.id === p.admission_id)),
+        "Data da Alta": dataHoraAlta(internacoes.find((i) => i.id === p.admission_id) ?? { status: "" }),
+        "Tipo da Alta": rotuloTipoAlta(internacoes.find((i) => i.id === p.admission_id) ?? { status: "" }),
       }));
       exportarCsv("producao-contabilizada", linhas);
       notificarSucesso(`Relatório exportado (${linhas.length} linha(s)).`);
@@ -217,6 +220,8 @@ export default function Relatorios() {
             Fisioterapeuta: fisioterapeutas.find((f) => f.id === p.physiotherapist_id)?.full_name ?? "—",
             Conciliação: p.confirmado_tasy ? "Confirmado" : "Não confirmado",
             "Status da Internação": statusInternacao(internacao),
+            "Data da Alta": dataHoraAlta(internacao ?? { status: "" }),
+            "Tipo da Alta": rotuloTipoAlta(internacao ?? { status: "" }),
           };
         }),
     },
@@ -240,6 +245,8 @@ export default function Relatorios() {
             Leito: leito?.code ?? "—",
             Convênio: convenios.find((c) => c.id === i.health_insurance_id)?.name ?? "—",
             Status: statusInternacao(i),
+            "Data da Alta": dataHoraAlta(i),
+            "Tipo da Alta": rotuloTipoAlta(i),
             "Dias de Internação": calcularDiasInternacao(i.admission_date, i.discharge_date),
             Diagnóstico: i.diagnostico ?? "—",
           };

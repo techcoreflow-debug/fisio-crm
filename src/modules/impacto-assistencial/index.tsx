@@ -14,7 +14,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Clock, Users, ClipboardList, CalendarCheck, Building2, LogOut, HeartPulse, ClipboardEdit } from "lucide-react";
+import { ArrowRightLeft, Clock, Users, ClipboardList, CalendarCheck, Building2, LogOut, HeartPulse, ClipboardEdit } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { GoniometerGauge } from "@/components/shared/goniometer-gauge";
 import { TrendDelta } from "@/components/shared/trend-delta";
@@ -265,6 +265,30 @@ export default function ImpactoAssistencial() {
     const comAlta = internacoesNoPeriodo.filter((int) => int.status === "alta").length;
     return { taxa: Math.round((comAlta / internacoesNoPeriodo.length) * 100), total: internacoesNoPeriodo.length, comAlta };
   }, [internacoes, periodoDe, periodoAte]);
+
+  // Altas normais x altas na UTI externa (paciente estava transferido). Mesmo
+  // critério de período das demais altas (discharge_date) e do filtro de hospital.
+  const altasPorTipo = useMemo(() => {
+    const altas = internacoes.filter(
+      (int) =>
+        int.status === "alta" &&
+        int.discharge_date &&
+        int.discharge_date >= periodoDe &&
+        int.discharge_date <= periodoAte &&
+        (filtroHospital === TODOS || int.hospital_id === filtroHospital)
+    );
+    const externas = altas.filter((int) => int.alta_em_uti_externa);
+    const normais = altas.filter((int) => !int.alta_em_uti_externa);
+    const obitos = (l: typeof altas) => l.filter((int) => int.discharge_type === "obito").length;
+    return {
+      total: altas.length,
+      normais: normais.length,
+      externas: externas.length,
+      obitosNormais: obitos(normais),
+      obitosExternas: obitos(externas),
+      pctExternas: altas.length ? Math.round((externas.length / altas.length) * 100) : 0,
+    };
+  }, [internacoes, periodoDe, periodoAte, filtroHospital]);
 
   // Efetividade assistencial (indicador ONA) — taxa de óbito sobre as altas do período
   const taxaObitoNoPeriodo = useMemo(() => {
@@ -650,6 +674,37 @@ export default function ImpactoAssistencial() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><ArrowRightLeft className="h-4.5 w-4.5" /> Altas normais × Altas na UTI externa</CardTitle>
+          <p className="text-sm text-ink-soft mt-0.5">Altas do período, separadas pelo local onde ocorreram. "UTI externa" = paciente que estava transferido quando recebeu alta (hospitalar ou óbito).</p>
+        </CardHeader>
+        <CardContent>
+          {altasPorTipo.total === 0 ? (
+            <p className="text-sm text-ink-soft">Sem altas no período.</p>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex h-3 w-full overflow-hidden rounded-full bg-surface-sunken" role="img" aria-label={`${altasPorTipo.normais} altas normais e ${altasPorTipo.externas} na UTI externa`}>
+                <div className="bg-clinical-500" style={{ width: `${100 - altasPorTipo.pctExternas}%` }} />
+                <div className="bg-attention-500" style={{ width: `${altasPorTipo.pctExternas}%` }} />
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-line p-3">
+                  <p className="text-xs font-medium text-ink-soft">Altas normais</p>
+                  <p className="font-display text-2xl font-semibold text-ink">{altasPorTipo.normais}</p>
+                  <p className="text-xs text-ink-soft">{100 - altasPorTipo.pctExternas}% do total · {altasPorTipo.obitosNormais} óbito(s)</p>
+                </div>
+                <div className="rounded-lg border border-line p-3">
+                  <p className="text-xs font-medium text-ink-soft">Altas na UTI externa</p>
+                  <p className="font-display text-2xl font-semibold text-ink">{altasPorTipo.externas}</p>
+                  <p className="text-xs text-ink-soft">{altasPorTipo.pctExternas}% do total · {altasPorTipo.obitosExternas} óbito(s)</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="border-critical-400/30">
