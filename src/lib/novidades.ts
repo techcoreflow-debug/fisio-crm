@@ -17,6 +17,12 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    versao: "0.67.0",
+    data: "14/10/2026",
+    titulo: "WhatsApp automático na pesquisa pós-alta",
+    descricao: "Conecte o número da empresa por QR Code em Configurações → WhatsApp e envie a pesquisa de satisfação direto do sistema, um a um ou em lote para as altas recentes. Pacientes agora têm telefone, e-mail e opção de não receber mensagens.",
+  },
+  {
     versao: "0.66.0",
     data: "11/10/2026",
     titulo: "Últimas movimentações no sino",

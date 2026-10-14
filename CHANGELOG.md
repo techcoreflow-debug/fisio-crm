@@ -20,6 +20,17 @@ Antes de subir um deploy:
 
 ---
 
+## v0.67.0 — 2026-10-14
+
+WhatsApp via Evolution API (mesmo padrão já usado no OficinaOS, portado de oficina → empresa).
+
+- **Migration 0038** (aplicar ANTES de publicar a função): `whatsapp_settings`, `whatsapp_secrets` (RLS sem política — a chave nunca vai ao navegador), `whatsapp_templates`, `whatsapp_batches`, `whatsapp_messages`; `patients.phone/email` (`if not exists` — nenhuma migration do repo os criava) e `patients.whatsapp_optout` (LGPD); função `is_company_admin()`; modelos padrão por empresa.
+- **Edge Function `whatsapp`** (`supabase functions deploy whatsapp`): `save_config`, `status`, `connect` (QR/pareamento), `logout`, `send`, `process_batch` — pausa aleatória entre mensagens, limite diário, bloqueio de opt-out, só https/endereço público.
+- **Nova tela WhatsApp** (Configurações → WhatsApp): conexão por QR Code, configuração, modelos com variáveis e prévia, lotes (pausar/retomar/cancelar) e log de mensagens.
+- **Pesquisa pós-alta**: em Pacientes Internados envia pela Evolution quando conectada; se estiver desligada/desconectada/falhar, abre o `wa.me` como antes. Usa o modelo "Pesquisa de satisfação pós-alta".
+- **Envio em lote** (Pesquisa de Satisfação → "Enviar para altas sem pesquisa"): altas dos últimos 7/15/30 dias; exclui óbito, alta na UTI externa, sem telefone válido, opt-out, quem já tem pesquisa e repetidos.
+- **Cadastro de paciente**: campos Telefone/WhatsApp, E-mail e "Não enviar mensagens por WhatsApp".
+
 ## v0.66.0 — 2026-10-11
 
 - Sino de notificações: nova aba **Movimentações** com as últimas 50 movimentações da operação — nova internação (importações em lote viram uma linha só), mudança de unidade, transferência, retorno, alta hospitalar, óbito, alta/óbito na UTI externa e alta desfeita. Cada linha mostra paciente, local e tempo ("há 5 min", "ontem 14:30").

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Plus, Pencil, Trash2, Star, MessageCircleQuestion, ClipboardList, ThumbsUp } from "lucide-react";
+import { Plus, Pencil, Trash2, Star, MessageCircleQuestion, ClipboardList, ThumbsUp, Send } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
   SheetFooter,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { EnviarLotePesquisa } from "./lote";
 import { useSatisfactionSurveyTemplates, useSatisfactionSurveys, repository } from "@/data/repository";
 import { useAppStore } from "@/store/app-store";
 import { notificarErro, notificarSucesso } from "@/store/toast-store";
@@ -29,6 +30,7 @@ export default function PesquisaSatisfacao() {
   const empresaId = useAppStore((s) => s.activeCompanyId);
 
   const [open, setOpen] = useState(false);
+  const [loteAberto, setLoteAberto] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   const [nome, setNome] = useState("");
   const [perguntas, setPerguntas] = useState<PerguntaSatisfacao[]>([]);
@@ -112,8 +114,10 @@ export default function PesquisaSatisfacao() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Pesquisa de Satisfação"
-        description="Modelos de pesquisa e resultados — o envio (e-mail/WhatsApp) acontece na tela de Pacientes Internados, depois da alta."
+        description="Modelos de pesquisa e resultados — o envio individual acontece em Pacientes Internados; aqui você também envia em lote para as altas recentes."
+        actions={<Button onClick={() => setLoteAberto(true)}><Send className="h-4 w-4" /> Enviar para altas sem pesquisa</Button>}
       />
+      <EnviarLotePesquisa aberto={loteAberto} aoFechar={() => setLoteAberto(false)} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>

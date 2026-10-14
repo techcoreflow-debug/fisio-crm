@@ -412,7 +412,8 @@ export const repository = {
 
   patients: {
     create: async (
-      data: Pick<Patient, "full_name" | "birth_date" | "document" | "sexo" | "health_insurance_id" | "company_id">
+      data: Pick<Patient, "full_name" | "birth_date" | "document" | "sexo" | "health_insurance_id" | "company_id"> &
+        Partial<Pick<Patient, "phone" | "email" | "whatsapp_optout">>
     ): Promise<Patient> => {
       const row = await inserirLinha<Patient>("patients", data);
       if (row.health_insurance_id) {
@@ -427,7 +428,7 @@ export const repository = {
     },
     update: async (
       id: string,
-      patch: Partial<Pick<Patient, "full_name" | "birth_date" | "document" | "sexo" | "health_insurance_id" | "company_id">>
+      patch: Partial<Pick<Patient, "full_name" | "birth_date" | "document" | "sexo" | "health_insurance_id" | "company_id" | "phone" | "email" | "whatsapp_optout">>
     ): Promise<void> => {
       // Muda de convênio? Grava no histórico antes de sobrescrever — nunca
       // perde o registro de qual convênio o paciente tinha antes.

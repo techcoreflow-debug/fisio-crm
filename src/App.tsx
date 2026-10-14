@@ -54,6 +54,7 @@ const pageComponents: Record<string, ComponentType> = {
   configuracoes: lazy(() => import("@/modules/configuracoes")),
   "usuarios-permissoes": lazy(() => import("@/modules/usuarios-permissoes")),
   integracoes: lazy(() => import("@/modules/integracoes")),
+  whatsapp: lazy(() => import("@/modules/whatsapp")),
   "importacao-tasy": lazy(() => import("@/modules/importacao-tasy")),
 };
 

@@ -139,6 +139,14 @@ export default function Pacientes() {
       health_insurance_id: convenioId || null,
       company_id: empresaId,
     };
+    // Só envia o que mudou: antes da migration 0038 essas colunas podem não existir, e
+    // mandá-las sempre quebraria o cadastro de quem não mexeu em telefone/e-mail/opt-out.
+    const telefone = String(form.get("phone") ?? "").trim() || null;
+    const email = String(form.get("email") ?? "").trim() || null;
+    const optout = form.get("whatsapp_optout") === "on";
+    if (telefone !== (editando?.phone ?? null)) Object.assign(dados, { phone: telefone });
+    if (email !== (editando?.email ?? null)) Object.assign(dados, { email });
+    if (optout !== (editando?.whatsapp_optout ?? false)) Object.assign(dados, { whatsapp_optout: optout });
     setSalvando(true);
     try {
       if (editando) {
@@ -247,6 +255,20 @@ export default function Pacientes() {
                       </p>
                     )}
                   </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="phone">Telefone / WhatsApp (opcional)</Label>
+                      <Input id="phone" name="phone" inputMode="tel" placeholder="(18) 99999-0000" defaultValue={editando?.phone ?? ""} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="email">E-mail (opcional)</Label>
+                      <Input id="email" name="email" type="email" placeholder="nome@email.com" defaultValue={editando?.email ?? ""} />
+                    </div>
+                  </div>
+                  <label className="flex items-start gap-2 text-sm text-ink-soft">
+                    <input type="checkbox" name="whatsapp_optout" defaultChecked={editando?.whatsapp_optout ?? false} className="mt-0.5" />
+                    <span>Não enviar mensagens por WhatsApp (o paciente pediu para não receber)</span>
+                  </label>
                 </div>
                 <SheetFooter>
                   <Button type="button" variant="secondary" onClick={() => setOpen(false)}>

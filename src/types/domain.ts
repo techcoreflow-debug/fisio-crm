@@ -139,6 +139,8 @@ export interface Patient {
   health_insurance_id: string | null;
   phone: string | null;
   email: string | null;
+  /** LGPD: pediu para não receber mensagens por WhatsApp (migration 0038). */
+  whatsapp_optout?: boolean;
   created_at: string;
 }
 
@@ -461,4 +463,72 @@ export interface PatientQueueItem {
   status: "pendente" | "concluido";
   distribuido_por: string | null;
   created_at: string;
+}
+
+// --- WhatsApp via Evolution API (migration 0038) ---------------------------
+
+export interface WhatsappTemplate {
+  id: string;
+  company_id: string;
+  name: string;
+  category: string;
+  body: string;
+  active: boolean;
+  is_default: boolean;
+  created_at: string;
+}
+
+export type StatusWhatsappLote = "enviando" | "pausado" | "concluido" | "cancelado";
+
+export interface WhatsappBatch {
+  id: string;
+  company_id: string;
+  name: string;
+  audience: string | null;
+  template_id: string | null;
+  status: StatusWhatsappLote;
+  total: number;
+  sent: number;
+  failed: number;
+  created_by: string | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
+export type StatusWhatsappMensagem = "pendente" | "enviando" | "enviada" | "falha" | "cancelada";
+
+export interface WhatsappMessage {
+  id: string;
+  company_id: string;
+  batch_id: string | null;
+  patient_id: string | null;
+  admission_id: string | null;
+  recipient_name: string | null;
+  to_number: string;
+  body: string;
+  status: StatusWhatsappMensagem;
+  error: string | null;
+  provider_message_id: string | null;
+  context_type: string | null;
+  context_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  sent_at: string | null;
+}
+
+/** Linha de whatsapp_settings — a chave da Evolution NUNCA vem para o navegador (só api_key_set). */
+export interface WhatsappSettings {
+  company_id: string;
+  evolution_url: string;
+  instance_name: string;
+  api_version: "v1" | "v2";
+  enabled: boolean;
+  api_key_set: boolean;
+  delay_min_s: number;
+  delay_max_s: number;
+  daily_limit: number;
+  connection_state: string | null;
+  connected_number: string | null;
+  last_checked_at: string | null;
+  updated_at: string;
 }

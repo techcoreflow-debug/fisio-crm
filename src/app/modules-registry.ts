@@ -25,6 +25,7 @@ import {
   Settings,
   KeyRound,
   Plug,
+  MessageCircle,
   UploadCloud,
   SlidersHorizontal,
   Workflow,
@@ -172,6 +173,7 @@ export const moduleGroups: ModuleGroup[] = [
       { slug: "importacao-tasy", path: "/importacao-tasy", label: "Importação Tasy", icon: UploadCloud, description: "Upload de arquivos do Tasy, prévia, validação e histórico de importações.", status: "pronto" },
       { slug: "usuarios-permissoes", path: "/usuarios-permissoes", label: "Usuários e Permissões", icon: KeyRound, description: "Usuários do sistema, papéis e permissões por empresa, hospital e módulo.", status: "pronto" },
       { slug: "integracoes", path: "/integracoes", label: "Integrações", icon: Plug, description: "Integrações externas além do Tasy: faturamento, comunicação e dados.", status: "pronto" },
+      { slug: "whatsapp", path: "/whatsapp", label: "WhatsApp", icon: MessageCircle, description: "Conexão por QR Code (Evolution API), modelos de mensagem e envios da pesquisa pós-alta.", status: "pronto" },
       { slug: "configuracoes", path: "/configuracoes", label: "Configurações", icon: Settings, description: "Configurações gerais da empresa, marca, notificações e preferências.", status: "pronto" },
     ],
   },
@@ -284,6 +286,7 @@ export const hubs: HubDef[] = [
       { slug: "configuracoes", label: "Geral" },
       { slug: "usuarios-permissoes", label: "Usuários e permissões" },
       { slug: "integracoes", label: "Integrações" },
+      { slug: "whatsapp", label: "WhatsApp" },
     ],
   },
 ];

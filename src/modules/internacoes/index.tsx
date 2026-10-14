@@ -36,13 +36,16 @@ import {
   useDailyProduction,
   useSatisfactionSurveyTemplates,
   usePatientQueue,
+  useCompanies,
   repository,
 } from "@/data/repository";
+import { enviarPorEvolutionOuManual, useWhatsappSettings, useWhatsappTemplates } from "@/data/whatsapp";
+import { limparVariaveisPendentes, normalizarTelefone, renderizarTemplate } from "@/lib/whatsapp";
 import { Combobox } from "@/components/ui/combobox";
 import { DeleteButton } from "@/components/shared/delete-button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Paginacao, usarPaginacao } from "@/components/shared/paginacao";
-import { notificarErro, notificarSucesso } from "@/store/toast-store";
+import { notificarAviso, notificarErro, notificarSucesso } from "@/store/toast-store";
 import { useDraftState } from "@/lib/use-draft-state";
 import { useAuth } from "@/auth/auth-provider";
 import { useAppStore } from "@/store/app-store";
@@ -261,6 +264,10 @@ export default function Internacoes() {
   const [destinoPesquisa, setDestinoPesquisa] = useState("");
   const [enviandoPesquisa, setEnviandoPesquisa] = useState(false);
   const [linkPesquisaGerado, setLinkPesquisaGerado] = useState<string | null>(null);
+  const [envioPesquisaVia, setEnvioPesquisaVia] = useState<"evolution" | "manual" | null>(null);
+  const empresas = useCompanies();
+  const { config: configWhatsapp } = useWhatsappSettings();
+  const modelosWhatsapp = useWhatsappTemplates();
 
   function abrirEnviarPesquisa(internacao: Admission) {
     setInternacaoParaPesquisa(internacao);
@@ -269,6 +276,7 @@ export default function Internacoes() {
     setCanalPesquisa("whatsapp");
     setDestinoPesquisa(paciente?.phone ?? paciente?.email ?? "");
     setLinkPesquisaGerado(null);
+    setEnvioPesquisaVia(null);
   }
 
   async function handleEnviarPesquisa() {
@@ -285,14 +293,40 @@ export default function Internacoes() {
       const link = `${window.location.origin}/pesquisa/${pesquisa.token}`;
       setLinkPesquisaGerado(link);
       const paciente = pacientes.find((p) => p.id === internacaoParaPesquisa.patient_id);
-      const mensagem = `Olá${paciente ? `, ${paciente.full_name.split(" ")[0]}` : ""}! Gostaríamos de saber como foi sua experiência com a fisioterapia. Responda nossa pesquisa rapidinha: ${link}`;
+      const modelo = modelosWhatsapp.find((m) => m.active && m.category === "pesquisa_satisfacao");
+      const mensagem = limparVariaveisPendentes(renderizarTemplate(
+        modelo?.body ??
+          `Olá, {{primeiro_nome}}! Gostaríamos de saber como foi sua experiência com a fisioterapia. Responda nossa pesquisa rapidinha: {{link}}`,
+        {
+          primeiro_nome: paciente ? paciente.full_name.split(" ")[0] : "",
+          nome: paciente?.full_name ?? "",
+          empresa: empresas.find((c) => c.id === empresaId)?.name ?? "",
+          hospital: hospitais.find((h) => h.id === internacaoParaPesquisa.hospital_id)?.name ?? "",
+          data_alta: internacaoParaPesquisa.discharge_date ? internacaoParaPesquisa.discharge_date.split("-").reverse().join("/") : "",
+          link,
+        }
+      ));
+      let via: "evolution" | "manual" | null = null;
       if (canalPesquisa === "whatsapp" && destinoPesquisa) {
-        const numero = destinoPesquisa.replace(/\D/g, "");
-        window.open(`https://wa.me/55${numero}?text=${encodeURIComponent(mensagem)}`, "_blank");
+        const numeroNormalizado = normalizarTelefone(destinoPesquisa);
+        if (!numeroNormalizado) {
+          notificarAviso("Telefone inválido", "Use DDD + número. A pesquisa foi criada; corrija o telefone e envie pelo link.");
+        } else {
+          const r = await enviarPorEvolutionOuManual({
+            empresaId, config: configWhatsapp, numero: numeroNormalizado, texto: mensagem,
+            paciente: paciente ?? null, admissionId: internacaoParaPesquisa.id, contextId: pesquisa.id,
+          });
+          via = r.via;
+          if (r.via === "manual") {
+            window.open(`https://wa.me/${numeroNormalizado}?text=${encodeURIComponent(mensagem)}`, "_blank");
+            if (configWhatsapp?.enabled) notificarAviso("Envio automático indisponível", `${r.motivoManual}. Abri o WhatsApp Web para enviar manualmente.`);
+          }
+        }
       } else if (canalPesquisa === "email" && destinoPesquisa) {
         window.open(`mailto:${destinoPesquisa}?subject=${encodeURIComponent("Pesquisa de satisfação")}&body=${encodeURIComponent(mensagem)}`, "_blank");
       }
-      notificarSucesso("Pesquisa criada — link pronto pra enviar.");
+      setEnvioPesquisaVia(via);
+      notificarSucesso(via === "evolution" ? "Pesquisa enviada pelo WhatsApp" : "Pesquisa criada — link pronto pra enviar.");
     } catch (erro) {
       notificarErro("Não foi possível criar a pesquisa", erro);
     } finally {
@@ -1829,7 +1863,9 @@ export default function Internacoes() {
           {linkPesquisaGerado ? (
             <div className="flex flex-col gap-3 py-2">
               <p className="text-sm text-recovery-700">
-                Pesquisa criada! {canalPesquisa === "whatsapp" ? "O WhatsApp deve ter aberto numa aba nova." : "O e-mail deve ter aberto no seu programa padrão."}
+                Pesquisa criada! {canalPesquisa === "whatsapp"
+                  ? envioPesquisaVia === "evolution" ? "A mensagem foi enviada pelo WhatsApp da empresa." : "O WhatsApp deve ter aberto numa aba nova."
+                  : "O e-mail deve ter aberto no seu programa padrão."}
               </p>
               <div className="flex flex-col gap-1.5">
                 <Label>Link (se precisar copiar manualmente)</Label>

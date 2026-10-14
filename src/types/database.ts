@@ -32,6 +32,10 @@ import type {
   Receivable,
   AdmissionUnitHistory,
   FunctionalAssessment,
+  WhatsappTemplate,
+  WhatsappBatch,
+  WhatsappMessage,
+  WhatsappSettings,
 } from "@/types/domain";
 
 /**
@@ -92,6 +96,10 @@ export interface Database {
       receivables: TableDef<Receivable>;
       admission_unit_history: TableDef<AdmissionUnitHistory>;
       functional_assessments: TableDef<FunctionalAssessment>;
+      whatsapp_templates: TableDef<WhatsappTemplate>;
+      whatsapp_batches: TableDef<WhatsappBatch>;
+      whatsapp_messages: TableDef<WhatsappMessage>;
+      whatsapp_settings: TableDef<WhatsappSettings>;
     };
   };
 }

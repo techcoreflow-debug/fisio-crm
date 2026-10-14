@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { UploadCloud, MessageCircle, Receipt, Webhook } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,17 +11,26 @@ interface Integracao {
   descricao: string;
   icon: typeof UploadCloud;
   status: "conectado" | "disponivel";
+  /** Quando existe, o botão abre a tela da integração em vez do aviso "ainda não disponível". */
+  rota?: string;
 }
 
 const integracoes: Integracao[] = [
   { nome: "Importação Tasy", descricao: "Importação de arquivos exportados do sistema Tasy", icon: UploadCloud, status: "conectado" },
-  { nome: "WhatsApp Business", descricao: "Comunicação com pacientes e equipe via WhatsApp", icon: MessageCircle, status: "disponivel" },
+  { nome: "WhatsApp Business", descricao: "Envio da pesquisa pós-alta direto do sistema, por QR Code (Evolution API)", icon: MessageCircle, status: "disponivel", rota: "/whatsapp" },
   { nome: "NF-e / NFS-e", descricao: "Emissão de notas fiscais de serviço para faturamento", icon: Receipt, status: "disponivel" },
   { nome: "API pública / Webhooks", descricao: "Envio e recebimento de eventos do Fisio para sistemas externos", icon: Webhook, status: "disponivel" },
 ];
 
 export default function Integracoes() {
-  function handleConectar(nome: string) {
+  const navegar = useNavigate();
+
+  function handleConectar(i: Integracao) {
+    if (i.rota) {
+      navegar(i.rota);
+      return;
+    }
+    const nome = i.nome;
     notificarErro(`${nome} ainda não está disponível`, "Essa integração ainda não foi implementada — sem previsão de dados reais por trás dela ainda.");
   }
 
@@ -47,8 +57,8 @@ export default function Integracoes() {
                 </div>
                 <p className="mt-1 text-sm text-ink-soft">{i.descricao}</p>
                 {i.status === "disponivel" && (
-                  <Button variant="secondary" size="sm" className="mt-3" onClick={() => handleConectar(i.nome)}>
-                    Conectar
+                  <Button variant="secondary" size="sm" className="mt-3" onClick={() => handleConectar(i)}>
+                    {i.rota ? "Configurar" : "Conectar"}
                   </Button>
                 )}
               </div>

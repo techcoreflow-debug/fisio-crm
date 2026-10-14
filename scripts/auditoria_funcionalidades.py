@@ -185,6 +185,12 @@ MARCADORES = [
     ("Indicador Altas normais x UTI externa (v0.65.0)", "src/modules/impacto-assistencial/index.tsx", "Altas normais × Altas na UTI externa"),
     ("Sino: aba Movimentações (v0.66.0)", "src/components/shared/sino-novidades.tsx", "Movimentações"),
     ("Feed de movimentações — lib (v0.66.0)", "src/lib/movimentacoes.ts", "montarMovimentacoes"),
+    ("WhatsApp: migration das tabelas (v0.67.0)", "supabase/migrations/0038_whatsapp_evolution.sql", "whatsapp_secrets"),
+    ("WhatsApp: Edge Function Evolution (v0.67.0)", "supabase/functions/whatsapp/index.ts", "process_batch"),
+    ("WhatsApp: tela de conexão por QR (v0.67.0)", "src/modules/whatsapp/conexao.tsx", "Conectar por QR Code"),
+    ("WhatsApp: envio com fallback wa.me (v0.67.0)", "src/data/whatsapp.ts", "enviarPorEvolutionOuManual"),
+    ("WhatsApp: seleção do lote pós-alta (v0.67.0)", "src/lib/lote-pesquisa.ts", "selecionarDestinatariosPesquisa"),
+    ("WhatsApp: opt-out no cadastro do paciente (v0.67.0)", "src/modules/pacientes/index.tsx", "whatsapp_optout"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [
