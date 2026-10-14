@@ -183,6 +183,8 @@ MARCADORES = [
     ("Data da alta + tipo (normal x UTI externa) na lista (v0.65.0)", "src/modules/internacoes/index.tsx", "Data da alta:"),
     ("Data/Tipo da alta nos relatórios (v0.65.0)", "src/modules/relatorios/index.tsx", "Tipo da Alta"),
     ("Indicador Altas normais x UTI externa (v0.65.0)", "src/modules/impacto-assistencial/index.tsx", "Altas normais × Altas na UTI externa"),
+    ("Sino: aba Movimentações (v0.66.0)", "src/components/shared/sino-novidades.tsx", "Movimentações"),
+    ("Feed de movimentações — lib (v0.66.0)", "src/lib/movimentacoes.ts", "montarMovimentacoes"),
 ]
 
 ARQUIVOS_SEM_TOISOSTRING_PARA_DATA = [

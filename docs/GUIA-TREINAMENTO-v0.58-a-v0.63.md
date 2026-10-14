@@ -51,6 +51,11 @@ O menu ficou bem menor (cerca de 16 itens para o administrador, antes eram ~38).
 4. Se o texto citar IMS ou Borg com número, aparece o botão para registrar direto na Avaliação funcional.
 - Treinar: **nunca salvar sem ler**. Não digitar CPF/telefone no texto (o sistema remove antes de enviar à IA, mas o hábito certo é não colocar).
 
+**Sino: últimas movimentações** *(novo)*
+- Clique no sino do topo e abra a aba **Movimentações** para ver o que aconteceu por último: novas internações, mudanças de unidade, transferências, retornos, altas, óbitos e altas desfeitas.
+- O sino acende quando há movimentação nova desde a sua última visita; o que é novo aparece marcado.
+- Hoje a lista não mostra quem executou a ação.
+
 **Paciente na UTI externa: alta direta** *(novo)*
 - Em *Pacientes Internados → Lista*, quem está **Transferido** tem dois botões: **Retornou** (volta para nós) e **Alta** (embaixo).
 - Use **Alta** quando o paciente **não volta**: ele teve alta hospitalar (casa) ou óbito na UTI externa. Escolha o tipo, informe data e hora e confirme. Não precisa "retornar" antes.

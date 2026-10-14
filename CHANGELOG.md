@@ -20,6 +20,13 @@ Antes de subir um deploy:
 
 ---
 
+## v0.66.0 — 2026-10-11
+
+- Sino de notificações: nova aba **Movimentações** com as últimas 50 movimentações da operação — nova internação (importações em lote viram uma linha só), mudança de unidade, transferência, retorno, alta hospitalar, óbito, alta/óbito na UTI externa e alta desfeita. Cada linha mostra paciente, local e tempo ("há 5 min", "ontem 14:30").
+- Indicador de novidade: o sino acende e a aba mostra a contagem do que chegou desde a última visita (guardado no navegador; na primeira vez não acende pelo histórico). Atualiza em tempo real.
+- Sem migration. Nova lib `src/lib/movimentacoes.ts` e hook `src/data/movimentacoes.ts`.
+- Limitação: o registro de atividade não guarda quem executou a ação, então a linha não mostra o usuário. Para isso seria preciso uma coluna nova (próxima versão, se desejado).
+
 ## v0.65.0 — 2026-10-05
 
 - Lista de Pacientes internados: pacientes com alta mostram "Data da alta: dd/mm/aaaa hh:mm · Alta normal / Alta na UTI externa".

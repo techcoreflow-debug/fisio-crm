@@ -17,6 +17,12 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    versao: "0.66.0",
+    data: "11/10/2026",
+    titulo: "Últimas movimentações no sino",
+    descricao: "Nova aba Movimentações: internações, mudanças de unidade, transferências, retornos, altas, óbitos e altas desfeitas, com o horário e o que é novo desde a sua última visita.",
+  },
+  {
     versao: "0.41.0",
     data: "20/08/2026",
     titulo: "Sino de novidades",
